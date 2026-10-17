@@ -9,7 +9,7 @@
 [workspace]
 # Used for the compare links in the changelog.
 repo_url = "https://github.com/manimovassagh/Ferrodock"
-# Versions come from git tags; Ferrodock isn't published to crates.io (yet).
+# Versions come from git tags. release-assets.yml publishes to crates.io.
 git_only = true
 # A binary, not a library: there's no public API for cargo-semver-checks.
 semver_check = false

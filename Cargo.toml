@@ -7,6 +7,12 @@ authors = ["Mani Movassagh"]
 repository = "https://github.com/manimovassagh/Ferrodock"
 license = "MIT"
 description = "A fast, native container manager for Docker, written in Rust."
+homepage = "https://manimovassagh.github.io/Ferrodock/"
+readme = "README.md"
+keywords = ["docker", "containers", "gui", "desktop", "egui"]
+categories = ["gui", "development-tools"]
+# Only what building needs; the website, docs and packaging stay on GitHub.
+include = ["/src", "/assets", "/build.rs", "/README.md", "/LICENSE", "/CHANGELOG.md"]
 
 [dependencies]
 bollard = { version = "0.21.1", features = ["time"] }
