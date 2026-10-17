@@ -18,7 +18,7 @@ mod store;
 
 use eframe::egui::{self, Frame, Margin};
 
-use crate::docker::Task;
+use crate::docker::{Action, Task};
 use crate::theme;
 use crate::worker::{Request, Worker};
 use commands::Target;
@@ -218,7 +218,7 @@ impl FerrodockApp {
             Intent::Run(task) => self.run(task),
             Intent::Confirm(confirmation) => self.confirmation = Some(confirmation),
             Intent::Pull(image) => {
-                self.store.pending.insert(image.clone());
+                self.store.pending.insert(image.clone(), Action::Pull);
                 self.worker.send(Request::Pull(image));
             }
             Intent::RunImage(spec) => self.worker.send(Request::RunImage(spec)),
@@ -231,7 +231,7 @@ impl FerrodockApp {
     }
 
     fn run(&mut self, task: Task) {
-        self.store.pending.insert(task.id.clone());
+        self.store.pending.insert(task.id.clone(), task.action);
         self.worker.send(Request::Run(task));
     }
 

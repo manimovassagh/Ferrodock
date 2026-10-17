@@ -19,12 +19,12 @@ pub(super) fn show(page: &mut ContainersPage, ui: &mut egui::Ui, ctx: &mut PageC
         page.selected = None;
     }
     ui.horizontal(|ui| {
-        status::pill(ui, p, c);
+        status::pill(ui, p, c, ctx.store.pending.get(&c.id).copied());
         ui.label(RichText::new(&c.status).color(p.muted));
     });
     ui.add_space(10.0);
     ui.horizontal(|ui| {
-        let busy = ctx.store.pending.contains(&c.id);
+        let busy = ctx.store.pending.contains_key(&c.id);
         if let Some(action) = actions::buttons(ui, c, busy, true) {
             ctx.request(actions::intent(action, c));
         }

@@ -45,7 +45,7 @@ pub(super) fn show(
                 let color = status::color(p, &c.state);
                 table::with_icon(ui, p, Icon::Container, color, &c.name, &c.image)
             });
-            row.col(|ui| status::cell(ui, p, c));
+            row.col(|ui| status::cell(ui, p, c, store.pending.get(&c.id).copied()));
             if show_id {
                 row.col(|ui| table::mono(ui, p, c.short_id()));
             }
@@ -55,7 +55,7 @@ pub(super) fn show(
             let selected_row = selected.as_deref() == Some(c.id.as_str());
             row.col(|ui| {
                 ui.spacing_mut().item_spacing.x = 2.0;
-                let busy = store.pending.contains(&c.id);
+                let busy = store.pending.contains_key(&c.id);
                 // Actions show on the hovered or selected row only, so idle
                 // rows stay calm.
                 if (busy || selected_row || table::row_hovered(ui))

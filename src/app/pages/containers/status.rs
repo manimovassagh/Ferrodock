@@ -4,11 +4,16 @@ use eframe::egui::{self, Color32, RichText};
 
 use crate::app::components::table;
 use crate::app::components::widgets::{self, Mark};
-use crate::docker::ContainerInfo;
+use crate::docker::{Action, ContainerInfo};
 use crate::theme::Palette;
 
-/// "● Running" style pill for the container's state.
-pub(super) fn pill(ui: &mut egui::Ui, p: &Palette, c: &ContainerInfo) {
+/// "● Running" style pill for the container's state. While an action is
+/// in flight it says what's happening instead, e.g. "Stopping…".
+pub(super) fn pill(ui: &mut egui::Ui, p: &Palette, c: &ContainerInfo, pending: Option<Action>) {
+    if let Some(label) = pending.and_then(transition) {
+        widgets::pill_with(ui, label, p.warning, Mark::Dot);
+        return;
+    }
     widgets::pill_with(
         ui,
         &capitalize(&c.state),
@@ -17,15 +22,28 @@ pub(super) fn pill(ui: &mut egui::Ui, p: &Palette, c: &ContainerInfo) {
     );
 }
 
+/// What a container is doing while `action` runs.
+fn transition(action: Action) -> Option<&'static str> {
+    Some(match action {
+        Action::Start => "Starting…",
+        Action::Stop => "Stopping…",
+        Action::Restart => "Restarting…",
+        Action::Pause => "Pausing…",
+        Action::Unpause => "Resuming…",
+        Action::Remove(_) => "Removing…",
+        _ => return None,
+    })
+}
+
 /// Table cell: the pill with Docker's status text ("Up 5 minutes") below.
-pub(super) fn cell(ui: &mut egui::Ui, p: &Palette, c: &ContainerInfo) {
+pub(super) fn cell(ui: &mut egui::Ui, p: &Palette, c: &ContainerInfo, pending: Option<Action>) {
     if table::is_compact(ui) {
-        pill(ui, p, c);
+        pill(ui, p, c, pending);
         return;
     }
     ui.vertical(|ui| {
         ui.add_space(6.0);
-        pill(ui, p, c);
+        pill(ui, p, c, pending);
         // Docker's status is just "Created" for new containers, which the
         // pill already says.
         if !c.status.eq_ignore_ascii_case(&c.state) {

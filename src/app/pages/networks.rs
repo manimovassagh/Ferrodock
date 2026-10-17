@@ -123,7 +123,7 @@ impl Page for NetworksPage {
             None
         };
         let task = remove_task(Resource::Networks, &net.id, &net.name);
-        if !ctx.store.pending.contains(&net.id) {
+        if !ctx.store.pending.contains_key(&net.id) {
             remove_button(ui, ctx, "network", task, blocked);
         } else {
             ui.spinner();

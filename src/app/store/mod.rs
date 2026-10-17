@@ -5,11 +5,11 @@
 
 mod live;
 
-use std::collections::HashSet;
+use std::collections::HashMap;
 
 use crate::docker::{
-    ComposeProject, ContainerInfo, DiskUsage, ImageInfo, Inspection, NetworkInfo, PullProgress,
-    VolumeInfo, format_size, group_projects,
+    Action, ComposeProject, ContainerInfo, DiskUsage, ImageInfo, Inspection, NetworkInfo,
+    PullProgress, VolumeInfo, format_size, group_projects,
 };
 use crate::worker::Response;
 pub use live::Live;
@@ -42,8 +42,9 @@ pub struct Store {
     pub inspection: Option<Result<Inspection, String>>,
     /// Pulls in progress, by image reference.
     pub pulls: Vec<(String, PullProgress)>,
-    /// IDs (names, for volumes) of items with an action in flight.
-    pub pending: HashSet<String>,
+    /// IDs (names, for volumes) of items with an action in flight, and
+    /// the action.
+    pub pending: HashMap<String, Action>,
     /// Logs and stats of the container being watched, if any.
     pub live: Option<Live>,
 }
@@ -61,7 +62,7 @@ impl Store {
             inspecting: None,
             inspection: None,
             pulls: Vec::new(),
-            pending: HashSet::new(),
+            pending: HashMap::new(),
             live: None,
         }
     }
@@ -79,6 +80,12 @@ impl Store {
             Response::Volumes(list) => self.volumes = list,
             Response::Networks(list) => self.networks = list,
             Response::Disk(usage) => self.disk = Some(usage),
+            Response::Alert(text) => {
+                return Some(Notice {
+                    text,
+                    is_error: true,
+                });
+            }
             Response::Pulling { image, progress } => {
                 match self.pulls.iter_mut().find(|(i, _)| *i == image) {
                     Some(entry) => entry.1 = progress,
@@ -229,7 +236,7 @@ mod tests {
     #[test]
     fn action_results_clear_pending_and_notify() {
         let mut store = Store::new();
-        store.pending.insert("x".into());
+        store.pending.insert("x".into(), Action::Start);
         let notice = store
             .apply(Response::Failed {
                 task: task(Action::Start, "x"),
@@ -252,7 +259,7 @@ mod tests {
     fn disconnect_forgets_everything() {
         let mut store = Store::new();
         store.apply(Response::Containers(vec![container("web", "", &[], &[])]));
-        store.pending.insert("web-id".into());
+        store.pending.insert("web-id".into(), Action::Stop);
         store.apply(Response::Disconnected("gone".into()));
         assert!(store.containers.is_empty());
         assert!(store.pending.is_empty());
