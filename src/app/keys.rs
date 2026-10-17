@@ -11,6 +11,7 @@ pub enum Shortcut {
     Palette,
     Help,
     Settings,
+    SelectAll,
     /// Switch to the page with this index.
     Page(usize),
     /// Move the selection in the list up (-1) or down (+1).
@@ -62,6 +63,9 @@ pub fn read(ctx: &egui::Context) -> Vec<Shortcut> {
         }
         if typing {
             return found;
+        }
+        if i.consume_key(Modifiers::COMMAND, Key::A) {
+            found.push(Shortcut::SelectAll);
         }
         let typed = |text: &str| {
             i.events
@@ -115,7 +119,12 @@ pub fn help(page_titles: &[&'static str]) -> Vec<Section> {
             "Lists",
             vec![
                 ("↑ ↓  or  J K".into(), "Select previous / next"),
-                ("Esc".into(), "Close the details pane"),
+                ("Esc".into(), "Close the details pane, clear the selection"),
+                (
+                    format!("{COMMAND}click  ⇧click"),
+                    "Select several containers",
+                ),
+                (format!("{COMMAND}A"), "Select all"),
             ],
         ),
         (

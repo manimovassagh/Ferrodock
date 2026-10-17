@@ -157,6 +157,11 @@ impl FerrodockApp {
             Shortcut::Palette => self.palette = Some(CommandPalette::default()),
             Shortcut::Help => self.show_help = true,
             Shortcut::Settings => self.show_settings = true,
+            Shortcut::SelectAll => {
+                let mut intents = Vec::new();
+                let page_ctx = PageCtx::new(&self.store, p, &self.search, &mut intents);
+                self.pages[self.active].select_all(&page_ctx);
+            }
             Shortcut::Page(index) if index < self.pages.len() => self.open_page(index),
             Shortcut::Page(_) => {}
             Shortcut::Step(delta) => table::request_step(ctx, delta),

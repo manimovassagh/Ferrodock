@@ -32,6 +32,11 @@ happening ("Stopping…", "Restarting…").
 If a container **crashes** (exits with an error you didn't ask for) or is
 killed for **running out of memory**, a notification tells you.
 
+To act on several containers at once, **⌘-click** (Ctrl-click) rows to
+select them, **Shift-click** to select a range, or press **⌘A** (Ctrl+A)
+for all of them. A bar above the list then offers **Start**, **Stop**,
+**Restart** and **Remove…** for the selection; **Esc** clears it.
+
 ### Logs
 
 The **Logs** tab shows the last 500 lines, then follows new output live.
