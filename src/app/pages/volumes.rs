@@ -5,6 +5,7 @@ use eframe::egui;
 use super::{
     confirm_removal, inspect_section, remove_button, remove_task, remove_unused_button, usage_pill,
 };
+use crate::app::components::icons::Icon;
 use crate::app::components::{details, table, widgets};
 use crate::app::page::{Command, Page, PageCtx, toggle_selection};
 use crate::app::store::Store;
@@ -26,6 +27,10 @@ impl VolumesPage {
 impl Page for VolumesPage {
     fn title(&self) -> &'static str {
         "Volumes"
+    }
+
+    fn icon(&self) -> Icon {
+        Icon::Database
     }
 
     fn resource(&self) -> Resource {
@@ -91,7 +96,16 @@ impl Page for VolumesPage {
             |i, row| {
                 let volume = visible[i];
                 let users = store.containers_using_volume(&volume.name).len();
-                row.col(|ui| table::two_line(ui, p, &volume.name, &volume.driver));
+                row.col(|ui| {
+                    table::with_icon(
+                        ui,
+                        p,
+                        Icon::Database,
+                        p.accent,
+                        &volume.name,
+                        &volume.driver,
+                    )
+                });
                 row.col(|ui| usage_pill(ui, p, users));
                 row.col(|ui| {
                     table::muted(ui, p, &volume.created.map(time_ago).unwrap_or_default())

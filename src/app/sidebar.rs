@@ -3,6 +3,7 @@
 
 use eframe::egui::{self, Align, Layout, RichText};
 
+use super::components::icons::Icon;
 use super::components::widgets;
 use super::page::Page;
 use super::store::{Connection, Store};
@@ -24,8 +25,12 @@ pub fn show(
 ) -> Option<Click> {
     ui.add_space(2.0);
     ui.horizontal(|ui| {
-        widgets::logo(ui, 24.0);
-        ui.label(RichText::new("Ferrodock").size(17.0).strong().color(p.text));
+        widgets::logo(ui, 26.0);
+        ui.label(
+            RichText::new("Ferrodock")
+                .font(egui::FontId::new(16.0, crate::theme::semibold()))
+                .color(p.text),
+        );
     });
 
     ui.add_space(22.0);
@@ -33,7 +38,15 @@ pub fn show(
     ui.add_space(2.0);
     let mut clicked = None;
     for (i, page) in pages.iter().enumerate() {
-        if widgets::nav_item(ui, p, page.title(), &page.badge(store), i == active).clicked() {
+        let item = widgets::nav_item(
+            ui,
+            p,
+            page.icon(),
+            page.title(),
+            &page.badge(store),
+            i == active,
+        );
+        if item.clicked() {
             clicked = Some(Click::Page(i));
         }
     }
@@ -41,11 +54,12 @@ pub fn show(
     ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
         ui.horizontal(|ui| engine_status(ui, p, &store.connection));
         ui.add_space(6.0);
-        let settings = widgets::nav_item(ui, p, "⚙  Settings", "", false).on_hover_text(format!(
-            "Theme, density and interface size ({}{})",
-            super::keys::COMMAND,
-            ","
-        ));
+        let settings =
+            widgets::nav_item(ui, p, Icon::Gear, "Settings", "", false).on_hover_text(format!(
+                "Theme, density and interface size ({}{})",
+                super::keys::COMMAND,
+                ","
+            ));
         if settings.clicked() {
             clicked = Some(Click::Settings);
         }

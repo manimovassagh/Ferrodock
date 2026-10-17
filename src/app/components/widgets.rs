@@ -2,6 +2,7 @@
 
 use eframe::egui::{self, Align2, Color32, CornerRadius, FontId, Response, RichText, Sense, vec2};
 
+use super::icons::{self, Icon};
 use crate::theme::Palette;
 
 /// The Ferrodock mark: a steel hex nut holding a container, on a rust tile.
@@ -37,27 +38,41 @@ pub fn dot(ui: &mut egui::Ui, color: Color32) {
     ui.painter().circle_filled(rect.center(), 4.0, color);
 }
 
-/// A full-width sidebar entry with a badge (usually a count) on the right.
+/// A full-width sidebar entry: icon, label, and a badge (usually a count)
+/// on the right.
 pub fn nav_item(
     ui: &mut egui::Ui,
     p: &Palette,
+    icon: Icon,
     label: &str,
     badge: &str,
     selected: bool,
 ) -> Response {
-    let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), 30.0), Sense::click());
+    let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), 32.0), Sense::click());
     let painter = ui.painter();
     if selected {
-        painter.rect_filled(rect, CornerRadius::same(6), p.accent.gamma_multiply(0.18));
+        painter.rect_filled(rect, CornerRadius::same(8), p.accent.gamma_multiply(0.13));
     } else if response.hovered() {
-        painter.rect_filled(rect, CornerRadius::same(6), p.raised);
+        painter.rect_filled(rect, CornerRadius::same(8), p.raised);
     }
+    let icon_rect =
+        egui::Rect::from_center_size(rect.left_center() + vec2(19.0, 0.0), vec2(17.0, 17.0));
+    icons::paint(
+        painter,
+        icon_rect,
+        icon,
+        if selected { p.accent } else { p.muted },
+    );
     painter.text(
-        rect.left_center() + vec2(10.0, 0.0),
+        rect.left_center() + vec2(36.0, 0.0),
         Align2::LEFT_CENTER,
         label,
-        FontId::proportional(14.0),
-        if selected { p.text } else { p.muted },
+        if selected {
+            FontId::new(13.5, crate::theme::semibold())
+        } else {
+            FontId::proportional(13.5)
+        },
+        p.text,
     );
     painter.text(
         rect.right_center() - vec2(10.0, 0.0),
@@ -66,10 +81,25 @@ pub fn nav_item(
         FontId::proportional(12.0),
         p.muted,
     );
-    response
+    response.widget_info(|| egui::WidgetInfo::selected(egui::Role::Tab, true, selected, label));
+    response.on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
-/// A tab, optionally with a count, e.g. "Running 3".
+/// A rounded track holding [`tab`]s, like a macOS segmented control.
+pub fn segmented<R>(ui: &mut egui::Ui, p: &Palette, add: impl FnOnce(&mut egui::Ui) -> R) -> R {
+    egui::Frame::new()
+        .fill(p.raised)
+        .corner_radius(CornerRadius::same(9))
+        .inner_margin(egui::Margin::same(3))
+        .show(ui, |ui| {
+            ui.spacing_mut().item_spacing.x = 2.0;
+            ui.horizontal(add).inner
+        })
+        .inner
+}
+
+/// One segment of a [`segmented`] control, optionally with a count, e.g.
+/// "Running 3".
 pub fn tab(
     ui: &mut egui::Ui,
     p: &Palette,
@@ -81,18 +111,27 @@ pub fn tab(
         Some(count) => format!("{label}  {count}"),
         None => label.to_owned(),
     };
-    let galley = ui
-        .painter()
-        .layout_no_wrap(text, FontId::proportional(13.0), p.text);
-    let (rect, response) = ui.allocate_exact_size(galley.size() + vec2(24.0, 12.0), Sense::click());
+    let font = if selected {
+        FontId::new(13.0, crate::theme::semibold())
+    } else {
+        FontId::proportional(13.0)
+    };
+    let galley = ui.painter().layout_no_wrap(text, font, p.text);
+    let (rect, response) = ui.allocate_exact_size(galley.size() + vec2(22.0, 10.0), Sense::click());
     let painter = ui.painter();
     if selected {
-        painter.rect_filled(rect, CornerRadius::same(6), p.raised);
+        painter.add(egui::Shape::rect_filled(
+            rect.translate(vec2(0.0, 0.5)),
+            CornerRadius::same(7),
+            Color32::from_black_alpha(18),
+        ));
+        painter.rect_filled(rect, CornerRadius::same(7), p.bg);
     } else if response.hovered() {
-        painter.rect_filled(rect, CornerRadius::same(6), p.raised.gamma_multiply(0.5));
+        painter.rect_filled(rect, CornerRadius::same(7), p.border.gamma_multiply(0.6));
     }
     let color = if selected { p.text } else { p.muted };
-    painter.galley_with_override_text_color(rect.min + vec2(12.0, 6.0), galley, color);
+    painter.galley_with_override_text_color(rect.min + vec2(11.0, 5.0), galley, color);
+    response.widget_info(|| egui::WidgetInfo::selected(egui::Role::Tab, true, selected, label));
     response
 }
 
@@ -150,10 +189,57 @@ pub fn pill_with(ui: &mut egui::Ui, label: &str, color: Color32, mark: Mark) {
     painter.galley(rect.min + padding + vec2(dot_space, 0.0), galley, color);
 }
 
-/// Compact square button with a glyph and a tooltip.
-pub fn icon_button(ui: &mut egui::Ui, icon: &str, tooltip: &str) -> Response {
-    ui.add(egui::Button::new(RichText::new(icon).size(14.0)).min_size(vec2(28.0, 26.0)))
+/// Compact square button showing an icon, with a tooltip.
+pub fn icon_button(ui: &mut egui::Ui, icon: Icon, tooltip: &str) -> Response {
+    let p = crate::theme::palette(ui);
+    let (rect, response) = ui.allocate_exact_size(vec2(28.0, 28.0), Sense::click());
+    let painter = ui.painter();
+    if response.hovered() {
+        painter.rect_filled(rect, CornerRadius::same(7), p.raised);
+    }
+    let color = if response.hovered() { p.text } else { p.muted };
+    icons::paint(
+        painter,
+        egui::Rect::from_center_size(rect.center(), vec2(15.0, 15.0)),
+        icon,
+        color,
+    );
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tooltip));
+    response
         .on_hover_text(tooltip)
+        .on_hover_cursor(egui::CursorIcon::PointingHand)
+}
+
+/// A regular button with an icon before its label.
+pub fn button(ui: &mut egui::Ui, icon: Icon, label: &str) -> Response {
+    let p = crate::theme::palette(ui);
+    let galley = ui
+        .painter()
+        .layout_no_wrap(label.to_owned(), FontId::proportional(13.0), p.text);
+    let size = vec2(galley.size().x + 44.0, 30.0);
+    let (rect, response) = ui.allocate_exact_size(size, Sense::click());
+    let painter = ui.painter();
+    let fill = if response.is_pointer_button_down_on() {
+        p.border
+    } else if response.hovered() {
+        p.border.gamma_multiply(0.7)
+    } else {
+        p.raised
+    };
+    painter.rect_filled(rect, CornerRadius::same(8), fill);
+    icons::paint(
+        painter,
+        egui::Rect::from_center_size(rect.left_center() + vec2(19.0, 0.0), vec2(14.0, 14.0)),
+        icon,
+        p.text,
+    );
+    painter.galley(
+        egui::pos2(rect.left() + 32.0, rect.center().y - galley.size().y / 2.0),
+        galley,
+        p.text,
+    );
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, label));
+    response.on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
 /// A button for destructive actions, tinted with the danger colour.

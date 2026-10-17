@@ -181,6 +181,12 @@ const SHOWCASE = [
     alt: "Live CPU and memory charts",
   },
   {
+    title: "Win back your disk space",
+    text: "See how much images, containers, volumes and build cache take, and free it in one step, with a preview of exactly what goes.",
+    src: "/img/disk.png",
+    alt: "Disk usage page",
+  },
+  {
     title: "Images, volumes and networks",
     text: "Sizes, mountpoints, subnets, and which containers use each one. Remove what's unused in one step, always with a confirmation first.",
     src: "/img/volumes.png",
@@ -188,9 +194,9 @@ const SHOWCASE = [
   },
   {
     title: "At home on your desktop",
-    text: "Light and dark themes follow your system setting. Native widgets and the platform font mean it fits in next to your other apps.",
-    src: "/img/light-mode.png",
-    alt: "Ferrodock in light mode",
+    text: "A clean light theme by default and a polished dark one, crisp vector icons and the Inter typeface, at any size from 90% to 125%.",
+    src: "/img/dark-mode.png",
+    alt: "Ferrodock in dark mode",
   },
 ];
 

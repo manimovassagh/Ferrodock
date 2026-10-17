@@ -12,6 +12,7 @@ mod table;
 use eframe::egui;
 
 use super::{confirm_removal, remove_task};
+use crate::app::components::icons::Icon;
 use crate::app::components::widgets;
 use crate::app::page::{Command, Page, PageCtx};
 use crate::app::store::Store;
@@ -67,8 +68,7 @@ impl ContainersPage {
     fn state_tabs(&mut self, ui: &mut egui::Ui, p: &Palette, store: &Store) {
         let total = store.containers.len();
         let running = store.running_count();
-        ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = 4.0;
+        widgets::segmented(ui, p, |ui| {
             for (filter, label, count) in [
                 (StateFilter::All, "All", total),
                 (StateFilter::Running, "Running", running),
@@ -85,6 +85,10 @@ impl ContainersPage {
 impl Page for ContainersPage {
     fn title(&self) -> &'static str {
         "Containers"
+    }
+
+    fn icon(&self) -> Icon {
+        Icon::Container
     }
 
     fn resource(&self) -> Resource {

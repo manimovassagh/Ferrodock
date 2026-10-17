@@ -2,6 +2,7 @@
 
 use eframe::egui::{self, Align, CornerRadius, Layout, RichText, Stroke};
 
+use super::icons::Icon;
 use super::widgets;
 use crate::theme::Palette;
 
@@ -10,11 +11,15 @@ pub fn header(ui: &mut egui::Ui, p: &Palette, title: &str) -> bool {
     let mut closed = false;
     ui.horizontal(|ui| {
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            closed = widgets::icon_button(ui, "✕", "Close").clicked();
+            closed = widgets::icon_button(ui, Icon::Close, "Close (Esc)").clicked();
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                 ui.add(
-                    egui::Label::new(RichText::new(title).size(18.0).strong().color(p.text))
-                        .truncate(),
+                    egui::Label::new(
+                        RichText::new(title)
+                            .font(egui::FontId::new(19.0, crate::theme::semibold()))
+                            .color(p.text),
+                    )
+                    .truncate(),
                 );
             });
         });

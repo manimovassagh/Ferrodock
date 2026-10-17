@@ -49,7 +49,7 @@ fn mark(state: &str) -> Mark {
     }
 }
 
-fn color(p: &Palette, state: &str) -> Color32 {
+pub(super) fn color(p: &Palette, state: &str) -> Color32 {
     match state {
         "running" => p.success,
         "paused" | "restarting" => p.warning,

@@ -65,9 +65,10 @@ Each page shows what's in use and by which containers.
 
 ## Themes
 
-Ferrodock follows your system's light or dark setting.
+Ferrodock starts in light mode. Switch to dark, or let it follow your
+system, in [Settings](#settings).
 
-![Light mode](/img/light-mode.png)
+![Dark mode](/img/dark-mode.png)
 
 ## Inspect
 

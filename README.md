@@ -90,7 +90,7 @@ Get-FileHash .\Ferrodock-*-windows-x64.zip            # Windows (compare with SH
   </tr>
   <tr>
     <td><img src="docs/screenshots/volumes.png" alt="Volumes page"></td>
-    <td><img src="docs/screenshots/light-mode.png" alt="Light mode"></td>
+    <td><img src="docs/screenshots/dark-mode.png" alt="Dark mode"></td>
   </tr>
 </table>
 

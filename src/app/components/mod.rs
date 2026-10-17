@@ -2,6 +2,7 @@
 
 pub mod confirm;
 pub mod details;
+pub mod icons;
 pub mod inspect;
 pub mod palette;
 pub mod shortcuts;

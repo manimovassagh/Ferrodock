@@ -87,8 +87,8 @@ pub fn show(ui: &mut egui::Ui, p: &Palette, settings: &mut Settings) -> bool {
                 .show(ui, |ui| {
                     ui.label(RichText::new("Theme").color(p.muted));
                     ui.horizontal(|ui| {
-                        ui.selectable_value(&mut settings.theme, Theme::Light, "☀ Light");
-                        ui.selectable_value(&mut settings.theme, Theme::Dark, "🌙 Dark");
+                        ui.selectable_value(&mut settings.theme, Theme::Light, "Light");
+                        ui.selectable_value(&mut settings.theme, Theme::Dark, "Dark");
                         ui.selectable_value(&mut settings.theme, Theme::System, "System");
                     });
                     ui.end_row();
