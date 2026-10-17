@@ -4,8 +4,9 @@
 use eframe::egui::{self, CornerRadius, Frame, Margin, RichText, Stroke, ThemePreference};
 use serde::{Deserialize, Serialize};
 
-use super::components::table;
+use super::components::{table, widgets};
 use crate::theme::Palette;
+use crate::update::{Status, Updater};
 
 /// Key the settings are stored under.
 pub const STORAGE_KEY: &str = "settings";
@@ -34,6 +35,8 @@ pub struct Settings {
     pub density: Density,
     /// Interface size, 0.9 to 1.25.
     pub scale: f32,
+    /// Look for a new version when Ferrodock starts.
+    pub check_updates: bool,
 }
 
 impl Default for Settings {
@@ -42,6 +45,7 @@ impl Default for Settings {
             theme: Theme::default(),
             density: Density::default(),
             scale: 1.0,
+            check_updates: true,
         }
     }
 }
@@ -64,7 +68,7 @@ impl Settings {
 
 /// Draws the Settings dialog. Changes apply immediately. Returns false
 /// once it should close.
-pub fn show(ui: &mut egui::Ui, p: &Palette, settings: &mut Settings) -> bool {
+pub fn show(ui: &mut egui::Ui, p: &Palette, settings: &mut Settings, updater: &Updater) -> bool {
     let before = settings.clone();
     let mut close = false;
     let modal = egui::Modal::new(egui::Id::unique("ferrodock-settings"))
@@ -121,6 +125,49 @@ pub fn show(ui: &mut egui::Ui, p: &Palette, settings: &mut Settings) -> bool {
                     }
                     ui.end_row();
                 });
+
+            ui.add_space(18.0);
+            heading(ui, p, "Updates");
+            ui.checkbox(
+                &mut settings.check_updates,
+                "Check for updates when Ferrodock starts",
+            );
+            ui.horizontal(|ui| {
+                let status = updater.status();
+                let (text, color) = match &status {
+                    Status::Idle => (String::new(), p.muted),
+                    Status::Checking => ("Checking…".into(), p.muted),
+                    Status::UpToDate => ("Ferrodock is up to date.".into(), p.muted),
+                    Status::Available(a) => {
+                        (format!("Version {} is available.", a.version), p.text)
+                    }
+                    Status::Downloading { version, .. } => {
+                        (format!("Downloading {version}…"), p.muted)
+                    }
+                    Status::Ready { version, .. } => (
+                        format!("Version {version} is installed. Restart to use it."),
+                        p.text,
+                    ),
+                    Status::Failed(e) => (e.clone(), p.danger),
+                };
+                if let Status::Available(available) = status {
+                    if widgets::primary_button(ui, "Update now").clicked() {
+                        updater.install(available);
+                    }
+                } else if ui.button("Check now").clicked() {
+                    updater.check();
+                }
+                ui.label(RichText::new(text).color(color));
+            });
+            if crate::update::installed_with_homebrew() {
+                ui.label(
+                    RichText::new(
+                        "Installed with Homebrew: `brew upgrade --cask ferrodock` works too.",
+                    )
+                    .size(12.0)
+                    .color(p.muted),
+                );
+            }
 
             ui.add_space(18.0);
             heading(ui, p, "About");
