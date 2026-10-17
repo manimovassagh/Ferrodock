@@ -2,11 +2,11 @@
 
 use eframe::egui;
 
+use super::{remove_button, remove_task, remove_unused_button};
 use crate::app::components::{details, table, widgets};
 use crate::app::page::{Page, PageCtx, toggle_selection};
 use crate::app::store::Store;
-use crate::docker::{NetworkInfo, time_ago};
-use crate::worker::Resource;
+use crate::docker::{NetworkInfo, Resource, Task, plural, time_ago};
 
 #[derive(Default)]
 pub struct NetworksPage {
@@ -35,11 +35,25 @@ impl Page for NetworksPage {
 
     fn summary(&self, store: &Store) -> String {
         let custom = store.networks.iter().filter(|n| !n.is_builtin()).count();
-        format!("{} networks · {custom} custom", store.networks.len())
+        format!(
+            "{} · {custom} custom",
+            plural(store.networks.len(), "network")
+        )
     }
 
     fn search_hint(&self) -> &'static str {
         "Search name, driver or subnet"
+    }
+
+    fn toolbar(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
+        let unused: Vec<Task> = ctx
+            .store
+            .networks
+            .iter()
+            .filter(|n| !n.is_builtin() && ctx.store.containers_on_network(&n.name).is_empty())
+            .map(|n| remove_task(Resource::Networks, &n.id, &n.name))
+            .collect();
+        remove_unused_button(ui, ctx, "network", unused);
     }
 
     fn show(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
@@ -99,6 +113,20 @@ impl Page for NetworksPage {
         }
         if net.is_builtin() {
             widgets::pill(ui, "Built-in", p.accent);
+        }
+        ui.add_space(10.0);
+        let blocked = if net.is_builtin() {
+            Some("Docker's built-in networks can't be removed")
+        } else if !attached.is_empty() {
+            Some("Containers are attached to it")
+        } else {
+            None
+        };
+        let task = remove_task(Resource::Networks, &net.id, &net.name);
+        if !ctx.store.pending.contains(&net.id) {
+            remove_button(ui, ctx, "network", task, blocked);
+        } else {
+            ui.spinner();
         }
         ui.add_space(16.0);
 

@@ -106,6 +106,13 @@ pub fn icon_button(ui: &mut egui::Ui, icon: &str, tooltip: &str) -> Response {
         .on_hover_text(tooltip)
 }
 
+/// A button for destructive actions, tinted with the danger colour.
+pub fn danger_button(ui: &mut egui::Ui, p: &Palette, label: &str) -> Response {
+    ui.add(
+        egui::Button::new(RichText::new(label).color(p.danger)).fill(p.danger.gamma_multiply(0.15)),
+    )
+}
+
 /// Centered hint shown when a list has nothing to show.
 pub fn empty_state(ui: &mut egui::Ui, p: &Palette, message: &str) {
     ui.add_space(60.0);

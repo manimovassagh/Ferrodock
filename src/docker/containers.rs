@@ -1,9 +1,7 @@
-//! Containers: listing and start/stop/restart.
+//! Containers: listing.
 
 use bollard::models::{ContainerSummary, ContainerSummaryStateEnum};
-use bollard::query_parameters::{
-    ListContainersOptions, RestartContainerOptions, StartContainerOptions, StopContainerOptions,
-};
+use bollard::query_parameters::ListContainersOptions;
 
 use super::{DockerClient, describe};
 
@@ -132,24 +130,6 @@ impl From<ContainerSummary> for ContainerInfo {
     }
 }
 
-/// Lifecycle actions the UI can request.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Action {
-    Start,
-    Stop,
-    Restart,
-}
-
-impl Action {
-    pub fn verb(self) -> &'static str {
-        match self {
-            Action::Start => "start",
-            Action::Stop => "stop",
-            Action::Restart => "restart",
-        }
-    }
-}
-
 impl DockerClient {
     /// Lists all containers (running and stopped), sorted by name.
     pub async fn list_containers(&self) -> Result<Vec<ContainerInfo>, String> {
@@ -167,27 +147,6 @@ impl DockerClient {
             .collect();
         list.sort_by_cached_key(|c| c.name.to_lowercase());
         Ok(list)
-    }
-
-    pub async fn perform(&self, action: Action, id: &str) -> Result<(), String> {
-        let result = match action {
-            Action::Start => {
-                self.docker
-                    .start_container(id, None::<StartContainerOptions>)
-                    .await
-            }
-            Action::Stop => {
-                self.docker
-                    .stop_container(id, None::<StopContainerOptions>)
-                    .await
-            }
-            Action::Restart => {
-                self.docker
-                    .restart_container(id, None::<RestartContainerOptions>)
-                    .await
-            }
-        };
-        result.map_err(describe)
     }
 }
 

@@ -15,10 +15,12 @@ use std::time::{Duration, Instant};
 
 use eframe::egui::{self, Frame, Margin};
 
+use crate::docker::{Resource, Task};
 use crate::theme;
-use crate::worker::{Request, Resource, Worker};
+use crate::worker::{Request, Worker};
+use components::confirm::{self, Choice};
 use components::toast::Toast;
-use page::{Intent, Page, PageCtx};
+use page::{Confirmation, Intent, Page, PageCtx};
 use store::{Connection, Store};
 
 const REFRESH_INTERVAL: Duration = Duration::from_secs(3);
@@ -31,6 +33,8 @@ pub struct IronStackApp {
     search: String,
     last_refresh: Instant,
     toast: Option<Toast>,
+    /// A destructive action waiting for the user to confirm it.
+    confirmation: Option<Confirmation>,
 }
 
 impl IronStackApp {
@@ -51,6 +55,7 @@ impl IronStackApp {
             search: String::new(),
             last_refresh: Instant::now(),
             toast: None,
+            confirmation: None,
         }
     }
 
@@ -84,10 +89,31 @@ impl IronStackApp {
 
     fn handle_intent(&mut self, intent: Intent) {
         match intent {
-            Intent::Container { action, id, name } => {
-                self.store.pending.insert(id.clone());
-                self.worker.send(Request::Container { action, id, name });
+            Intent::Run(task) => self.run(task),
+            Intent::Confirm(confirmation) => self.confirmation = Some(confirmation),
+        }
+    }
+
+    fn run(&mut self, task: Task) {
+        self.store.pending.insert(task.id.clone());
+        self.worker.send(Request::Run(task));
+    }
+
+    fn show_confirmation(&mut self, ui: &mut egui::Ui, p: &theme::Palette) {
+        let Some(confirmation) = &self.confirmation else {
+            return;
+        };
+        match confirm::show(ui, p, confirmation) {
+            Some(Choice::Confirm) => {
+                if let Some(confirmation) = self.confirmation.take() {
+                    confirmation
+                        .tasks
+                        .into_iter()
+                        .for_each(|task| self.run(task));
+                }
             }
+            Some(Choice::Cancel) => self.confirmation = None,
+            None => {}
         }
     }
 }
@@ -138,14 +164,23 @@ impl eframe::App for IronStackApp {
             )
             .show(ui, |ui| {
                 let summary = page.summary(&self.store);
+                // The toolbar sees this frame's search text; the box edits a copy.
+                let mut search = self.search.clone();
                 refresh = shell::header(
                     ui,
                     p,
                     page.title(),
                     &summary,
                     page.search_hint(),
-                    &mut self.search,
+                    &mut search,
+                    |ui| {
+                        if !self.store.is_disconnected() {
+                            let mut ctx = PageCtx::new(&self.store, p, &self.search, &mut intents);
+                            page.toolbar(ui, &mut ctx);
+                        }
+                    },
                 );
+                self.search = search;
                 ui.add_space(12.0);
                 if let Connection::Disconnected { reason } = &self.store.connection {
                     refresh |= shell::disconnected(ui, p, reason);
@@ -161,6 +196,7 @@ impl eframe::App for IronStackApp {
         if refresh {
             self.refresh();
         }
+        self.show_confirmation(ui, p);
         if let Some(toast) = &self.toast
             && !toast.show(ui, p)
         {
