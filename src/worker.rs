@@ -99,19 +99,24 @@ impl Sender {
 }
 
 async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) {
-    let client = match DockerClient::connect() {
-        Ok(client) => client,
-        Err(e) => {
-            out.send(Response::Disconnected(e));
-            return;
-        }
-    };
     let out = std::sync::Arc::new(out);
+    let mut client: Option<DockerClient> = None;
 
     while let Some(request) = requests.recv().await {
+        // Docker may not be running yet (or its socket may not exist), so
+        // keep trying to set up the client until it works.
+        let docker = match client.clone().map_or_else(DockerClient::connect, Ok) {
+            Ok(docker) => docker,
+            Err(e) => {
+                out.send(Response::Disconnected(e));
+                continue;
+            }
+        };
+        client = Some(docker.clone());
+
         // Each request runs as its own task so a slow `stop` (which waits
         // for the container to exit) doesn't block refreshes.
-        let client = client.clone();
+        let client = docker;
         let out = out.clone();
         tokio::spawn(async move {
             match request {
