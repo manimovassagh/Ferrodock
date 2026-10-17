@@ -222,6 +222,21 @@ impl FerrodockApp {
                 self.worker.send(Request::Pull(image));
             }
             Intent::RunImage(spec) => self.worker.send(Request::RunImage(spec)),
+            Intent::Processes(id) => {
+                // Keep the old table on screen while the new one loads.
+                let previous = self
+                    .store
+                    .processes
+                    .take()
+                    .filter(|(asked, _, _)| *asked == id)
+                    .and_then(|(_, _, table)| table);
+                self.store.processes = Some((id.clone(), std::time::Instant::now(), previous));
+                self.worker.send(Request::Processes(id));
+            }
+            Intent::History(image) => {
+                self.store.history = Some((image.clone(), None));
+                self.worker.send(Request::History(image));
+            }
             Intent::Notify { text, is_error } => self.toast = Some(Toast::new(text, is_error)),
             Intent::OpenPage(title) => {
                 if let Some(index) = self.pages.iter().position(|p| p.title() == title) {

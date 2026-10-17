@@ -5,6 +5,7 @@ mod actions;
 mod details;
 mod logs;
 pub(super) mod ports;
+mod processes;
 mod stats;
 mod status;
 mod table;
@@ -41,6 +42,7 @@ enum DetailsTab {
     Overview,
     Logs,
     Stats,
+    Processes,
     Inspect,
 }
 

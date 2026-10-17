@@ -214,6 +214,7 @@ impl Page for ImagesPage {
                 details::section(ui, p, "Used by", |ui| {
                     details::field(ui, p, "Containers", &widgets::join_or_dash(&users));
                 });
+                history_section(ui, ctx, &image.id);
                 inspect_section(ui, ctx, Resource::Images, &image.id);
             });
     }
@@ -268,6 +269,52 @@ impl ImagesPage {
             None => {}
         }
     }
+}
+
+/// Collapsible list of the image's layers, loaded when first opened. The
+/// biggest layers stand out, since they're where the size comes from.
+fn history_section(ui: &mut egui::Ui, ctx: &mut PageCtx, image_id: &str) {
+    let p = ctx.palette;
+    egui::CollapsingHeader::new(egui::RichText::new("HISTORY").size(11.0).color(p.muted))
+        .id_salt(("history", image_id))
+        .show(ui, |ui| {
+            let loaded = ctx.store.history.as_ref().filter(|(id, _)| id == image_id);
+            let Some((_, Some(layers))) = loaded else {
+                if loaded.is_none() {
+                    ctx.request(Intent::History(image_id.to_owned()));
+                }
+                ui.spinner();
+                return;
+            };
+            let mut sizes: Vec<i64> = layers.iter().map(|l| l.size).collect();
+            sizes.sort_unstable_by(|a, b| b.cmp(a));
+            let big = sizes.get(2).copied().unwrap_or(0).max(1);
+            egui::Grid::new(("layers", image_id))
+                .num_columns(2)
+                .spacing([12.0, 6.0])
+                .show(ui, |ui| {
+                    for layer in layers {
+                        let size = egui::RichText::new(format_size(layer.size)).size(12.0);
+                        ui.label(if layer.size >= big {
+                            size.color(p.accent).strong()
+                        } else {
+                            size.color(p.muted)
+                        });
+                        ui.add(
+                            egui::Label::new(
+                                egui::RichText::new(&layer.instruction)
+                                    .monospace()
+                                    .size(11.5)
+                                    .color(p.text),
+                            )
+                            .truncate(),
+                        )
+                        .on_hover_text(&layer.instruction);
+                        ui.end_row();
+                    }
+                });
+        });
+    ui.add_space(8.0);
 }
 
 /// A progress bar for each pull in progress.

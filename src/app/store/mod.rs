@@ -6,13 +6,17 @@
 mod live;
 
 use std::collections::HashMap;
+use std::time::Instant;
 
 use crate::docker::{
-    Action, ComposeProject, ContainerInfo, DiskUsage, ImageInfo, Inspection, NetworkInfo,
-    PullProgress, VolumeInfo, format_size, group_projects,
+    Action, ComposeProject, ContainerInfo, DiskUsage, ImageInfo, Inspection, Layer, NetworkInfo,
+    Processes, PullProgress, VolumeInfo, format_size, group_projects,
 };
 use crate::worker::Response;
 pub use live::Live;
+
+/// A container's processes, or why they couldn't be read.
+pub type ProcessTable = Result<Processes, String>;
 
 pub enum Connection {
     Connecting,
@@ -40,6 +44,11 @@ pub struct Store {
     /// once it arrives (an error message if it failed).
     pub inspecting: Option<String>,
     pub inspection: Option<Result<Inspection, String>>,
+    /// The process table of the container asked about last, when it was
+    /// asked for, and the answer (or why it couldn't be read).
+    pub processes: Option<(String, Instant, Option<ProcessTable>)>,
+    /// The layers of the image asked about last.
+    pub history: Option<(String, Option<Vec<Layer>>)>,
     /// Pulls in progress, by image reference.
     pub pulls: Vec<(String, PullProgress)>,
     /// IDs (names, for volumes) of items with an action in flight, and
@@ -62,6 +71,8 @@ impl Store {
             inspecting: None,
             inspection: None,
             pulls: Vec::new(),
+            processes: None,
+            history: None,
             pending: HashMap::new(),
             live: None,
         }
@@ -90,6 +101,24 @@ impl Store {
                 match self.pulls.iter_mut().find(|(i, _)| *i == image) {
                     Some(entry) => entry.1 = progress,
                     None => self.pulls.push((image, progress)),
+                }
+            }
+            Response::Processes(result) => {
+                let id = match &result {
+                    Ok(p) => p.container_id.clone(),
+                    Err((id, _)) => id.clone(),
+                };
+                if let Some((asked, _, slot)) = &mut self.processes
+                    && *asked == id
+                {
+                    *slot = Some(result.map_err(|(_, e)| e));
+                }
+            }
+            Response::History { image, layers } => {
+                if let Some((asked, slot)) = &mut self.history
+                    && *asked == image
+                {
+                    *slot = Some(layers);
                 }
             }
             Response::Inspected(inspection) => {

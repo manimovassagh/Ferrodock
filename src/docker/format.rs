@@ -44,6 +44,8 @@ pub fn format_size(bytes: i64) -> String {
 pub fn plural(count: usize, noun: &str) -> String {
     if count == 1 {
         format!("1 {noun}")
+    } else if ["s", "x", "ch", "sh"].iter().any(|end| noun.ends_with(end)) {
+        format!("{count} {noun}es")
     } else {
         format!("{count} {noun}s")
     }
@@ -51,6 +53,14 @@ pub fn plural(count: usize, noun: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn pluralises_es_nouns() {
+        assert_eq!(plural(2, "process"), "2 processes");
+        assert_eq!(plural(1, "process"), "1 process");
+        assert_eq!(plural(3, "image"), "3 images");
+    }
+
     use super::*;
 
     #[test]
