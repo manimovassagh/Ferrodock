@@ -4,25 +4,32 @@ use eframe::egui::{self, Align2, Color32, CornerRadius, FontId, Response, RichTe
 
 use crate::theme::Palette;
 
-/// The Ferrodock mark: three stacked slabs.
-pub fn logo(ui: &mut egui::Ui, p: &Palette, size: f32) {
+/// The Ferrodock mark: a steel hex nut holding a container, on a rust tile.
+/// The small-size drawing of the app icon (see assets/source/make_icon.py),
+/// painted with shapes so it stays sharp at any scale.
+pub fn logo(ui: &mut egui::Ui, size: f32) {
+    const RUST: Color32 = Color32::from_rgb(0xd8, 0x50, 0x30);
+    const STEEL: Color32 = Color32::from_rgb(0x17, 0x19, 0x1f);
+    const CREAM: Color32 = Color32::from_rgb(0xf7, 0xf0, 0xe8);
+
     let (rect, _) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
     let painter = ui.painter();
-    let slab = size * 0.24;
-    let gap = (size - 3.0 * slab) / 2.0;
-    for (i, alpha) in [1.0, 0.7, 0.45].into_iter().enumerate() {
-        let top = rect.top() + i as f32 * (slab + gap);
-        let inset = i as f32 * size * 0.08;
-        let slab_rect = egui::Rect::from_min_max(
-            egui::pos2(rect.left() + inset, top),
-            egui::pos2(rect.right() - inset, top + slab),
-        );
-        painter.rect_filled(
-            slab_rect,
-            CornerRadius::same(2),
-            p.accent.gamma_multiply(alpha),
-        );
-    }
+    painter.rect_filled(rect, CornerRadius::same((size * 0.22) as u8), RUST);
+
+    // Nut, with a corner pointing up.
+    let center = rect.center();
+    let r = size * 0.4;
+    let nut: Vec<egui::Pos2> = (0..6)
+        .map(|i| {
+            let angle = (60.0 * i as f32 - 90.0).to_radians();
+            center + vec2(angle.cos(), angle.sin()) * r
+        })
+        .collect();
+    painter.add(egui::Shape::convex_polygon(nut, STEEL, egui::Stroke::NONE));
+
+    // Container.
+    let container = egui::Rect::from_center_size(center, vec2(r * 1.14, r * 0.66));
+    painter.rect_filled(container, CornerRadius::same(1), CREAM);
 }
 
 pub fn dot(ui: &mut egui::Ui, color: Color32) {
