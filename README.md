@@ -193,29 +193,12 @@ flowchart LR
 The details, including pre-releases and rebuilding a release's downloads,
 are in [RELEASING.md](RELEASING.md).
 
-## Roadmap
-
-Progress is tracked in [issues](https://github.com/manimovassagh/Ferrodock/issues).
-
-**Next up**
-
-- [ ] Install with Homebrew, winget and `cargo install` ([#24](https://github.com/manimovassagh/Ferrodock/issues/24))
-- [ ] Signed and notarized macOS app and Windows executable ([#25](https://github.com/manimovassagh/Ferrodock/issues/25))
-
-**Done**
-
-- [x] Containers: start, stop, restart, remove, logs and live stats ([#5](https://github.com/manimovassagh/Ferrodock/issues/5), [#6](https://github.com/manimovassagh/Ferrodock/issues/6), [#7](https://github.com/manimovassagh/Ferrodock/issues/7))
-- [x] Docker Compose projects ([#8](https://github.com/manimovassagh/Ferrodock/issues/8))
-- [x] Images, volumes and networks, with clean-up of unused items
-- [x] Prebuilt downloads for Windows, macOS and Linux, with automated releases ([#9](https://github.com/manimovassagh/Ferrodock/issues/9))
-- [x] App icon and small, optimised binaries ([#10](https://github.com/manimovassagh/Ferrodock/issues/10))
-- [x] Documentation website ([#11](https://github.com/manimovassagh/Ferrodock/issues/11))
-
-Have an idea? [Open a feature request](https://github.com/manimovassagh/Ferrodock/issues/new/choose).
-
 ## Contributing
 
-Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for the
+Contributions are welcome! Planned work and ideas live in
+[issues](https://github.com/manimovassagh/Ferrodock/issues); to suggest
+something, [open a feature request](https://github.com/manimovassagh/Ferrodock/issues/new/choose).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the
 development setup and guidelines, [CHANGELOG.md](CHANGELOG.md) for what's
 changed, and [RELEASING.md](RELEASING.md) for how releases are made. Please
 report security issues privately as described in [SECURITY.md](SECURITY.md).
