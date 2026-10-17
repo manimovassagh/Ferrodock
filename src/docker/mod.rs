@@ -8,6 +8,7 @@
 //! [`DockerClient`].
 
 mod actions;
+mod compose;
 mod containers;
 mod format;
 mod images;
@@ -17,6 +18,7 @@ mod stats;
 mod volumes;
 
 pub use actions::{Action, Task};
+pub use compose::{ComposeProject, group_projects};
 pub use containers::ContainerInfo;
 pub use format::{format_size, plural, time_ago};
 pub use images::ImageInfo;

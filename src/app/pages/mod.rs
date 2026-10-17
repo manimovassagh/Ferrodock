@@ -1,6 +1,7 @@
 //! The pages listed in the sidebar. To add one, implement [`Page`] in a new
 //! file and register it in [`all`].
 
+mod compose;
 mod containers;
 mod images;
 mod networks;
@@ -17,6 +18,7 @@ use crate::theme::Palette;
 pub fn all() -> Vec<Box<dyn Page>> {
     vec![
         Box::new(containers::ContainersPage::new()),
+        Box::new(compose::ComposePage::default()),
         Box::new(images::ImagesPage::default()),
         Box::new(volumes::VolumesPage::default()),
         Box::new(networks::NetworksPage::default()),

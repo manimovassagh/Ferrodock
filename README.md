@@ -43,6 +43,8 @@ Desktop, or a native `dockerd`.
 - **Logs**: the last 500 lines, then live output as it happens, with a
   filter and copy.
 - **Stats**: live CPU and memory charts, plus network and disk totals.
+- **Compose**: containers grouped by Docker Compose project. Start, stop,
+  restart or remove a whole project at once.
 - **Images, Volumes, Networks**: size, mountpoints, subnets, and which
   containers use each one.
 - **Clean up**: remove single items or everything unused, always with a
@@ -109,7 +111,7 @@ src/
     ├── mod.rs         wires the store, the shell and the pages together
     ├── store/         everything currently known about the engine
     ├── page.rs        the Page trait every sidebar section implements
-    ├── pages/         containers · images · volumes · networks
+    ├── pages/         containers · compose · images · volumes · networks
     ├── components/    table, details pane, dialogs, charts, toasts
     ├── shell.rs       shared page header and "Docker isn't running" screen
     └── sidebar.rs
@@ -133,7 +135,7 @@ Progress is tracked in [issues](https://github.com/manimovassagh/IronStack/issue
 - [x] Container logs ([#6](https://github.com/manimovassagh/IronStack/issues/6)) and live stats ([#7](https://github.com/manimovassagh/IronStack/issues/7))
 - [x] App icon and smaller binaries ([#10](https://github.com/manimovassagh/IronStack/issues/10))
 - [ ] Prebuilt downloads for Windows and macOS ([#9](https://github.com/manimovassagh/IronStack/issues/9))
-- [ ] Docker Compose projects ([#8](https://github.com/manimovassagh/IronStack/issues/8))
+- [x] Docker Compose projects ([#8](https://github.com/manimovassagh/IronStack/issues/8))
 - [ ] Documentation website ([#11](https://github.com/manimovassagh/IronStack/issues/11))
 
 ## Contributing
