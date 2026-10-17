@@ -14,8 +14,26 @@ pub(super) fn intent(action: Action, c: &ContainerInfo) -> Intent {
     })
 }
 
-/// Start/Stop, Pause/Resume and Restart buttons, as icons or with labels. Shows a spinner
-/// while an action is in flight. Returns the clicked action, if any.
+/// The lifecycle actions that apply to `c` right now, with their icon and
+/// label: start or stop, pause or resume (when it applies), restart.
+pub(super) fn available(c: &ContainerInfo) -> Vec<(Action, &'static str, &'static str)> {
+    let mut list = vec![if c.is_active() {
+        (Action::Stop, "■", "Stop")
+    } else {
+        (Action::Start, "▶", "Start")
+    }];
+    if c.is_paused() {
+        list.push((Action::Unpause, "⏵", "Resume"));
+    } else if c.can_pause() {
+        list.push((Action::Pause, "⏸", "Pause"));
+    }
+    list.push((Action::Restart, "⟳", "Restart"));
+    list
+}
+
+/// Start/Stop, Pause/Resume and Restart buttons, as icons or with labels.
+/// Shows a spinner while an action is in flight. Returns the clicked
+/// action, if any.
 pub(super) fn buttons(
     ui: &mut egui::Ui,
     c: &ContainerInfo,
@@ -26,21 +44,8 @@ pub(super) fn buttons(
         ui.spinner();
         return None;
     }
-    let toggle = if c.is_active() {
-        (Action::Stop, "■", "Stop")
-    } else {
-        (Action::Start, "▶", "Start")
-    };
-    let pause = if c.is_paused() {
-        Some((Action::Unpause, "⏵", "Resume"))
-    } else if c.can_pause() {
-        Some((Action::Pause, "⏸", "Pause"))
-    } else {
-        None
-    };
     let mut clicked = None;
-    let restart = (Action::Restart, "⟳", "Restart");
-    for (action, icon, label) in std::iter::once(toggle).chain(pause).chain([restart]) {
+    for (action, icon, label) in available(c) {
         let response = if with_labels {
             ui.button(format!("{icon}  {label}"))
         } else {

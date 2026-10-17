@@ -4,7 +4,9 @@
 //! the [`Store`], lays out the shell, lets the active [`Page`] draw itself
 //! and turns the page's [`Intent`]s into worker requests.
 
+mod commands;
 mod components;
+mod keys;
 mod page;
 mod pages;
 mod shell;
@@ -16,9 +18,13 @@ use eframe::egui::{self, Frame, Margin};
 use crate::docker::Task;
 use crate::theme;
 use crate::worker::{Request, Worker};
+use commands::Target;
 use components::confirm::{self, Choice};
+use components::palette::{CommandPalette, Outcome};
 use components::toast::Toast;
-use page::{Confirmation, Intent, Page, PageCtx};
+use components::{shortcuts, table};
+use keys::Shortcut;
+use page::{CommandRun, Confirmation, Intent, Page, PageCtx};
 use store::{Connection, Live, Store};
 
 pub struct FerrodockApp {
@@ -33,6 +39,11 @@ pub struct FerrodockApp {
     /// The container being streamed, and whether it was running when the
     /// stream started (a restart needs a fresh stream).
     watching: Option<(String, bool)>,
+    /// The ⌘K palette, while it's open.
+    palette: Option<CommandPalette>,
+    /// Labels of recently used palette entries, most recent first.
+    recent: Vec<String>,
+    show_help: bool,
 }
 
 impl FerrodockApp {
@@ -57,6 +68,9 @@ impl FerrodockApp {
             toast: None,
             confirmation: None,
             watching: None,
+            palette: None,
+            recent: Vec::new(),
+            show_help: false,
         }
     }
 
@@ -103,6 +117,75 @@ impl FerrodockApp {
         self.watching = wanted;
     }
 
+    /// Whether a dialog or overlay has the keyboard.
+    fn overlay_open(&self) -> bool {
+        self.palette.is_some() || self.show_help || self.confirmation.is_some()
+    }
+
+    fn handle_shortcut(
+        &mut self,
+        ctx: &egui::Context,
+        p: &'static theme::Palette,
+        shortcut: Shortcut,
+    ) {
+        match shortcut {
+            Shortcut::Palette => self.palette = Some(CommandPalette::default()),
+            Shortcut::Help => self.show_help = true,
+            Shortcut::Page(index) if index < self.pages.len() => self.open_page(index),
+            Shortcut::Page(_) => {}
+            Shortcut::Step(delta) => table::request_step(ctx, delta),
+            Shortcut::CloseDetails => self.pages[self.active].clear_selection(),
+            Shortcut::FocusSearch => ctx.memory_mut(|m| m.request_focus(shell::search_id())),
+            Shortcut::Refresh => self.refresh(),
+            Shortcut::PageKey(key) => {
+                let mut intents = Vec::new();
+                let mut page_ctx = PageCtx::new(&self.store, p, &self.search, &mut intents);
+                self.pages[self.active].shortcut(key, &mut page_ctx);
+                intents.into_iter().for_each(|i| self.handle_intent(i));
+            }
+        }
+    }
+
+    fn show_palette(&mut self, ui: &mut egui::Ui, p: &theme::Palette) {
+        let Some(palette) = &mut self.palette else {
+            return;
+        };
+        let (entries, mut targets): (Vec<_>, Vec<_>) =
+            commands::build(&self.pages, &self.store, &self.recent)
+                .into_iter()
+                .map(|item| (item.entry, item.target))
+                .unzip();
+        match palette.show(ui, p, &entries) {
+            Some(Outcome::Chosen(index)) => {
+                self.palette = None;
+                commands::remember(&mut self.recent, &entries[index].label);
+                self.run_target(ui.ctx(), targets.swap_remove(index));
+            }
+            Some(Outcome::Closed) => self.palette = None,
+            None => {}
+        }
+    }
+
+    fn run_target(&mut self, ctx: &egui::Context, target: Target) {
+        match target {
+            Target::OpenPage(index) => self.open_page(index),
+            Target::Page(index, run) => {
+                self.open_page(index);
+                match run {
+                    CommandRun::Select(id) => {
+                        self.pages[index].select(&id);
+                        table::request_step(ctx, 0);
+                    }
+                    CommandRun::Intents(intents) => {
+                        intents.into_iter().for_each(|i| self.handle_intent(i));
+                    }
+                }
+            }
+            Target::Refresh => self.refresh(),
+            Target::Help => self.show_help = true,
+        }
+    }
+
     fn handle_intent(&mut self, intent: Intent) {
         match intent {
             Intent::Run(task) => self.run(task),
@@ -137,11 +220,13 @@ impl FerrodockApp {
 impl eframe::App for FerrodockApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.handle_responses();
-        if ui.input(|i| i.key_pressed(egui::Key::F5)) {
-            self.refresh();
+        let p = theme::palette(ui);
+        if !self.overlay_open() {
+            for shortcut in keys::read(ui.ctx()) {
+                self.handle_shortcut(ui.ctx(), p, shortcut);
+            }
         }
 
-        let p = theme::palette(ui);
         let clicked_page = egui::Panel::left("sidebar")
             .resizable(false)
             .exact_size(210.0)
@@ -210,7 +295,13 @@ impl eframe::App for FerrodockApp {
         if refresh {
             self.refresh();
         }
+        table::clear_step(ui.ctx());
         self.show_confirmation(ui, p);
+        self.show_palette(ui, p);
+        if self.show_help {
+            let titles: Vec<&'static str> = self.pages.iter().map(|page| page.title()).collect();
+            self.show_help = shortcuts::show(ui, p, &keys::help(&titles));
+        }
         if let Some(toast) = &self.toast
             && !toast.show(ui, p)
         {

@@ -2,9 +2,9 @@
 
 use eframe::egui;
 
-use super::{remove_button, remove_task, remove_unused_button, usage_pill};
+use super::{confirm_removal, remove_button, remove_task, remove_unused_button, usage_pill};
 use crate::app::components::{details, table, widgets};
-use crate::app::page::{Page, PageCtx, toggle_selection};
+use crate::app::page::{Command, Page, PageCtx, toggle_selection};
 use crate::app::store::Store;
 use crate::docker::{Resource, Task, VolumeInfo, plural, time_ago};
 
@@ -51,13 +51,7 @@ impl Page for VolumesPage {
     }
 
     fn toolbar(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
-        let unused: Vec<Task> = ctx
-            .store
-            .volumes
-            .iter()
-            .filter(|v| ctx.store.containers_using_volume(&v.name).is_empty())
-            .map(|v| remove_task(Resource::Volumes, &v.name, &v.name))
-            .collect();
+        let unused = unused(ctx.store);
         remove_unused_button(ui, ctx, "volume", unused);
     }
 
@@ -158,4 +152,35 @@ impl Page for VolumesPage {
     fn clear_selection(&mut self) {
         self.selected = None;
     }
+
+    fn select(&mut self, id: &str) {
+        self.selected = Some(id.to_owned());
+    }
+
+    fn commands(&self, store: &Store) -> Vec<Command> {
+        let mut list: Vec<Command> = store
+            .volumes
+            .iter()
+            .map(|v| Command::select(&v.name, "Volume", &v.name))
+            .collect();
+        let unused = unused(store);
+        if !unused.is_empty() {
+            list.push(Command::intent(
+                "Remove unused volumes",
+                plural(unused.len(), "volume"),
+                confirm_removal("volume", unused),
+            ));
+        }
+        list
+    }
+}
+
+/// Removal tasks for every volume no container mounts.
+fn unused(store: &Store) -> Vec<Task> {
+    store
+        .volumes
+        .iter()
+        .filter(|v| store.containers_using_volume(&v.name).is_empty())
+        .map(|v| remove_task(Resource::Volumes, &v.name, &v.name))
+        .collect()
 }

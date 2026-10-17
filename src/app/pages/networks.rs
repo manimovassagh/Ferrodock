@@ -2,9 +2,9 @@
 
 use eframe::egui;
 
-use super::{remove_button, remove_task, remove_unused_button};
+use super::{confirm_removal, remove_button, remove_task, remove_unused_button};
 use crate::app::components::{details, table, widgets};
-use crate::app::page::{Page, PageCtx, toggle_selection};
+use crate::app::page::{Command, Page, PageCtx, toggle_selection};
 use crate::app::store::Store;
 use crate::docker::{NetworkInfo, Resource, Task, plural, time_ago};
 
@@ -46,14 +46,7 @@ impl Page for NetworksPage {
     }
 
     fn toolbar(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
-        let unused: Vec<Task> = ctx
-            .store
-            .networks
-            .iter()
-            .filter(|n| !n.is_builtin() && ctx.store.containers_on_network(&n.name).is_empty())
-            .map(|n| remove_task(Resource::Networks, &n.id, &n.name))
-            .collect();
-        remove_unused_button(ui, ctx, "network", unused);
+        remove_unused_button(ui, ctx, "network", unused(ctx.store));
     }
 
     fn show(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
@@ -158,4 +151,36 @@ impl Page for NetworksPage {
     fn clear_selection(&mut self) {
         self.selected = None;
     }
+
+    fn select(&mut self, id: &str) {
+        self.selected = Some(id.to_owned());
+    }
+
+    fn commands(&self, store: &Store) -> Vec<Command> {
+        let mut list: Vec<Command> = store
+            .networks
+            .iter()
+            .map(|n| Command::select(&n.name, format!("Network · {}", n.driver), &n.id))
+            .collect();
+        let unused = unused(store);
+        if !unused.is_empty() {
+            list.push(Command::intent(
+                "Remove unused networks",
+                plural(unused.len(), "network"),
+                confirm_removal("network", unused),
+            ));
+        }
+        list
+    }
+}
+
+/// Removal tasks for every network no container is on (except Docker's
+/// built-in ones).
+fn unused(store: &Store) -> Vec<Task> {
+    store
+        .networks
+        .iter()
+        .filter(|n| !n.is_builtin() && store.containers_on_network(&n.name).is_empty())
+        .map(|n| remove_task(Resource::Networks, &n.id, &n.name))
+        .collect()
 }

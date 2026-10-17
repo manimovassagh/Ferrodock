@@ -11,10 +11,11 @@ mod table;
 
 use eframe::egui;
 
+use super::{confirm_removal, remove_task};
 use crate::app::components::widgets;
-use crate::app::page::{Page, PageCtx};
+use crate::app::page::{Command, Page, PageCtx};
 use crate::app::store::Store;
-use crate::docker::{ContainerInfo, Resource};
+use crate::docker::{Action, ContainerInfo, Resource};
 use crate::theme::Palette;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -143,5 +144,64 @@ impl Page for ContainersPage {
 
     fn clear_selection(&mut self) {
         self.selected = None;
+    }
+
+    fn select(&mut self, id: &str) {
+        self.selected = Some(id.to_owned());
+        // Make sure the list shows it.
+        self.filter = StateFilter::All;
+    }
+
+    fn commands(&self, store: &Store) -> Vec<Command> {
+        let mut list = Vec::new();
+        for c in &store.containers {
+            list.push(Command::select(
+                &c.name,
+                format!("Container · {}", c.state),
+                &c.id,
+            ));
+            for (action, _, label) in actions::available(c) {
+                list.push(Command::intent(
+                    format!("{label} {}", c.name),
+                    "Container",
+                    actions::intent(action, c),
+                ));
+            }
+        }
+        list
+    }
+
+    fn shortcut(&mut self, key: egui::Key, ctx: &mut PageCtx) {
+        let Some(c) = self.selected(ctx.store) else {
+            return;
+        };
+        if ctx.store.pending.contains(&c.id) {
+            return;
+        }
+        let available = actions::available(c);
+        let find = |wanted: &[Action]| {
+            available
+                .iter()
+                .map(|(action, _, _)| *action)
+                .find(|action| wanted.contains(action))
+        };
+        let action = match key {
+            egui::Key::S => find(&[Action::Start, Action::Stop]),
+            egui::Key::R => find(&[Action::Restart]),
+            egui::Key::P => find(&[Action::Pause, Action::Unpause]),
+            egui::Key::L => {
+                self.tab = DetailsTab::Logs;
+                None
+            }
+            egui::Key::Delete | egui::Key::Backspace if !c.is_active() => {
+                let task = remove_task(Resource::Containers, &c.id, &c.name);
+                ctx.request(confirm_removal("container", vec![task]));
+                None
+            }
+            _ => None,
+        };
+        if let Some(action) = action {
+            ctx.request(actions::intent(action, c));
+        }
     }
 }

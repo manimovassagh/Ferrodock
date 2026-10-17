@@ -4,7 +4,9 @@
 use eframe::egui::{self, Color32, RichText};
 
 use crate::app::components::{details, table, widgets};
-use crate::app::page::{Confirmation, Intent, Page, PageCtx, toggle_selection};
+use crate::app::page::{
+    Command, CommandRun, Confirmation, Intent, Page, PageCtx, toggle_selection,
+};
 use crate::app::store::Store;
 use crate::docker::{Action, ComposeProject, Resource, Task, plural};
 use crate::theme::Palette;
@@ -151,6 +153,40 @@ impl Page for ComposePage {
 
     fn clear_selection(&mut self) {
         self.selected = None;
+    }
+
+    fn select(&mut self, id: &str) {
+        self.selected = Some(id.to_owned());
+    }
+
+    fn commands(&self, store: &Store) -> Vec<Command> {
+        let mut list = Vec::new();
+        for project in &store.projects {
+            let status = format!(
+                "Compose project · {}/{} running",
+                project.running(),
+                project.containers.len()
+            );
+            list.push(Command::select(&project.name, status, &project.name));
+            let toggle = if project.running() > 0 {
+                (Action::Stop, "Stop")
+            } else {
+                (Action::Start, "Start")
+            };
+            for (action, verb) in [toggle, (Action::Restart, "Restart")] {
+                list.push(Command {
+                    label: format!("{verb} project {}", project.name),
+                    detail: "Compose project".into(),
+                    run: CommandRun::Intents(
+                        tasks_for(project, action)
+                            .into_iter()
+                            .map(Intent::Run)
+                            .collect(),
+                    ),
+                });
+            }
+        }
+        list
     }
 }
 

@@ -30,6 +30,43 @@ pub struct Confirmation {
     pub tasks: Vec<Task>,
 }
 
+/// An entry a page offers in the command palette.
+pub struct Command {
+    pub label: String,
+    /// Dimmed text after the label, e.g. "Container · running".
+    pub detail: String,
+    pub run: CommandRun,
+}
+
+pub enum CommandRun {
+    /// Open the page and select this item (by the ID the page uses).
+    Select(String),
+    /// Hand these to the app, like a click on a button would.
+    Intents(Vec<Intent>),
+}
+
+impl Command {
+    pub fn select(
+        label: impl Into<String>,
+        detail: impl Into<String>,
+        id: impl Into<String>,
+    ) -> Self {
+        Self {
+            label: label.into(),
+            detail: detail.into(),
+            run: CommandRun::Select(id.into()),
+        }
+    }
+
+    pub fn intent(label: impl Into<String>, detail: impl Into<String>, intent: Intent) -> Self {
+        Self {
+            label: label.into(),
+            detail: detail.into(),
+            run: CommandRun::Intents(vec![intent]),
+        }
+    }
+}
+
 /// What a page gets to work with while drawing.
 pub struct PageCtx<'a> {
     pub store: &'a Store,
@@ -94,6 +131,18 @@ pub trait Page {
     fn show_details(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx);
 
     fn clear_selection(&mut self);
+
+    /// Selects an item by ID, e.g. when it's picked in the command palette.
+    fn select(&mut self, id: &str);
+
+    /// What this page offers in the command palette.
+    fn commands(&self, _store: &Store) -> Vec<Command> {
+        Vec::new()
+    }
+
+    /// A single-key shortcut pressed while this page is open and no text
+    /// field has focus, e.g. `S` to start or stop the selected container.
+    fn shortcut(&mut self, _key: egui::Key, _ctx: &mut PageCtx) {}
 
     /// A container whose logs and stats should stream while this page is
     /// open (the worker follows at most one at a time).
