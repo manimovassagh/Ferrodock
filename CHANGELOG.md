@@ -7,6 +7,8 @@ uses [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Compose** page: containers grouped by Docker Compose project, with
+  start, stop, restart and remove for the whole project.
 - **Logs** tab for containers: the last 500 lines, then live output, with a
   filter and copy.
 - **Stats** tab for containers: live CPU and memory charts, network and disk

@@ -27,6 +27,30 @@ pub struct ContainerInfo {
     pub mounts: Vec<String>,
     /// Names of the named volumes the container uses.
     pub volumes: Vec<String>,
+    /// Set when the container belongs to a Docker Compose project.
+    pub compose: Option<ComposeLabels>,
+}
+
+/// What Docker Compose records about a container in its labels.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct ComposeLabels {
+    pub project: String,
+    pub service: String,
+    pub working_dir: String,
+    pub config_files: String,
+}
+
+impl ComposeLabels {
+    fn from_labels(labels: &std::collections::HashMap<String, String>) -> Option<Self> {
+        let get = |key: &str| labels.get(key).cloned().unwrap_or_default();
+        let project = labels.get("com.docker.compose.project")?.clone();
+        Some(Self {
+            project,
+            service: get("com.docker.compose.service"),
+            working_dir: get("com.docker.compose.project.working_dir"),
+            config_files: get("com.docker.compose.project.config_files"),
+        })
+    }
 }
 
 impl ContainerInfo {
@@ -108,6 +132,8 @@ impl From<ContainerSummary> for ContainerInfo {
             })
             .collect();
 
+        let compose = c.labels.as_ref().and_then(ComposeLabels::from_labels);
+
         Self {
             id: c.id.unwrap_or_default(),
             name,
@@ -126,6 +152,7 @@ impl From<ContainerSummary> for ContainerInfo {
             networks: networks.into_iter().map(|(net, _)| net).collect(),
             mounts,
             volumes,
+            compose,
         }
     }
 }

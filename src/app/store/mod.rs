@@ -7,7 +7,9 @@ mod live;
 
 use std::collections::HashSet;
 
-use crate::docker::{ContainerInfo, ImageInfo, NetworkInfo, VolumeInfo};
+use crate::docker::{
+    ComposeProject, ContainerInfo, ImageInfo, NetworkInfo, VolumeInfo, group_projects,
+};
 use crate::worker::Response;
 pub use live::Live;
 
@@ -26,6 +28,8 @@ pub struct Notice {
 pub struct Store {
     pub connection: Connection,
     pub containers: Vec<ContainerInfo>,
+    /// Compose projects, derived from `containers` whenever they change.
+    pub projects: Vec<ComposeProject>,
     pub images: Vec<ImageInfo>,
     pub volumes: Vec<VolumeInfo>,
     pub networks: Vec<NetworkInfo>,
@@ -40,6 +44,7 @@ impl Store {
         Self {
             connection: Connection::Connecting,
             containers: Vec::new(),
+            projects: Vec::new(),
             images: Vec::new(),
             volumes: Vec::new(),
             networks: Vec::new(),
@@ -53,7 +58,10 @@ impl Store {
     pub fn apply(&mut self, response: Response) -> Option<Notice> {
         match response {
             Response::Connected { version } => self.connection = Connection::Connected { version },
-            Response::Containers(list) => self.containers = list,
+            Response::Containers(list) => {
+                self.projects = group_projects(&list);
+                self.containers = list;
+            }
             Response::Images(list) => self.images = list,
             Response::Volumes(list) => self.volumes = list,
             Response::Networks(list) => self.networks = list,
@@ -156,6 +164,7 @@ mod tests {
             networks: networks.iter().map(|s| s.to_string()).collect(),
             mounts: Vec::new(),
             volumes: volumes.iter().map(|s| s.to_string()).collect(),
+            compose: None,
         }
     }
 
