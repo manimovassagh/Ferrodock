@@ -7,6 +7,16 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/manimovassagh/Ferrodock/compare/v0.3.0...v0.4.0) - 2026-10-17
+
+### Added
+
+- new app icon ([#33](https://github.com/manimovassagh/Ferrodock/pull/33))
+
+### Documentation
+
+- document releases and release notes ([#34](https://github.com/manimovassagh/Ferrodock/pull/34))
+
 ## [0.3.0](https://github.com/manimovassagh/Ferrodock/compare/v0.2.1...v0.3.0) - 2026-10-17
 
 ### Changed
