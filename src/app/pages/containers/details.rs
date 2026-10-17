@@ -2,7 +2,7 @@
 
 use eframe::egui::{self, RichText};
 
-use super::{ContainersPage, DetailsTab, actions, logs, stats, status};
+use super::{ContainersPage, DetailsTab, actions, logs, ports, stats, status};
 use crate::app::components::{details, widgets};
 use crate::app::page::PageCtx;
 use crate::app::pages::{remove_button, remove_task};
@@ -69,7 +69,7 @@ fn overview(ui: &mut egui::Ui, p: &Palette, c: &ContainerInfo) {
                 details::field(ui, p, "Command", &c.command);
             });
             details::section(ui, p, "Network", |ui| {
-                details::field(ui, p, "Ports", &widgets::join_or_dash(&c.ports));
+                ports::field(ui, p, &c.ports);
                 details::field(ui, p, "IP", &widgets::join_or_dash(&c.ip_addresses));
             });
             details::section(ui, p, "Storage", |ui| {

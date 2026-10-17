@@ -14,6 +14,7 @@ mod format;
 mod images;
 mod logs;
 mod networks;
+mod ports;
 mod stats;
 mod volumes;
 
@@ -23,6 +24,7 @@ pub use containers::ContainerInfo;
 pub use format::{format_size, plural, time_ago};
 pub use images::ImageInfo;
 pub use networks::NetworkInfo;
+pub use ports::{PortMapping, engine_host};
 pub use stats::StatsSample;
 pub use volumes::VolumeInfo;
 

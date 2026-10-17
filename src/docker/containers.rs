@@ -3,7 +3,7 @@
 use bollard::models::{ContainerSummary, ContainerSummaryStateEnum};
 use bollard::query_parameters::ListContainersOptions;
 
-use super::{DockerClient, describe};
+use super::{DockerClient, PortMapping, describe};
 
 /// UI-friendly snapshot of a container.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -20,7 +20,7 @@ pub struct ContainerInfo {
     pub status: String,
     /// Unix timestamp (seconds).
     pub created: i64,
-    pub ports: Vec<String>,
+    pub ports: Vec<PortMapping>,
     pub ip_addresses: Vec<String>,
     /// Names of the networks the container is attached to.
     pub networks: Vec<String>,
@@ -62,6 +62,11 @@ impl ContainerInfo {
         matches!(self.state.as_str(), "running" | "restarting")
     }
 
+    /// Running and not paused or restarting, so it can be paused.
+    pub fn can_pause(&self) -> bool {
+        self.state == "running"
+    }
+
     pub fn is_paused(&self) -> bool {
         self.state == "paused"
     }
@@ -81,23 +86,24 @@ impl From<ContainerSummary> for ContainerInfo {
             .map(|n| n.trim_start_matches('/').to_string())
             .unwrap_or_default();
 
-        let mut ports: Vec<String> = c
+        let mut ports: Vec<PortMapping> = c
             .ports
             .unwrap_or_default()
             .iter()
-            .map(|p| {
-                let proto = p.typ.map(|t| t.to_string()).unwrap_or_else(|| "tcp".into());
-                match p.public_port {
-                    Some(public) => {
-                        let ip = p.ip.as_deref().unwrap_or("0.0.0.0");
-                        format!("{ip}:{public} -> {}/{proto}", p.private_port)
-                    }
-                    None => format!("{}/{proto}", p.private_port),
-                }
-            })
+            .map(PortMapping::from)
             .collect();
-        ports.sort();
-        ports.dedup();
+        // Published ports first. Docker lists a port once for IPv4 and once
+        // for IPv6; keep one of them.
+        ports.sort_by_key(|p| {
+            (
+                p.public.is_none(),
+                p.public,
+                p.private,
+                p.proto.clone(),
+                p.ip.clone(),
+            )
+        });
+        ports.dedup_by(|a, b| (a.public, a.private, &a.proto) == (b.public, b.private, &b.proto));
 
         let networks: Vec<(String, String)> = c
             .network_settings
@@ -211,7 +217,8 @@ mod tests {
         assert_eq!(info.short_id(), "0123456789ab");
         assert_eq!(info.state, "running");
         assert!(info.is_running());
-        assert_eq!(info.ports, vec!["0.0.0.0:8080 -> 80/tcp", "443/tcp"]);
+        let labels: Vec<String> = info.ports.iter().map(PortMapping::label).collect();
+        assert_eq!(labels, vec!["0.0.0.0:8080 -> 80/tcp", "443/tcp"]);
     }
 
     #[test]

@@ -17,7 +17,10 @@ the ✕, to close it.
 The containers page shows every container with its state, image, ID and
 published ports. Use **All / Running / Stopped** to filter.
 
-- **▶ / ■** starts or stops a container, and **⟳** restarts it.
+- **▶ / ■** starts or stops a container, **⏸ / ⏵** pauses and resumes it,
+  and **⟳** restarts it.
+- Published ports are links: click **8080 ↗** to open the app in your
+  browser, or right-click to copy its address.
 - **Remove** (in the details pane) is available once the container is
   stopped, and always asks for confirmation.
 
