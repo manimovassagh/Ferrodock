@@ -88,6 +88,11 @@ system, in [Settings](#settings).
 
 ![Dark mode](/img/dark-mode.png)
 
+### Processes
+
+The **Top** tab lists what's running inside the container (process ID,
+user, CPU time and command), refreshed every two seconds while it's open.
+
 ## Pull and run images
 
 On the **Images** page, type an image name such as `nginx:alpine` in the
@@ -101,6 +106,10 @@ select it and click **Run…**. The dialog asks for:
   side if it's taken.
 - **Environment** variables, **Volumes** (a volume name or a host path),
   **Network**, **Restart** policy and an optional **Command**.
+
+An image's details pane also has a **History** section listing the layers
+it was built from, with the biggest ones highlighted, so you can see where
+its size comes from.
 
 The equivalent `docker run` command is shown as you type, with a Copy
 button, so you can reuse it in scripts.

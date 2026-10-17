@@ -2,7 +2,7 @@
 
 use eframe::egui::{self, RichText};
 
-use super::{ContainersPage, DetailsTab, actions, logs, ports, stats, status};
+use super::{ContainersPage, DetailsTab, actions, logs, ports, processes, stats, status};
 use crate::app::components::{details, inspect, widgets};
 use crate::app::page::{Intent, PageCtx};
 use crate::app::pages::{remove_button, remove_task};
@@ -41,6 +41,7 @@ pub(super) fn show(page: &mut ContainersPage, ui: &mut egui::Ui, ctx: &mut PageC
             (DetailsTab::Overview, "Overview"),
             (DetailsTab::Logs, "Logs"),
             (DetailsTab::Stats, "Stats"),
+            (DetailsTab::Processes, "Top"),
             (DetailsTab::Inspect, "Inspect"),
         ] {
             if widgets::tab(ui, p, label, None, page.tab == tab).clicked() {
@@ -59,6 +60,7 @@ pub(super) fn show(page: &mut ContainersPage, ui: &mut egui::Ui, ctx: &mut PageC
             }
         }
         DetailsTab::Stats => stats::show(ui, p, live, c.is_running()),
+        DetailsTab::Processes => processes::show(ui, ctx, c),
         DetailsTab::Inspect => {
             if inspect::needs_loading(ctx.store, &c.id) {
                 ctx.request(Intent::Inspect(Resource::Containers, c.id.clone()));

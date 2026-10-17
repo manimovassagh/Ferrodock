@@ -13,8 +13,8 @@ use std::time::Duration;
 use tokio::sync::mpsc as tokio_mpsc;
 
 use crate::docker::{
-    Action, ContainerInfo, DiskUsage, DockerClient, EngineEvent, ImageInfo, Inspection,
-    NetworkInfo, PullProgress, Resource, RunSpec, StatsSample, Task, VolumeInfo,
+    Action, ContainerInfo, DiskUsage, DockerClient, EngineEvent, ImageInfo, Inspection, Layer,
+    NetworkInfo, Processes, PullProgress, Resource, RunSpec, StatsSample, Task, VolumeInfo,
 };
 
 /// How often the worker re-checks the engine on its own. Changes normally
@@ -40,6 +40,10 @@ pub enum Request {
     Inspect(Resource, String),
     /// Pull an image, reporting progress as it goes.
     Pull(String),
+    /// List the processes running in a container.
+    Processes(String),
+    /// Load the layers of an image.
+    History(String),
     /// Create and start a container.
     RunImage(RunSpec),
 }
@@ -58,6 +62,11 @@ pub enum Response {
     /// e.g. a container crashed.
     Alert(String),
     Inspected(Inspection),
+    Processes(Result<Processes, (String, String)>),
+    History {
+        image: String,
+        layers: Vec<Layer>,
+    },
     /// Progress of a pull started with [`Request::Pull`].
     Pulling {
         image: String,
@@ -223,6 +232,19 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
             }
             Request::Run(task) => {
                 tokio::spawn(async move { run_task(&docker, &shared, task).await });
+            }
+            Request::Processes(id) => {
+                tokio::spawn(async move {
+                    let result = docker.processes(&id).await.map_err(|e| (id, e));
+                    shared.send(Response::Processes(result));
+                });
+            }
+            Request::History(image) => {
+                tokio::spawn(async move {
+                    // A failure just leaves the history empty.
+                    let layers = docker.history(&image).await.unwrap_or_default();
+                    shared.send(Response::History { image, layers });
+                });
             }
             Request::Pull(image) => {
                 tokio::spawn(async move { pull(&docker, &shared, image).await });

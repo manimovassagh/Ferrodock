@@ -27,6 +27,10 @@ pub enum Intent {
     ClearSearch,
     /// Tell the user something, e.g. where a file was saved.
     Notify { text: String, is_error: bool },
+    /// Load (or reload) the process table of a container.
+    Processes(String),
+    /// Load the layers of an image.
+    History(String),
     /// Pull an image by reference, e.g. `nginx:alpine`.
     Pull(String),
     /// Create and start a container.

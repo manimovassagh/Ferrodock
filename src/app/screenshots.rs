@@ -115,6 +115,10 @@ fn screenshots() {
     settle(&mut h, Duration::from_secs(6));
     save(&mut h, "stats");
 
+    click(&mut h, "Top");
+    settle(&mut h, Duration::from_secs(3));
+    save(&mut h, "processes");
+
     let volume = h.state().store.volumes.first().map(|v| v.name.clone());
     open(&mut h, 3, volume);
     save(&mut h, "volumes");
@@ -130,6 +134,9 @@ fn screenshots() {
     save(&mut h, "run");
     h.key_press(egui::Key::Escape);
     h.run_steps(3);
+    click(&mut h, "HISTORY");
+    settle(&mut h, Duration::from_secs(1));
+    save(&mut h, "history");
     h.state_mut().pages[2].clear_selection();
 
     h.state().updater.pretend(crate::update::Status::Available(
