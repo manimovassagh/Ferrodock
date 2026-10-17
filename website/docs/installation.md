@@ -78,3 +78,23 @@ cargo run --release
 
 On macOS, `packaging/macos/bundle.sh` builds a universal `Ferrodock.app` in
 `dist/`.
+
+## Updating
+
+Ferrodock checks for a new version when it starts. When one is available,
+**Update to x.y.z** appears at the bottom of the sidebar. Hover it for the
+release notes, and click it to update:
+
+1. The new build for your platform downloads in the background.
+2. It's checked against the release's `SHA256SUMS.txt`, and refused if
+   anything doesn't match.
+3. It replaces the installed app in place (the whole `Ferrodock.app` on
+   macOS).
+4. Click **Restart to update** to switch to it.
+
+You can also check by hand, or turn the automatic check off, in
+**Settings → Updates**. Ferrodock only ever offers stable releases, never
+pre-releases.
+
+If you installed with Homebrew, `brew upgrade --cask ferrodock` works too.
+

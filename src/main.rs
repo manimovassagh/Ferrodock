@@ -4,6 +4,7 @@
 mod app;
 mod docker;
 mod theme;
+mod update;
 mod worker;
 
 use eframe::egui;

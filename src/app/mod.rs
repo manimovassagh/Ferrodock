@@ -49,6 +49,7 @@ pub struct FerrodockApp {
     show_help: bool,
     settings: settings::Settings,
     show_settings: bool,
+    updater: crate::update::Updater,
 }
 
 impl FerrodockApp {
@@ -59,6 +60,13 @@ impl FerrodockApp {
             .and_then(|s| eframe::get_value(s, settings::STORAGE_KEY))
             .unwrap_or_default();
         settings.apply(&cc.egui_ctx);
+        let updater = {
+            let ctx = cc.egui_ctx.clone();
+            crate::update::Updater::new(move || ctx.request_repaint())
+        };
+        if settings.check_updates {
+            updater.check();
+        }
         let ctx = cc.egui_ctx.clone();
         let worker = Worker::spawn(move || ctx.request_repaint());
         let pages = pages::all();
@@ -83,6 +91,7 @@ impl FerrodockApp {
             show_help: false,
             settings,
             show_settings: false,
+            updater,
         }
     }
 
@@ -264,12 +273,34 @@ impl eframe::App for FerrodockApp {
             .exact_size(210.0)
             .frame(Frame::new().fill(p.sidebar).inner_margin(Margin::same(14)))
             .show(ui, |ui| {
-                sidebar::show(ui, p, &self.pages, self.active, &self.store)
+                sidebar::show(
+                    ui,
+                    p,
+                    &self.pages,
+                    self.active,
+                    &self.store,
+                    &self.updater.status(),
+                )
             })
             .inner;
         match clicked_page {
             Some(sidebar::Click::Page(index)) => self.open_page(index),
             Some(sidebar::Click::Settings) => self.show_settings = true,
+            Some(sidebar::Click::Update) => {
+                if let crate::update::Status::Available(available) = self.updater.status() {
+                    self.updater.install(available);
+                }
+            }
+            Some(sidebar::Click::Restart) => {
+                if let crate::update::Status::Ready { relaunch, .. } = self.updater.status() {
+                    match relaunch.start() {
+                        Ok(()) => ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close),
+                        Err(e) => {
+                            self.toast = Some(Toast::new(format!("Couldn't restart: {e}"), true));
+                        }
+                    }
+                }
+            }
             None => {}
         }
 
@@ -333,7 +364,7 @@ impl eframe::App for FerrodockApp {
         self.show_confirmation(ui, p);
         self.show_palette(ui, p);
         if self.show_settings {
-            self.show_settings = settings::show(ui, p, &mut self.settings);
+            self.show_settings = settings::show(ui, p, &mut self.settings, &self.updater);
         }
         if self.show_help {
             let titles: Vec<&'static str> = self.pages.iter().map(|page| page.title()).collect();

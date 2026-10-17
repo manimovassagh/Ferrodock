@@ -78,6 +78,8 @@ Get-FileHash .\Ferrodock-*-windows-x64.zip            # Windows (compare with SH
   action: jump to any container, image or volume, or run an action, without
   touching the mouse.
 - **Search** on every page, and **live updates** every few seconds.
+- **In-app updates**: one click downloads, verifies and installs a new
+  version, then restarts.
 - **Settings** for theme (light, dark or follow the system), compact rows and
   interface size, remembered between runs.
 - **Resilient**: start Ferrodock before Docker and it connects as soon as the
