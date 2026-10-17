@@ -2,6 +2,8 @@
 
 pub mod confirm;
 pub mod details;
+pub mod palette;
+pub mod shortcuts;
 pub mod sparkline;
 pub mod table;
 pub mod toast;

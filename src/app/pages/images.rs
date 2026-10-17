@@ -2,9 +2,9 @@
 
 use eframe::egui;
 
-use super::{remove_button, remove_task, remove_unused_button, usage_pill};
+use super::{confirm_removal, remove_button, remove_task, remove_unused_button, usage_pill};
 use crate::app::components::{details, table, widgets};
-use crate::app::page::{Page, PageCtx, toggle_selection};
+use crate::app::page::{Command, Page, PageCtx, toggle_selection};
 use crate::app::store::Store;
 use crate::docker::{ImageInfo, Resource, Task, format_size, plural, time_ago};
 
@@ -47,14 +47,7 @@ impl Page for ImagesPage {
     }
 
     fn toolbar(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
-        let unused: Vec<Task> = ctx
-            .store
-            .images
-            .iter()
-            .filter(|i| ctx.store.containers_using_image(&i.id).is_empty())
-            .map(|i| remove_task(Resource::Images, &i.id, i.name()))
-            .collect();
-        remove_unused_button(ui, ctx, "image", unused);
+        remove_unused_button(ui, ctx, "image", unused(ctx.store));
     }
 
     fn show(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
@@ -146,6 +139,27 @@ impl Page for ImagesPage {
     fn clear_selection(&mut self) {
         self.selected = None;
     }
+
+    fn select(&mut self, id: &str) {
+        self.selected = Some(id.to_owned());
+    }
+
+    fn commands(&self, store: &Store) -> Vec<Command> {
+        let mut list: Vec<Command> = store
+            .images
+            .iter()
+            .map(|i| Command::select(i.name(), format!("Image · {}", format_size(i.size)), &i.id))
+            .collect();
+        let unused = unused(store);
+        if !unused.is_empty() {
+            list.push(Command::intent(
+                "Remove unused images",
+                plural(unused.len(), "image"),
+                confirm_removal("image", unused),
+            ));
+        }
+        list
+    }
 }
 
 /// Short ID, plus how many more tags the image has beyond the one shown.
@@ -154,4 +168,14 @@ fn secondary_line(image: &ImageInfo) -> String {
         0 | 1 => image.short_id().to_owned(),
         n => format!("{} · +{}", image.short_id(), plural(n - 1, "tag")),
     }
+}
+
+/// Removal tasks for every image no container uses.
+fn unused(store: &Store) -> Vec<Task> {
+    store
+        .images
+        .iter()
+        .filter(|i| store.containers_using_image(&i.id).is_empty())
+        .map(|i| remove_task(Resource::Images, &i.id, i.name()))
+        .collect()
 }

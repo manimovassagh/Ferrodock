@@ -68,3 +68,26 @@ Each page shows what's in use and by which containers.
 Ferrodock follows your system's light or dark setting.
 
 ![Light mode](/img/light-mode.png)
+
+## Keyboard shortcuts
+
+Press **⌘K** (macOS) or **Ctrl+K** (Windows, Linux) to open the **command
+palette**. Type a few letters of anything, such as a container, image,
+volume, network, Compose project or action ("restart api", "remove unused
+images"), and press **Enter**. Entries you used recently come first.
+
+| Keys | Does |
+|---|---|
+| ⌘/Ctrl+K | Command palette |
+| ⌘/Ctrl+1 … 5 | Switch page |
+| / | Search this page |
+| ↑ ↓ or J K | Select the previous or next item |
+| Esc | Close the details pane |
+| S | Start or stop the selected container |
+| R | Restart it |
+| P | Pause or resume it |
+| L | Show its logs |
+| ⌫ or Delete | Remove it (asks first) |
+| F5 | Refresh |
+| ? | Show all shortcuts |
+

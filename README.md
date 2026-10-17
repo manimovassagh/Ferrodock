@@ -67,6 +67,9 @@ Get-FileHash .\Ferrodock-*-windows-x64.zip            # Windows (compare with SH
   containers use each one.
 - **Clean up**: remove single items or everything unused, always with a
   confirmation first.
+- **Command palette** (⌘K / Ctrl+K) and keyboard shortcuts for every
+  action: jump to any container, image or volume, or run an action, without
+  touching the mouse.
 - **Search** on every page, and **live updates** every few seconds.
 - **Light and dark themes** that follow your system setting.
 - **Resilient**: start Ferrodock before Docker and it connects as soon as the
