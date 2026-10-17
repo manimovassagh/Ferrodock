@@ -124,9 +124,9 @@ fn screenshots() {
     h.run_steps(3);
     h.state_mut().pages[2].clear_selection();
 
-    h.state()
-        .updater
-        .pretend(crate::update::Status::Available(crate::update::Available::example("1.0.0")));
+    h.state().updater.pretend(crate::update::Status::Available(
+        crate::update::Available::example("1.0.0"),
+    ));
     open(&mut h, 0, None);
     save(&mut h, "update-available");
     h.state().updater.pretend(crate::update::Status::Idle);
