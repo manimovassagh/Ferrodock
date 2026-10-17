@@ -134,7 +134,7 @@ Progress is tracked in [issues](https://github.com/manimovassagh/IronStack/issue
 - [x] Remove containers, images, volumes and networks ([#5](https://github.com/manimovassagh/IronStack/issues/5))
 - [x] Container logs ([#6](https://github.com/manimovassagh/IronStack/issues/6)) and live stats ([#7](https://github.com/manimovassagh/IronStack/issues/7))
 - [x] App icon and smaller binaries ([#10](https://github.com/manimovassagh/IronStack/issues/10))
-- [ ] Prebuilt downloads for Windows and macOS ([#9](https://github.com/manimovassagh/IronStack/issues/9))
+- [x] Prebuilt downloads for Windows, macOS and Linux ([#9](https://github.com/manimovassagh/IronStack/issues/9))
 - [x] Docker Compose projects ([#8](https://github.com/manimovassagh/IronStack/issues/8))
 - [ ] Documentation website ([#11](https://github.com/manimovassagh/IronStack/issues/11))
 
