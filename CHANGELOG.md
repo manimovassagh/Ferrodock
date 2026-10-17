@@ -7,6 +7,13 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.5.0](https://github.com/manimovassagh/Ferrodock/compare/v1.4.0...v1.5.0) - 2026-10-17
+
+### Added
+
+- browse a volume's files, read-only ([#103](https://github.com/manimovassagh/Ferrodock/pull/103))
+- open a shell inside a container in the Terminal tab ([#101](https://github.com/manimovassagh/Ferrodock/pull/101))
+
 ## [1.4.0](https://github.com/manimovassagh/Ferrodock/compare/v1.3.0...v1.4.0) - 2026-10-17
 
 ### Added
