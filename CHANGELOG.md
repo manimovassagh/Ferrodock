@@ -7,6 +7,19 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0](https://github.com/manimovassagh/Ferrodock/compare/v0.4.1...v0.5.0) - 2026-10-17
+
+### Added
+
+- disk usage and clean-up page ([#60](https://github.com/manimovassagh/Ferrodock/pull/60))
+- command palette and keyboard shortcuts ([#58](https://github.com/manimovassagh/Ferrodock/pull/58))
+- open published ports in the browser, pause and resume ([#57](https://github.com/manimovassagh/Ferrodock/pull/57))
+- DMG and Homebrew install for macOS ([#38](https://github.com/manimovassagh/Ferrodock/pull/38))
+
+### Documentation
+
+- mention the DMG and Homebrew in release notes ([#59](https://github.com/manimovassagh/Ferrodock/pull/59))
+
 ## [0.4.1](https://github.com/manimovassagh/Ferrodock/compare/v0.4.0...v0.4.1) - 2026-10-17
 
 ### Documentation
