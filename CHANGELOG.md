@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.0](https://github.com/manimovassagh/Ferrodock/compare/v1.1.1...v1.2.0) - 2026-10-17
+
+### Added
+
+- edit and recreate containers, and change their CPU and memory limits ([#92](https://github.com/manimovassagh/Ferrodock/pull/92))
+
 ## [1.1.1](https://github.com/manimovassagh/Ferrodock/compare/v1.1.0...v1.1.1) - 2026-10-17
 
 ### Documentation
