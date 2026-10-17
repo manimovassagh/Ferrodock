@@ -29,10 +29,17 @@ cask "ferrodock" do
 
   app "Ferrodock.app"
 
-  caveats <<~EOS
-    Ferrodock isn't notarized by Apple yet. If macOS refuses to open it, run:
-      xattr -dr com.apple.quarantine "#{appdir}/Ferrodock.app"
-  EOS
+  # Ferrodock isn't notarized by Apple yet; without this, macOS refuses to
+  # open it on first launch.
+  postflight do
+    system_command "/usr/bin/xattr",
+                   args: ["-dr", "com.apple.quarantine", "#{appdir}/Ferrodock.app"]
+  end
+
+  zap trash: [
+    "~/Library/Application Support/Ferrodock",
+    "~/Library/Saved Application State/io.github.manimovassagh.ferrodock.savedState",
+  ]
 end
 CASK
 echo "Wrote Casks/ferrodock.rb for ${version}"

@@ -44,7 +44,7 @@ On macOS 14 and older, **right-click the app → Open** also works. If macOS
 says the app "is damaged", run the `xattr` command above; it means the same
 thing.
 
-Installed with Homebrew? Run the same `xattr` command once after installing.
+Installed with Homebrew? Nothing to do: the cask allows the app for you.
 
 ### Windows
 
