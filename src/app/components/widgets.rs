@@ -96,8 +96,23 @@ pub fn tab(
     response
 }
 
+/// The mark at the start of a [`pill`], so states differ by shape as well
+/// as colour.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Mark {
+    Dot,
+    Ring,
+    Square,
+    Triangle,
+}
+
 /// Rounded "● Label" badge in the given colour.
 pub fn pill(ui: &mut egui::Ui, label: &str, color: Color32) {
+    pill_with(ui, label, color, Mark::Dot);
+}
+
+/// A [`pill`] with a chosen mark.
+pub fn pill_with(ui: &mut egui::Ui, label: &str, color: Color32, mark: Mark) {
     let galley = ui
         .painter()
         .layout_no_wrap(label.to_owned(), FontId::proportional(12.0), color);
@@ -107,11 +122,31 @@ pub fn pill(ui: &mut egui::Ui, label: &str, color: Color32) {
     let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
     let painter = ui.painter();
     painter.rect_filled(rect, CornerRadius::same(99), color.gamma_multiply(0.15));
-    painter.circle_filled(
-        egui::pos2(rect.left() + padding.x + 3.0, rect.center().y),
-        3.0,
-        color,
-    );
+    let center = egui::pos2(rect.left() + padding.x + 3.0, rect.center().y);
+    match mark {
+        Mark::Dot => {
+            painter.circle_filled(center, 3.0, color);
+        }
+        Mark::Ring => {
+            painter.circle_stroke(center, 2.6, egui::Stroke::new(1.2, color));
+        }
+        Mark::Square => {
+            let square = egui::Rect::from_center_size(center, vec2(5.5, 5.5));
+            painter.rect_filled(square, CornerRadius::same(1), color);
+        }
+        Mark::Triangle => {
+            let points = vec![
+                center + vec2(0.0, -3.6),
+                center + vec2(3.4, 2.6),
+                center + vec2(-3.4, 2.6),
+            ];
+            painter.add(egui::Shape::convex_polygon(
+                points,
+                color,
+                egui::Stroke::NONE,
+            ));
+        }
+    }
     painter.galley(rect.min + padding + vec2(dot_space, 0.0), galley, color);
 }
 

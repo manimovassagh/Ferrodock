@@ -16,6 +16,7 @@ pub enum Target {
     Page(usize, CommandRun),
     Refresh,
     Help,
+    Settings,
 }
 
 pub struct Item {
@@ -37,6 +38,7 @@ pub fn build(pages: &[Box<dyn Page>], store: &Store, recent: &[String]) -> Vec<I
     }
     items.push(item("Refresh", "F5", Target::Refresh));
     items.push(item("Keyboard shortcuts", "?", Target::Help));
+    items.push(item("Settings", &format!("{COMMAND},"), Target::Settings));
     for (index, page) in pages.iter().enumerate() {
         items.extend(page.commands(store).into_iter().map(|c| Item {
             entry: Entry {

@@ -1,4 +1,5 @@
-//! Left sidebar: brand, page navigation and Docker engine status.
+//! Left sidebar: brand, page navigation, the settings button and Docker
+//! engine status.
 
 use eframe::egui::{self, Align, Layout, RichText};
 
@@ -7,14 +8,20 @@ use super::page::Page;
 use super::store::{Connection, Store};
 use crate::theme::Palette;
 
-/// Draws the sidebar. Returns the index of a page the user clicked.
+/// What the user clicked in the sidebar.
+pub enum Click {
+    Page(usize),
+    Settings,
+}
+
+/// Draws the sidebar.
 pub fn show(
     ui: &mut egui::Ui,
     p: &Palette,
     pages: &[Box<dyn Page>],
     active: usize,
     store: &Store,
-) -> Option<usize> {
+) -> Option<Click> {
     ui.add_space(2.0);
     ui.horizontal(|ui| {
         widgets::logo(ui, 24.0);
@@ -27,12 +34,21 @@ pub fn show(
     let mut clicked = None;
     for (i, page) in pages.iter().enumerate() {
         if widgets::nav_item(ui, p, page.title(), &page.badge(store), i == active).clicked() {
-            clicked = Some(i);
+            clicked = Some(Click::Page(i));
         }
     }
 
     ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
         ui.horizontal(|ui| engine_status(ui, p, &store.connection));
+        ui.add_space(6.0);
+        let settings = widgets::nav_item(ui, p, "⚙  Settings", "", false).on_hover_text(format!(
+            "Theme, density and interface size ({}{})",
+            super::keys::COMMAND,
+            ","
+        ));
+        if settings.clicked() {
+            clicked = Some(Click::Settings);
+        }
     });
     clicked
 }

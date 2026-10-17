@@ -9,6 +9,7 @@ mod components;
 mod keys;
 mod page;
 mod pages;
+mod settings;
 mod shell;
 mod sidebar;
 mod store;
@@ -44,11 +45,18 @@ pub struct FerrodockApp {
     /// Labels of recently used palette entries, most recent first.
     recent: Vec<String>,
     show_help: bool,
+    settings: settings::Settings,
+    show_settings: bool,
 }
 
 impl FerrodockApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         theme::install(&cc.egui_ctx);
+        let settings: settings::Settings = cc
+            .storage
+            .and_then(|s| eframe::get_value(s, settings::STORAGE_KEY))
+            .unwrap_or_default();
+        settings.apply(&cc.egui_ctx);
         let ctx = cc.egui_ctx.clone();
         let worker = Worker::spawn(move || ctx.request_repaint());
         let pages = pages::all();
@@ -71,6 +79,8 @@ impl FerrodockApp {
             palette: None,
             recent: Vec::new(),
             show_help: false,
+            settings,
+            show_settings: false,
         }
     }
 
@@ -119,7 +129,10 @@ impl FerrodockApp {
 
     /// Whether a dialog or overlay has the keyboard.
     fn overlay_open(&self) -> bool {
-        self.palette.is_some() || self.show_help || self.confirmation.is_some()
+        self.palette.is_some()
+            || self.show_help
+            || self.show_settings
+            || self.confirmation.is_some()
     }
 
     fn handle_shortcut(
@@ -131,6 +144,7 @@ impl FerrodockApp {
         match shortcut {
             Shortcut::Palette => self.palette = Some(CommandPalette::default()),
             Shortcut::Help => self.show_help = true,
+            Shortcut::Settings => self.show_settings = true,
             Shortcut::Page(index) if index < self.pages.len() => self.open_page(index),
             Shortcut::Page(_) => {}
             Shortcut::Step(delta) => table::request_step(ctx, delta),
@@ -183,6 +197,7 @@ impl FerrodockApp {
             }
             Target::Refresh => self.refresh(),
             Target::Help => self.show_help = true,
+            Target::Settings => self.show_settings = true,
         }
     }
 
@@ -223,6 +238,10 @@ impl FerrodockApp {
 }
 
 impl eframe::App for FerrodockApp {
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        eframe::set_value(storage, settings::STORAGE_KEY, &self.settings);
+    }
+
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.handle_responses();
         let p = theme::palette(ui);
@@ -240,8 +259,10 @@ impl eframe::App for FerrodockApp {
                 sidebar::show(ui, p, &self.pages, self.active, &self.store)
             })
             .inner;
-        if let Some(index) = clicked_page {
-            self.open_page(index);
+        match clicked_page {
+            Some(sidebar::Click::Page(index)) => self.open_page(index),
+            Some(sidebar::Click::Settings) => self.show_settings = true,
+            None => {}
         }
 
         let mut intents = Vec::new();
@@ -303,6 +324,9 @@ impl eframe::App for FerrodockApp {
         table::clear_step(ui.ctx());
         self.show_confirmation(ui, p);
         self.show_palette(ui, p);
+        if self.show_settings {
+            self.show_settings = settings::show(ui, p, &mut self.settings);
+        }
         if self.show_help {
             let titles: Vec<&'static str> = self.pages.iter().map(|page| page.title()).collect();
             self.show_help = shortcuts::show(ui, p, &keys::help(&titles));

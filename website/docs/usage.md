@@ -97,6 +97,19 @@ it's done, a notification says how much space was freed.
 Disk usage is loaded when you open the page or press refresh, never in the
 background. It needs Docker Engine 29 or newer.
 
+## Settings
+
+Click **⚙ Settings** at the bottom of the sidebar, or press **⌘,** (Ctrl+,
+on Windows and Linux).
+
+- **Theme**: Light (the default), Dark, or System to follow your operating
+  system.
+- **Density**: Comfortable shows two lines per row; Compact fits about
+  twice as many rows on screen.
+- **Interface size**: 90% to 125%.
+
+Settings, the window size and its position are remembered between runs.
+
 ## Keyboard shortcuts
 
 Press **⌘K** (macOS) or **Ctrl+K** (Windows, Linux) to open the **command
@@ -107,6 +120,7 @@ images"), and press **Enter**. Entries you used recently come first.
 | Keys | Does |
 |---|---|
 | ⌘/Ctrl+K | Command palette |
+| ⌘/Ctrl+, | Settings |
 | ⌘/Ctrl+1 … 6 | Switch page |
 | / | Search this page |
 | ↑ ↓ or J K | Select the previous or next item |
