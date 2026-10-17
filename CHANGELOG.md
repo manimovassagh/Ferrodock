@@ -7,6 +7,31 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0](https://github.com/manimovassagh/Ferrodock/compare/v0.5.0...v0.6.0) - 2026-10-17
+
+### Added
+
+- create volumes and networks, connect containers to networks ([#82](https://github.com/manimovassagh/Ferrodock/pull/82))
+- processes tab and image history ([#81](https://github.com/manimovassagh/Ferrodock/pull/81))
+- friendly empty, loading and no-Docker states ([#80](https://github.com/manimovassagh/Ferrodock/pull/80))
+- colourful, searchable logs with timestamps and save ([#79](https://github.com/manimovassagh/Ferrodock/pull/79))
+- instant updates from Docker events, with crash alerts ([#78](https://github.com/manimovassagh/Ferrodock/pull/78))
+- update Ferrodock from inside the app ([#77](https://github.com/manimovassagh/Ferrodock/pull/77))
+- pull images and run them as containers ([#76](https://github.com/manimovassagh/Ferrodock/pull/76))
+- modern look with vector icons and the Inter typeface ([#75](https://github.com/manimovassagh/Ferrodock/pull/75))
+- settings for theme, density and interface size ([#74](https://github.com/manimovassagh/Ferrodock/pull/74))
+- inspect containers, images, volumes and networks ([#66](https://github.com/manimovassagh/Ferrodock/pull/66))
+
+### Documentation
+
+- explain how to open the app on macOS 15 and newer ([#64](https://github.com/manimovassagh/Ferrodock/pull/64))
+- move the roadmap out of the README into issues ([#63](https://github.com/manimovassagh/Ferrodock/pull/63))
+- add a landing page for the website ([#61](https://github.com/manimovassagh/Ferrodock/pull/61))
+
+### Fixed
+
+- publish the Homebrew cask and allow the app on install ([#65](https://github.com/manimovassagh/Ferrodock/pull/65))
+
 ## [0.5.0](https://github.com/manimovassagh/Ferrodock/compare/v0.4.1...v0.5.0) - 2026-10-17
 
 ### Added
