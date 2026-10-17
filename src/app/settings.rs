@@ -45,6 +45,10 @@ pub struct Settings {
     pub engine: Option<String>,
     /// Compose files brought up from Ferrodock, newest first.
     pub recent_compose: Vec<String>,
+    /// Ferrodock opens when the user logs in. Read from the system at
+    /// start, never saved: the system's login items are the record.
+    #[serde(skip)]
+    pub launch_at_login: bool,
 }
 
 impl Default for Settings {
@@ -57,6 +61,7 @@ impl Default for Settings {
             close_to_tray: true,
             engine: None,
             recent_compose: Vec::new(),
+            launch_at_login: false,
         }
     }
 }
@@ -150,6 +155,23 @@ pub fn show(ui: &mut egui::Ui, p: &Palette, settings: &mut Settings, updater: &U
                     ui.end_row();
                 });
 
+            ui.add_space(18.0);
+            heading(ui, p, "Startup");
+            let before = settings.launch_at_login;
+            ui.checkbox(
+                &mut settings.launch_at_login,
+                "Open Ferrodock when you log in",
+            );
+            let error_id = egui::Id::unique("launch-at-login-error");
+            if settings.launch_at_login != before
+                && let Err(e) = crate::app::autostart::set(settings.launch_at_login)
+            {
+                settings.launch_at_login = before;
+                ui.data_mut(|d| d.insert_temp(error_id, e));
+            }
+            if let Some(error) = ui.data(|d| d.get_temp::<String>(error_id)) {
+                ui.label(RichText::new(format!("Couldn't change it: {error}")).color(p.danger));
+            }
             if crate::app::tray::Tray::SUPPORTED {
                 ui.add_space(18.0);
                 let place = if cfg!(target_os = "macos") {

@@ -4,6 +4,7 @@
 //! the [`Store`], lays out the shell, lets the active [`Page`] draw itself
 //! and turns the page's [`Intent`]s into worker requests.
 
+mod autostart;
 mod commands;
 mod components;
 mod keys;
@@ -106,6 +107,17 @@ impl FerrodockApp {
             tray: tray::Tray::new(&cc.egui_ctx),
             quitting: false,
         }
+        .started(&cc.egui_ctx)
+    }
+
+    /// Reads what only the system knows, and starts hidden in the tray when
+    /// opened at login.
+    fn started(mut self, ctx: &egui::Context) -> Self {
+        self.settings.launch_at_login = autostart::enabled();
+        if self.tray.is_some() && autostart::started_in_background() {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+        }
+        self
     }
 
     /// Brings the tray up to date, acts on its clicks, and hides the window
