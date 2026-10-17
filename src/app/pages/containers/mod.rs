@@ -40,6 +40,7 @@ enum DetailsTab {
     Overview,
     Logs,
     Stats,
+    Inspect,
 }
 
 pub struct ContainersPage {

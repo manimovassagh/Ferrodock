@@ -18,6 +18,8 @@ pub enum Intent {
     Run(Task),
     /// Ask the user first; run the tasks only if they agree.
     Confirm(Confirmation),
+    /// Load the full inspect output of an item (by the ID the Engine uses).
+    Inspect(Resource, String),
 }
 
 /// A question for the user before something destructive happens.

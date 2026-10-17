@@ -1159,6 +1159,7 @@ dependencies = [
  "eframe",
  "egui_extras",
  "futures-util",
+ "serde_json",
  "tokio",
  "winresource",
 ]

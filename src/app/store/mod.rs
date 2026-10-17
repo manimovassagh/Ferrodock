@@ -8,8 +8,8 @@ mod live;
 use std::collections::HashSet;
 
 use crate::docker::{
-    ComposeProject, ContainerInfo, DiskUsage, ImageInfo, NetworkInfo, VolumeInfo, format_size,
-    group_projects,
+    ComposeProject, ContainerInfo, DiskUsage, ImageInfo, Inspection, NetworkInfo, VolumeInfo,
+    format_size, group_projects,
 };
 use crate::worker::Response;
 pub use live::Live;
@@ -36,6 +36,10 @@ pub struct Store {
     pub networks: Vec<NetworkInfo>,
     /// Disk usage, once the Disk page has loaded it.
     pub disk: Option<DiskUsage>,
+    /// The item whose inspect output was asked for last, and the result
+    /// once it arrives (an error message if it failed).
+    pub inspecting: Option<String>,
+    pub inspection: Option<Result<Inspection, String>>,
     /// IDs (names, for volumes) of items with an action in flight.
     pub pending: HashSet<String>,
     /// Logs and stats of the container being watched, if any.
@@ -52,6 +56,8 @@ impl Store {
             volumes: Vec::new(),
             networks: Vec::new(),
             disk: None,
+            inspecting: None,
+            inspection: None,
             pending: HashSet::new(),
             live: None,
         }
@@ -70,6 +76,16 @@ impl Store {
             Response::Volumes(list) => self.volumes = list,
             Response::Networks(list) => self.networks = list,
             Response::Disk(usage) => self.disk = Some(usage),
+            Response::Inspected(inspection) => {
+                if self.inspecting.as_deref() == Some(inspection.id.as_str()) {
+                    self.inspection = Some(Ok(inspection));
+                }
+            }
+            Response::InspectFailed { id, message } => {
+                if self.inspecting.as_deref() == Some(id.as_str()) {
+                    self.inspection = Some(Err(message));
+                }
+            }
             Response::Logs { container_id, text } => {
                 if let Some(live) = self.live_for(&container_id) {
                     live.logs.push(&text);
