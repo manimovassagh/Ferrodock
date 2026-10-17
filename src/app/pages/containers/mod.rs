@@ -12,6 +12,7 @@ mod table;
 
 use eframe::egui;
 
+use super::run_dialog::RunForm;
 use super::{confirm_removal, remove_task};
 use crate::app::components::icons::Icon;
 use crate::app::components::widgets;
@@ -55,6 +56,10 @@ pub struct ContainersPage {
     marked: std::collections::BTreeSet<String>,
     /// The row Shift-click extends from.
     anchor: Option<String>,
+    /// The Duplicate dialog, while it's open.
+    run_form: Option<RunForm>,
+    /// The new name being typed in the Rename dialog, while it's open.
+    rename: Option<String>,
 }
 
 impl ContainersPage {
@@ -66,6 +71,8 @@ impl ContainersPage {
             log_view: logs::LogView::default(),
             marked: Default::default(),
             anchor: None,
+            run_form: None,
+            rename: None,
         }
     }
 
@@ -177,6 +184,10 @@ impl Page for ContainersPage {
     fn clear_selection(&mut self) {
         self.selected = None;
         self.marked.clear();
+    }
+
+    fn has_overlay(&self) -> bool {
+        self.run_form.is_some() || self.rename.is_some()
     }
 
     fn select_all(&mut self, ctx: &PageCtx) {

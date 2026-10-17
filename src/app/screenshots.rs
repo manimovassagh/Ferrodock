@@ -168,6 +168,9 @@ fn screenshots() {
     open(&mut h, 0, busy);
     click(&mut h, "Overview");
     save(&mut h, "dark-mode");
+    click(&mut h, "Duplicate…");
+    settle(&mut h, Duration::from_millis(500));
+    save(&mut h, "duplicate");
 }
 
 /// The states new users see: nothing found, and no Docker at all.

@@ -29,6 +29,10 @@ pub enum Action {
     Connect,
     /// Disconnect a container from a network.
     Disconnect,
+    /// Rename a container.
+    Rename,
+    /// Change a container's settings in place.
+    Update,
 }
 
 impl Action {
@@ -47,6 +51,8 @@ impl Action {
             Action::Create(_) => "create",
             Action::Connect => "connect",
             Action::Disconnect => "disconnect",
+            Action::Rename => "rename",
+            Action::Update => "change",
         }
     }
 
@@ -64,6 +70,8 @@ impl Action {
             Action::Create(_) => "Created",
             Action::Connect => "Connected",
             Action::Disconnect => "Disconnected",
+            Action::Rename => "Renamed",
+            Action::Update => "Changed",
         }
     }
 
@@ -138,7 +146,9 @@ impl DockerClient {
             | Action::Run
             | Action::Create(_)
             | Action::Connect
-            | Action::Disconnect => {
+            | Action::Disconnect
+            | Action::Rename
+            | Action::Update => {
                 return Err("not something that can be removed".into());
             }
         };

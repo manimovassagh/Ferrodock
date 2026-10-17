@@ -19,6 +19,71 @@ pub struct Inspection {
     pub health: Option<Health>,
     /// Container ports the image declares with `EXPOSE`, e.g. `80/tcp`.
     pub exposed_ports: Vec<String>,
+    /// For containers, the settings needed to make a copy of it.
+    pub run: RunSettings,
+}
+
+/// How a container was started, as far as the Run dialog can recreate it.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RunSettings {
+    pub image: String,
+    /// (host port, container port), TCP.
+    pub ports: Vec<(u16, u16)>,
+    /// (source, target) bind mounts and named volumes.
+    pub volumes: Vec<(String, String)>,
+    /// The network, unless it's the default one.
+    pub network: String,
+    /// The command, when it was set explicitly.
+    pub command: String,
+}
+
+fn run_settings(value: &Value) -> RunSettings {
+    let host = &value["HostConfig"];
+    let mut ports: Vec<(u16, u16)> = host["PortBindings"]
+        .as_object()
+        .into_iter()
+        .flatten()
+        .filter_map(|(port, bindings)| {
+            let container = port.strip_suffix("/tcp")?.parse().ok()?;
+            let host = bindings[0]["HostPort"].as_str()?.parse().ok()?;
+            Some((host, container))
+        })
+        .collect();
+    ports.sort();
+    let volumes = host["Binds"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .filter_map(|bind| {
+            let mut parts = bind.splitn(3, ':');
+            Some((parts.next()?.to_owned(), parts.next()?.to_owned()))
+        })
+        .collect();
+    let network = host["NetworkMode"]
+        .as_str()
+        .filter(|n| !matches!(*n, "default" | "bridge" | ""))
+        .unwrap_or_default()
+        .to_owned();
+    let command = value["Config"]["Cmd"]
+        .as_array()
+        .map(|cmd| {
+            cmd.iter()
+                .filter_map(Value::as_str)
+                .collect::<Vec<_>>()
+                .join(" ")
+        })
+        .unwrap_or_default();
+    RunSettings {
+        image: value["Config"]["Image"]
+            .as_str()
+            .unwrap_or_default()
+            .to_owned(),
+        ports,
+        volumes,
+        network,
+        command,
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -82,6 +147,7 @@ impl Inspection {
         Self {
             id: id.to_owned(),
             exposed_ports,
+            run: run_settings(value),
             json: serde_json::to_string_pretty(value).unwrap_or_default(),
             env,
             labels,
@@ -157,6 +223,27 @@ mod tests {
         assert_eq!(health.failing_streak, 3);
         assert_eq!(health.last_output, "curl: (7) refused");
         assert!(i.json.contains("\"Env\""));
+    }
+
+    #[test]
+    fn reads_how_a_container_was_run() {
+        let value = serde_json::json!({
+            "Config": {"Image": "nginx:alpine", "Cmd": ["nginx", "-g", "daemon off;"]},
+            "HostConfig": {
+                "PortBindings": {"80/tcp": [{"HostIp": "", "HostPort": "8080"}], "53/udp": []},
+                "Binds": ["site:/usr/share/nginx/html:ro"],
+                "NetworkMode": "backend"
+            }
+        });
+        let run = Inspection::from_json("x", &value).run;
+        assert_eq!(run.image, "nginx:alpine");
+        assert_eq!(run.ports, vec![(8080, 80)]);
+        assert_eq!(
+            run.volumes,
+            vec![("site".into(), "/usr/share/nginx/html".into())]
+        );
+        assert_eq!(run.network, "backend");
+        assert_eq!(run.command, "nginx -g daemon off;");
     }
 
     #[test]

@@ -33,6 +33,15 @@ happening ("Stopping…", "Restarting…").
 If a container **crashes** (exits with an error you didn't ask for) or is
 killed for **running out of memory**, a notification tells you.
 
+In a container's details:
+
+- **Rename…** gives it a new name.
+- **Duplicate…** opens the Run dialog filled in with its image, ports (the
+  host side moved up by one so they don't clash), environment, volumes,
+  network, restart policy and command.
+- **Restart** (in Overview) changes its restart policy on the spot, without
+  recreating it.
+
 To act on several containers at once, **⌘-click** (Ctrl-click) rows to
 select them, **Shift-click** to select a range, or press **⌘A** (Ctrl+A)
 for all of them. A bar above the list then offers **Start**, **Stop**,
