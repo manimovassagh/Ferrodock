@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Builds dist/Ferrodock.app (universal: Apple Silicon + Intel) and zips it.
+# Builds dist/Ferrodock.app (universal: Apple Silicon + Intel), then a zip
+# and a .dmg of it.
 # Run on macOS from the repository root: packaging/macos/bundle.sh
 set -euo pipefail
 
@@ -23,4 +24,14 @@ cp assets/icon.icns "$app/Contents/Resources/icon.icns"
 codesign --force --deep --sign - "$app"
 
 ditto -c -k --keepParent "$app" "dist/Ferrodock-$version-macos-universal.zip"
-echo "Built dist/Ferrodock-$version-macos-universal.zip"
+
+# Disk image: the app next to a link to /Applications, so installing is a
+# single drag.
+staging=$(mktemp -d)
+cp -R "$app" "$staging/"
+ln -s /Applications "$staging/Applications"
+hdiutil create -volname "Ferrodock $version" -srcfolder "$staging" -ov \
+    -format UDZO "dist/Ferrodock-$version-macos-universal.dmg"
+rm -rf "$staging"
+
+echo "Built dist/Ferrodock-$version-macos-universal.zip and .dmg"
