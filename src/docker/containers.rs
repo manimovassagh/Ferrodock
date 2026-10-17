@@ -6,7 +6,7 @@ use bollard::query_parameters::ListContainersOptions;
 use super::{DockerClient, PortMapping, describe};
 
 /// UI-friendly snapshot of a container.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct ContainerInfo {
     pub id: String,
     pub name: String,

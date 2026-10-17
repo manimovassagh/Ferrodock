@@ -28,6 +28,11 @@ tar = "0.4.46"
 vt100 = "0.16.2"
 tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros", "time"] }
 
+# The menu bar / notification area icon. Linux would need GTK, so it's
+# left out there.
+[target.'cfg(any(target_os = "macos", target_os = "windows"))'.dependencies]
+tray-icon = "0.26.1"
+
 [build-dependencies]
 winresource = "0.1.34"
 

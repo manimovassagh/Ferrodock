@@ -37,6 +37,9 @@ pub struct Settings {
     pub scale: f32,
     /// Look for a new version when Ferrodock starts.
     pub check_updates: bool,
+    /// Closing the window hides it, leaving Ferrodock in the menu bar
+    /// (notification area on Windows).
+    pub close_to_tray: bool,
 }
 
 impl Default for Settings {
@@ -46,6 +49,7 @@ impl Default for Settings {
             density: Density::default(),
             scale: 1.0,
             check_updates: true,
+            close_to_tray: true,
         }
     }
 }
@@ -125,6 +129,20 @@ pub fn show(ui: &mut egui::Ui, p: &Palette, settings: &mut Settings, updater: &U
                     }
                     ui.end_row();
                 });
+
+            if crate::app::tray::Tray::SUPPORTED {
+                ui.add_space(18.0);
+                let place = if cfg!(target_os = "macos") {
+                    "Menu bar"
+                } else {
+                    "Notification area"
+                };
+                heading(ui, p, place);
+                ui.checkbox(
+                    &mut settings.close_to_tray,
+                    "Keep running there when the window is closed",
+                );
+            }
 
             ui.add_space(18.0);
             heading(ui, p, "Updates");
