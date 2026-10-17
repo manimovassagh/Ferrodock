@@ -141,8 +141,8 @@ Progress is tracked in [issues](https://github.com/manimovassagh/IronStack/issue
 ## Contributing
 
 Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for the
-development setup and guidelines, and [CHANGELOG.md](CHANGELOG.md) for what's
-changed. Please report security issues privately as described in
+development setup and guidelines, [CHANGELOG.md](CHANGELOG.md) for what's
+changed, and [RELEASING.md](RELEASING.md) for how releases are made. Please report security issues privately as described in
 [SECURITY.md](SECURITY.md).
 
 ## Author

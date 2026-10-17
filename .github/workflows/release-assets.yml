@@ -1,0 +1,104 @@
+name: Release assets
+
+# Builds IronStack for every platform from a release tag, attaches the
+# binaries and SHA256SUMS.txt to that tag's GitHub Release, and publishes
+# the release if it's still a draft.
+#
+# Called by release.yml after release-plz creates a release. Can also be run
+# by hand from the Actions tab to rebuild the assets of an existing tag.
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag, e.g. v0.3.0
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, e.g. v0.3.0
+        required: true
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+  TAG: ${{ inputs.tag }}
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release --locked
+      - name: Package
+        shell: bash
+        run: |
+          mkdir dist
+          cp target/release/ironstack.exe dist/IronStack.exe
+          cd dist && 7z a "IronStack-${TAG#v}-windows-x64.zip" IronStack.exe
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows
+          path: dist/*.zip
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: dtolnay/rust-toolchain@stable
+      - run: packaging/macos/bundle.sh
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos
+          path: dist/*.zip
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release --locked
+      - name: Package
+        run: |
+          mkdir dist
+          tar -czf "dist/IronStack-${TAG#v}-linux-x64.tar.gz" -C target/release ironstack
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux
+          path: dist/*.tar.gz
+
+  publish:
+    needs: [windows, macos, linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum IronStack-* | tee SHA256SUMS.txt
+      - name: Attach to the release
+        run: gh release upload "$TAG" dist/* --clobber
+      - name: Publish the release
+        run: |
+          read -r draft prerelease < <(gh release view "$TAG" --json isDraft,isPrerelease -q '"\(.isDraft) \(.isPrerelease)"')
+          if [ "$draft" != "true" ]; then
+            echo "Already published; assets updated."
+          elif [ "$prerelease" = "true" ]; then
+            gh release edit "$TAG" --draft=false
+          else
+            gh release edit "$TAG" --draft=false --latest
+          fi

@@ -53,6 +53,27 @@ Some guidelines:
 - Write commit messages in plain English: a short summary line, then the
   why.
 
+## Pull request titles
+
+PRs are squash-merged, so the PR title becomes the commit on `main`, and
+it drives versioning and the changelog. Use
+[Conventional Commits](https://www.conventionalcommits.org):
+
+```
+feat: add image pulling
+fix(logs): keep the scroll position when new lines arrive
+perf: skip redraws when nothing changed
+docs: explain DOCKER_HOST on Windows
+chore(deps): update bollard
+```
+
+`feat` and `fix` show up in the changelog as Added and Fixed. Add `!`
+(`feat!: …`) for breaking changes. See [RELEASING.md](RELEASING.md) for how
+releases work.
+
+Don't edit the version in `Cargo.toml` or `CHANGELOG.md` yourself: the
+release PR does that.
+
 ## License
 
 By contributing, you agree that your contributions are licensed under the

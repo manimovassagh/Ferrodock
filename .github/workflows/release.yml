@@ -1,92 +1,75 @@
 name: Release
 
-# Publishes a GitHub Release for the version in Cargo.toml.
-# Runs when a v* tag is pushed, or manually from the Actions tab.
+# The release pipeline, driven by release-plz (see release-plz.toml):
+#
+# 1. Every push to main updates the release PR ("chore: release vX.Y.Z"),
+#    which bumps the version and the changelog from Conventional Commits.
+# 2. Merging that PR pushes the tag and creates a draft GitHub Release.
+# 3. release-assets.yml builds every platform, attaches the binaries and
+#    checksums, and publishes the release.
 on:
   push:
-    tags: ["v*"]
-  workflow_dispatch:
-
-env:
-  CARGO_TERM_COLOR: always
+    branches: [main]
 
 jobs:
-  windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo build --release
-      - name: Package
-        shell: bash
-        run: |
-          version=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
-          mkdir dist
-          cp target/release/ironstack.exe dist/IronStack.exe
-          cd dist && 7z a "IronStack-$version-windows-x64.zip" IronStack.exe
-      - uses: actions/upload-artifact@v7
-        with:
-          name: windows
-          path: dist/*.zip
-
-  macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-      - run: packaging/macos/bundle.sh
-      - uses: actions/upload-artifact@v7
-        with:
-          name: macos
-          path: dist/*.zip
-
-  linux:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo build --release
-      - name: Package
-        run: |
-          version=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
-          mkdir dist
-          tar -czf "dist/IronStack-$version-linux-x64.tar.gz" -C target/release ironstack
-      - uses: actions/upload-artifact@v7
-        with:
-          name: linux
-          path: dist/*.tar.gz
-
-  publish:
-    needs: [windows, macos, linux]
+  release:
+    name: Tag and draft release
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    concurrency:
+      group: release-plz-release
+      cancel-in-progress: false
+    outputs:
+      created: ${{ steps.release-plz.outputs.releases_created }}
+      tag: ${{ steps.tag.outputs.tag }}
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
         with:
-          path: dist
-          merge-multiple: true
-      - name: Read version
-        id: version
-        run: echo "tag=v$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)" >> "$GITHUB_OUTPUT"
-      - uses: softprops/action-gh-release@v3
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - id: release-plz
+        uses: release-plz/action@v0.5
         with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          name: IronStack ${{ steps.version.outputs.tag }}
-          target_commitish: ${{ github.sha }}
-          generate_release_notes: true
-          files: dist/*
-          body: |
-            ## Download
+          command: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - id: tag
+        if: steps.release-plz.outputs.releases_created == 'true'
+        env:
+          RELEASES: ${{ steps.release-plz.outputs.releases }}
+        run: echo "tag=$(jq -r '.[0].tag' <<< "$RELEASES")" >> "$GITHUB_OUTPUT"
 
-            | Platform | File |
-            |---|---|
-            | **macOS** (Apple Silicon and Intel) | `IronStack-*-macos-universal.zip` |
-            | **Windows** 10/11 (x64) | `IronStack-*-windows-x64.zip` |
-            | **Linux** (x64) | `IronStack-*-linux-x64.tar.gz` |
+  assets:
+    name: Build and publish
+    needs: release
+    if: needs.release.outputs.created == 'true'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/release-assets.yml
+    with:
+      tag: ${{ needs.release.outputs.tag }}
 
-            IronStack needs a running Docker Engine (Docker Desktop, Colima, Rancher Desktop, …).
-
-            **macOS:** unzip, move `IronStack.app` to Applications, then **right-click → Open** the first time (the app isn't notarized yet).
-            **Windows:** unzip and run `IronStack.exe`. If SmartScreen appears, choose **More info → Run anyway**.
+  release-pr:
+    name: Update the release PR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: release-plz-pr
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: release-plz/action@v0.5
+        with:
+          command: release-pr
+        env:
+          # A personal access token in RELEASE_PLZ_TOKEN lets CI run on the
+          # release PR; PRs opened with the default token don't trigger CI.
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN || secrets.GITHUB_TOKEN }}

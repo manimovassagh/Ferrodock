@@ -1,0 +1,56 @@
+# Release automation: https://release-plz.dev
+#
+# On every push to main, release-plz opens (or updates) a release PR that
+# bumps the version in Cargo.toml and adds the changes to CHANGELOG.md,
+# based on Conventional Commit messages. Merging that PR tags the release
+# and creates a draft GitHub Release; .github/workflows/release-assets.yml
+# then attaches the binaries and publishes it.
+
+[workspace]
+# Used for the compare links in the changelog.
+repo_url = "https://github.com/manimovassagh/IronStack"
+# Versions come from git tags; IronStack isn't published to crates.io (yet).
+git_only = true
+# A binary, not a library: there's no public API for cargo-semver-checks.
+semver_check = false
+# `feat:` commits bump the minor version even before 1.0.
+features_always_increment_minor = true
+# Kept as a draft until the binaries are attached.
+git_release_draft = true
+# `v1.0.0-rc.1` style versions become GitHub pre-releases.
+git_release_type = "auto"
+pr_labels = ["release"]
+git_release_body = """
+## Download
+
+| Platform | File |
+|---|---|
+| **macOS** 11+ (Apple Silicon and Intel) | `IronStack-{{ version }}-macos-universal.zip` |
+| **Windows** 10/11 (x64) | `IronStack-{{ version }}-windows-x64.zip` |
+| **Linux** (x64) | `IronStack-{{ version }}-linux-x64.tar.gz` |
+
+**macOS:** unzip, move `IronStack.app` to Applications, then **right-click → Open** the first time (the app isn't notarized yet).
+**Windows:** unzip and run `IronStack.exe`. If SmartScreen appears, choose **More info → Run anyway**.
+Verify downloads with `SHA256SUMS.txt`.
+
+## What's changed
+
+{{ changelog }}
+"""
+
+[changelog]
+# Group commits by their Conventional Commit type. Housekeeping commits
+# don't belong in the user-facing changelog.
+commit_parsers = [
+    { message = "^feat", group = "Added" },
+    { message = "^fix", group = "Fixed" },
+    { message = "^perf", group = "Performance" },
+    { message = "^security", group = "Security" },
+    { message = "^revert", group = "Reverted" },
+    { message = "^refactor", group = "Changed" },
+    { message = "^docs", group = "Documentation" },
+    { message = "^(chore|ci|build|test|style)", skip = true },
+    { message = "^Bump ", skip = true },
+    { message = "^.*", group = "Other" },
+]
+protect_breaking_commits = true
