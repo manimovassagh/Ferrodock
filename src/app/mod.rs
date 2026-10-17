@@ -222,6 +222,7 @@ impl FerrodockApp {
                 self.worker.send(Request::Pull(image));
             }
             Intent::RunImage(spec) => self.worker.send(Request::RunImage(spec)),
+            Intent::Notify { text, is_error } => self.toast = Some(Toast::new(text, is_error)),
             Intent::Inspect(resource, id) => {
                 self.store.inspection = None;
                 self.store.inspecting = Some(id.clone());

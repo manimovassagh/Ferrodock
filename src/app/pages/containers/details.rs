@@ -53,7 +53,11 @@ pub(super) fn show(page: &mut ContainersPage, ui: &mut egui::Ui, ctx: &mut PageC
     let live = ctx.store.live.as_ref();
     match page.tab {
         DetailsTab::Overview => overview(ui, p, c),
-        DetailsTab::Logs => logs::show(ui, p, live, &mut page.log_filter),
+        DetailsTab::Logs => {
+            if let Some(intent) = logs::show(ui, p, live, &mut page.log_view, &c.name) {
+                ctx.request(intent);
+            }
+        }
         DetailsTab::Stats => stats::show(ui, p, live, c.is_running()),
         DetailsTab::Inspect => {
             if inspect::needs_loading(ctx.store, &c.id) {

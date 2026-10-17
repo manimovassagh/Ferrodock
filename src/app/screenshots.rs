@@ -95,11 +95,19 @@ fn screenshots() {
         .store
         .containers
         .iter()
-        .find(|c| c.name == "api-server")
+        .find(|c| c.name == "payments")
+        .or_else(|| {
+            h.state()
+                .store
+                .containers
+                .iter()
+                .find(|c| c.name == "api-server")
+        })
         .map(|c| c.id.clone())
         .or(busy.clone());
     open(&mut h, 0, chatty);
     click(&mut h, "Logs");
+    click(&mut h, "Time");
     settle(&mut h, Duration::from_secs(2));
     save(&mut h, "logs");
 

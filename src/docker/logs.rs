@@ -20,6 +20,8 @@ impl DockerClient {
             stdout: true,
             stderr: true,
             tail: tail.to_string(),
+            // Each line starts with when it was written; the UI can show it.
+            timestamps: true,
             ..Default::default()
         };
         self.docker
