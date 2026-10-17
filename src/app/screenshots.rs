@@ -86,6 +86,8 @@ fn screenshots() {
     set_theme(&mut h, Theme::Light);
 
     open(&mut h, 0, None);
+    // Let a few CPU readings come in for the sparklines.
+    settle(&mut h, Duration::from_secs(10));
     save(&mut h, "containers");
 
     let busy = busiest(&h);

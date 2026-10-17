@@ -5,15 +5,18 @@
 
 mod live;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::time::Instant;
 
 use crate::docker::{
     Action, ComposeProject, ContainerInfo, DiskUsage, ImageInfo, Inspection, Layer, NetworkInfo,
-    Processes, PullProgress, VolumeInfo, format_size, group_projects,
+    Processes, PullProgress, StatsSample, VolumeInfo, format_size, group_projects,
 };
 use crate::worker::Response;
 pub use live::Live;
+
+/// Usage readings kept per container for the table's sparklines.
+const USAGE_HISTORY: usize = 20;
 
 /// A container's processes, or why they couldn't be read.
 pub type ProcessTable = Result<Processes, String>;
@@ -49,6 +52,9 @@ pub struct Store {
     pub processes: Option<(String, Instant, Option<ProcessTable>)>,
     /// The layers of the image asked about last.
     pub history: Option<(String, Option<Vec<Layer>>)>,
+    /// Recent CPU and memory of each running container (oldest first),
+    /// while the Containers page is open.
+    pub usage: HashMap<String, VecDeque<StatsSample>>,
     /// Pulls in progress, by image reference.
     pub pulls: Vec<(String, PullProgress)>,
     /// IDs (names, for volumes) of items with an action in flight, and
@@ -71,6 +77,7 @@ impl Store {
             inspecting: None,
             inspection: None,
             pulls: Vec::new(),
+            usage: HashMap::new(),
             processes: None,
             history: None,
             pending: HashMap::new(),
@@ -91,6 +98,18 @@ impl Store {
             Response::Volumes(list) => self.volumes = list,
             Response::Networks(list) => self.networks = list,
             Response::Disk(usage) => self.disk = Some(usage),
+            Response::Usage(readings) => {
+                // Forget containers that stopped.
+                self.usage
+                    .retain(|id, _| readings.iter().any(|(r, _)| r == id));
+                for (id, sample) in readings {
+                    let history = self.usage.entry(id).or_default();
+                    if history.len() == USAGE_HISTORY {
+                        history.pop_front();
+                    }
+                    history.push_back(sample);
+                }
+            }
             Response::Alert(text) => {
                 return Some(Notice {
                     text,

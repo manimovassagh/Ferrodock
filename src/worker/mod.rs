@@ -21,6 +21,10 @@ use crate::docker::{
 /// arrive at once through the event stream; this is the safety net.
 const POLL_INTERVAL: Duration = Duration::from_secs(5);
 
+/// Usage of every running container is read at most this often, and only
+/// while the Containers page is open.
+const USAGE_INTERVAL: Duration = Duration::from_secs(4);
+
 /// Events arriving this close together are handled as one batch.
 const EVENT_BATCH: Duration = Duration::from_millis(200);
 
@@ -60,6 +64,8 @@ pub enum Response {
     Volumes(Vec<VolumeInfo>),
     Networks(Vec<NetworkInfo>),
     Disk(DiskUsage),
+    /// CPU and memory of every running container, by ID.
+    Usage(Vec<(String, StatsSample)>),
     /// Something the user should know about even though they didn't ask,
     /// e.g. a container crashed.
     Alert(String),
@@ -164,12 +170,15 @@ impl Sender {
 struct Shared {
     out: Sender,
     dedup: dedup::Dedup,
+    /// When usage of all containers was last read.
+    usage_at: std::sync::Mutex<Option<std::time::Instant>>,
 }
 
 async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) {
     let shared = Arc::new(Shared {
         out,
         dedup: dedup::Dedup::default(),
+        usage_at: std::sync::Mutex::new(None),
     });
     let mut client: Option<DockerClient> = None;
     let mut watch = live::Watch::default();
@@ -228,6 +237,10 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
             // Each request runs as its own task so a slow `stop` (which
             // waits for the container to exit) doesn't hold up refreshes.
             Request::Refresh(resource) | Request::Poll(resource) => {
+                if polled == Resource::Containers && shared.usage_due() {
+                    let (docker, shared) = (docker.clone(), shared.clone());
+                    tokio::spawn(async move { usage(&docker, &shared).await });
+                }
                 tokio::spawn(
                     async move { refresh_with_containers(&docker, &shared, resource).await },
                 );
@@ -339,6 +352,18 @@ async fn follow_events(client: DockerClient, shared: Arc<Shared>) {
 }
 
 impl Shared {
+    /// Whether it's time to read usage again; claims the slot if so.
+    fn usage_due(&self) -> bool {
+        let Ok(mut at) = self.usage_at.lock() else {
+            return false;
+        };
+        if at.is_some_and(|t| t.elapsed() < USAGE_INTERVAL) {
+            return false;
+        }
+        *at = Some(std::time::Instant::now());
+        true
+    }
+
     fn send(&self, response: Response) {
         self.out.send(response);
     }
@@ -399,6 +424,23 @@ async fn run_image(client: &DockerClient, shared: &Shared, spec: RunSpec) {
         }
     }
     refresh(client, shared, Resource::Containers).await;
+}
+
+/// Reads CPU and memory of every running container, all at once.
+async fn usage(client: &DockerClient, shared: &Shared) {
+    let Ok(containers) = client.list_containers().await else {
+        return;
+    };
+    let readings = containers
+        .iter()
+        .filter(|c| c.is_running())
+        .map(|c| async move { (c.id.clone(), client.stats_once(&c.id).await) });
+    let readings = futures_util::future::join_all(readings).await;
+    let usage = readings
+        .into_iter()
+        .filter_map(|(id, reading)| reading.ok().map(|r| (id, r)))
+        .collect();
+    shared.send(Response::Usage(usage));
 }
 
 async fn run_task(client: &DockerClient, shared: &Shared, task: Task) {
