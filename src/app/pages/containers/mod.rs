@@ -90,8 +90,8 @@ impl Page for ContainersPage {
         Resource::Containers
     }
 
-    fn count(&self, store: &Store) -> usize {
-        store.containers.len()
+    fn badge(&self, store: &Store) -> String {
+        store.containers.len().to_string()
     }
 
     fn summary(&self, store: &Store) -> String {

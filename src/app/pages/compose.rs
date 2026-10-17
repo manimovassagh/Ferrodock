@@ -33,8 +33,8 @@ impl Page for ComposePage {
         Resource::Containers
     }
 
-    fn count(&self, store: &Store) -> usize {
-        store.projects.len()
+    fn badge(&self, store: &Store) -> String {
+        store.projects.len().to_string()
     }
 
     fn summary(&self, store: &Store) -> String {

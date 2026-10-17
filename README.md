@@ -65,6 +65,8 @@ Get-FileHash .\Ferrodock-*-windows-x64.zip            # Windows (compare with SH
   restart or remove a whole project at once.
 - **Images, Volumes, Networks**: size, mountpoints, subnets, and which
   containers use each one.
+- **Disk**: see where the space goes (images, containers, volumes, build
+  cache) and free it in one step, with a preview of exactly what's deleted.
 - **Clean up**: remove single items or everything unused, always with a
   confirmation first.
 - **Command palette** (⌘K / Ctrl+K) and keyboard shortcuts for every

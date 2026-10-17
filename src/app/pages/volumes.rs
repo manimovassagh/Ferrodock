@@ -30,8 +30,8 @@ impl Page for VolumesPage {
         Resource::Volumes
     }
 
-    fn count(&self, store: &Store) -> usize {
-        store.volumes.len()
+    fn badge(&self, store: &Store) -> String {
+        store.volumes.len().to_string()
     }
 
     fn summary(&self, store: &Store) -> String {
