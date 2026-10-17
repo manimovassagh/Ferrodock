@@ -21,6 +21,10 @@ pub enum Intent {
     Confirm(Confirmation),
     /// Load the full inspect output of an item (by the ID the Engine uses).
     Inspect(Resource, String),
+    /// Switch to the page with this title.
+    OpenPage(&'static str),
+    /// Empty the search box.
+    ClearSearch,
     /// Tell the user something, e.g. where a file was saved.
     Notify { text: String, is_error: bool },
     /// Pull an image by reference, e.g. `nginx:alpine`.
@@ -101,6 +105,10 @@ impl<'a> PageCtx<'a> {
 
     pub fn request(&mut self, intent: Intent) {
         self.intents.push(intent);
+    }
+
+    pub fn search_is_empty(&self) -> bool {
+        self.search.trim().is_empty()
     }
 
     /// Whether any of `fields` contains the search text (case-insensitive).

@@ -276,12 +276,37 @@ pub fn danger_button(ui: &mut egui::Ui, p: &Palette, label: &str) -> Response {
     )
 }
 
-/// Centered hint shown when a list has nothing to show.
-pub fn empty_state(ui: &mut egui::Ui, p: &Palette, message: &str) {
-    ui.add_space(60.0);
+/// Shown when a list has nothing in it: an icon, a title, a hint and an
+/// optional button. Returns true when the button was clicked.
+pub fn empty_state(
+    ui: &mut egui::Ui,
+    p: &Palette,
+    icon: Icon,
+    title: &str,
+    hint: &str,
+    action: Option<&str>,
+) -> bool {
+    let mut clicked = false;
+    ui.add_space(56.0);
     ui.vertical_centered(|ui| {
-        ui.label(RichText::new(message).color(p.muted));
+        let (rect, _) = ui.allocate_exact_size(vec2(64.0, 64.0), Sense::hover());
+        ui.painter()
+            .rect_filled(rect, CornerRadius::same(18), p.accent.gamma_multiply(0.1));
+        icons::paint(ui.painter(), rect.shrink(18.0), icon, p.accent);
+        ui.add_space(14.0);
+        ui.label(
+            RichText::new(title)
+                .font(FontId::new(17.0, crate::theme::semibold()))
+                .color(p.text),
+        );
+        ui.add_space(4.0);
+        ui.label(RichText::new(hint).color(p.muted));
+        if let Some(label) = action {
+            ui.add_space(14.0);
+            clicked = primary_button(ui, label).clicked();
+        }
     });
+    clicked
 }
 
 /// "Mounts" style label where an empty list reads as a dash.

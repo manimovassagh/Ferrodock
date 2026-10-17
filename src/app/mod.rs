@@ -223,6 +223,12 @@ impl FerrodockApp {
             }
             Intent::RunImage(spec) => self.worker.send(Request::RunImage(spec)),
             Intent::Notify { text, is_error } => self.toast = Some(Toast::new(text, is_error)),
+            Intent::OpenPage(title) => {
+                if let Some(index) = self.pages.iter().position(|p| p.title() == title) {
+                    self.open_page(index);
+                }
+            }
+            Intent::ClearSearch => self.search.clear(),
             Intent::Inspect(resource, id) => {
                 self.store.inspection = None;
                 self.store.inspecting = Some(id.clone());
@@ -348,6 +354,8 @@ impl eframe::App for FerrodockApp {
                 ui.add_space(12.0);
                 if let Connection::Disconnected { reason } = &self.store.connection {
                     refresh |= shell::disconnected(ui, p, reason);
+                } else if matches!(self.store.connection, Connection::Connecting) {
+                    shell::connecting(ui, p);
                 } else {
                     let mut ctx = PageCtx::new(&self.store, p, &self.search, &mut intents);
                     page.show(ui, &mut ctx);
