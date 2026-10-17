@@ -8,7 +8,7 @@ use eframe::egui;
 
 use super::components::icons::Icon;
 use super::store::Store;
-use crate::docker::{Change, Resource, RunSpec, Task};
+use crate::docker::{Change, FileOp, Resource, RunSpec, Task};
 use crate::theme::Palette;
 
 /// Something a page wants done. The app decides how (today: by asking the
@@ -39,6 +39,8 @@ pub enum Intent {
     Pull(String),
     /// Create and start a container.
     RunImage(RunSpec),
+    /// List, preview or copy files of a container.
+    Files(FileOp),
 }
 
 /// A question for the user before something destructive happens.

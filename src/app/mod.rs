@@ -227,6 +227,10 @@ impl FerrodockApp {
                 self.worker.send(Request::Pull(image));
             }
             Intent::RunImage(spec) => self.worker.send(Request::RunImage(spec)),
+            Intent::Files(op) => {
+                self.store.files_requested(&op);
+                self.worker.send(Request::Files(op));
+            }
             Intent::Change(change) => {
                 let task = change.task();
                 self.store.pending.insert(task.id, task.action);

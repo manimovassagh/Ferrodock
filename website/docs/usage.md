@@ -118,6 +118,23 @@ system, in [Settings](#settings).
 The **Top** tab lists what's running inside the container (process ID,
 user, CPU time and command), refreshed every two seconds while it's open.
 
+### Files
+
+The **Files** tab browses the container's filesystem, no `docker cp`
+needed.
+
+- Click a folder to open it, **..** to go up, or a part of the path at the
+  top to jump back.
+- Click a file to preview it. Text files up to 512 KB show inline.
+- **Download** (next to a preview, or the arrow at the top for the whole
+  folder) copies it to your Downloads folder. A name that's taken gets a
+  number, so nothing is overwritten.
+- **Drop files or folders** from your desktop onto the window to copy them
+  into the open folder.
+
+Stopped containers can be browsed too; their files come straight from the
+container's filesystem as it was left.
+
 ## Pull and run images
 
 On the **Images** page, type an image name such as `nginx:alpine` in the
