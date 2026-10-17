@@ -8,7 +8,7 @@ use eframe::egui;
 
 use super::components::icons::Icon;
 use super::store::Store;
-use crate::docker::{Change, FileOp, Resource, RunSpec, Task, TermOp};
+use crate::docker::{Change, ComposeOp, FileOp, ImageOp, Resource, RunSpec, Task, TermOp};
 use crate::theme::Palette;
 
 /// Something a page wants done. The app decides how (today: by asking the
@@ -43,6 +43,10 @@ pub enum Intent {
     Files(FileOp),
     /// Open, type into, resize or close a shell.
     Terminal(TermOp),
+    /// Search, tag, push, save or load images.
+    Image(ImageOp),
+    /// Run `docker compose`.
+    Compose(ComposeOp),
 }
 
 /// A question for the user before something destructive happens.

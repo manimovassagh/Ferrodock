@@ -35,6 +35,13 @@ pub enum Action {
     Update,
     /// Replace a container with an edited copy.
     Recreate,
+    /// Give an image another name.
+    Tag,
+    Push,
+    /// Save an image to a file.
+    Save,
+    /// Load images from a file.
+    Load,
 }
 
 impl Action {
@@ -56,6 +63,10 @@ impl Action {
             Action::Rename => "rename",
             Action::Update => "change",
             Action::Recreate => "recreate",
+            Action::Tag => "tag",
+            Action::Push => "push",
+            Action::Save => "save",
+            Action::Load => "load",
         }
     }
 
@@ -76,6 +87,10 @@ impl Action {
             Action::Rename => "Renamed",
             Action::Update => "Changed",
             Action::Recreate => "Recreated",
+            Action::Tag => "Tagged",
+            Action::Push => "Pushed",
+            Action::Save => "Saved",
+            Action::Load => "Loaded",
         }
     }
 
@@ -84,7 +99,9 @@ impl Action {
         match self {
             Action::Remove(resource) => resource,
             Action::Prune(kind) => kind.affects(),
-            Action::Pull => Resource::Images,
+            Action::Pull | Action::Tag | Action::Push | Action::Save | Action::Load => {
+                Resource::Images
+            }
             Action::Create(resource) => resource,
             Action::Connect | Action::Disconnect => Resource::Networks,
             _ => Resource::Containers,
@@ -155,7 +172,11 @@ impl DockerClient {
             | Action::Disconnect
             | Action::Rename
             | Action::Update
-            | Action::Recreate => {
+            | Action::Recreate
+            | Action::Tag
+            | Action::Push
+            | Action::Save
+            | Action::Load => {
                 return Err("not something that can be removed".into());
             }
         };

@@ -4,6 +4,7 @@
 //! the [`Store`], lays out the shell, lets the active [`Page`] draw itself
 //! and turns the page's [`Intent`]s into worker requests.
 
+mod autostart;
 mod commands;
 mod components;
 mod keys;
@@ -75,6 +76,12 @@ impl FerrodockApp {
         let ctx = cc.egui_ctx.clone();
         let worker = Worker::spawn(move || ctx.request_repaint());
         let pages = pages::all();
+        let mut store = Store::new();
+        store.engines = crate::docker::engines();
+        if let Some(engine) = crate::docker::pick(&store.engines, settings.engine.as_deref()) {
+            store.engine = Some(engine.name.clone());
+            worker.send(Request::UseEngine(engine));
+        }
         // Load everything once so the sidebar counts are filled in.
         for page in &pages {
             worker.send(Request::Refresh(page.resource()));
@@ -84,7 +91,7 @@ impl FerrodockApp {
         worker.send(Request::Poll(pages[0].resource()));
         Self {
             worker,
-            store: Store::new(),
+            store,
             pages,
             active: 0,
             search: String::new(),
@@ -100,6 +107,17 @@ impl FerrodockApp {
             tray: tray::Tray::new(&cc.egui_ctx),
             quitting: false,
         }
+        .started(&cc.egui_ctx)
+    }
+
+    /// Reads what only the system knows, and starts hidden in the tray when
+    /// opened at login.
+    fn started(mut self, ctx: &egui::Context) -> Self {
+        self.settings.launch_at_login = autostart::enabled();
+        if self.tray.is_some() && autostart::started_in_background() {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+        }
+        self
     }
 
     /// Brings the tray up to date, acts on its clicks, and hides the window
@@ -134,6 +152,21 @@ impl FerrodockApp {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
         }
+    }
+
+    /// Talks to `engine` from now on, and remembers it.
+    fn switch_engine(&mut self, engine: crate::docker::Engine) {
+        self.settings.engine = Some(engine.name.clone());
+        self.store = Store::new();
+        self.store.engines = crate::docker::engines();
+        self.store.engine = Some(engine.name.clone());
+        self.watching = None;
+        self.worker.send(Request::UseEngine(engine));
+        for page in &self.pages {
+            self.worker.send(Request::Refresh(page.resource()));
+        }
+        self.worker
+            .send(Request::Poll(self.pages[self.active].resource()));
     }
 
     /// Reloads the open page's data (plus the containers) right away.
@@ -268,6 +301,35 @@ impl FerrodockApp {
                 self.worker.send(Request::Pull(image));
             }
             Intent::RunImage(spec) => self.worker.send(Request::RunImage(spec)),
+            Intent::Compose(op) => {
+                if let Some(old) = self.store.compose.requested(&op) {
+                    self.worker
+                        .send(Request::Compose(crate::docker::ComposeOp::Cancel {
+                            job: old,
+                        }));
+                }
+                if let crate::docker::ComposeOp::Run { target, .. } = &op {
+                    self.settings.remember_compose_files(&target.files);
+                }
+                self.worker.send(Request::Compose(op));
+            }
+            Intent::Image(op) => {
+                use crate::docker::ImageOp;
+                let busy = match &op {
+                    ImageOp::Search(term) => {
+                        self.store.search = Some((term.clone(), None));
+                        None
+                    }
+                    ImageOp::Tag { image, .. } => Some((image.clone(), Action::Tag)),
+                    ImageOp::Push(reference) => Some((reference.clone(), Action::Push)),
+                    ImageOp::Save(image) => Some((image.clone(), Action::Save)),
+                    ImageOp::Load(path) => Some((path.display().to_string(), Action::Load)),
+                };
+                if let Some((id, action)) = busy {
+                    self.store.pending.insert(id, action);
+                }
+                self.worker.send(Request::Image(op));
+            }
             Intent::Terminal(op) => {
                 if let Some(old) = self.store.terminal_requested(&op) {
                     self.worker
@@ -354,6 +416,9 @@ impl eframe::App for FerrodockApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.handle_responses();
         self.handle_tray(ui.ctx());
+        self.store
+            .recent_compose
+            .clone_from(&self.settings.recent_compose);
         let p = theme::palette(ui);
         if !self.overlay_open() {
             for shortcut in keys::read(ui.ctx()) {
@@ -379,6 +444,7 @@ impl eframe::App for FerrodockApp {
         match clicked_page {
             Some(sidebar::Click::Page(index)) => self.open_page(index),
             Some(sidebar::Click::Settings) => self.show_settings = true,
+            Some(sidebar::Click::Engine(engine)) => self.switch_engine(engine),
             Some(sidebar::Click::Update) => {
                 if let crate::update::Status::Available(available) = self.updater.status() {
                     self.updater.install(available);

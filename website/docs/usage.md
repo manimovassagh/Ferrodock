@@ -94,6 +94,20 @@ Containers started by Docker Compose are grouped by project. A project shows
 - **Remove** deletes the project's containers once it's stopped. Volumes,
   networks and images are kept, and `docker compose up` recreates
   everything.
+- **Rebuild** next to a service (in Overview) rebuilds and recreates just
+  that service; **Rebuild all** does every service, and **Pull & recreate**
+  pulls newer images and recreates the containers.
+- **Logs** shows every service's logs together, live, each service in its
+  own colour. Click a service to see only its lines.
+
+To start a project that isn't running yet, paste the path of its
+`compose.yaml` in the box at the top of the page and click **Up**, or drop
+the file on the window. Projects you started this way are listed under
+**Recent** for one-click restarts. The output of `docker compose` shows
+while it works.
+
+These use the `docker compose` command, so the Docker CLI with Compose
+needs to be installed; Ferrodock points it at the engine you picked.
 
 ## Images, volumes and networks
 
@@ -128,7 +142,15 @@ session** to use that instead.
 It's a real terminal: full-screen programs such as `top`, `vi` and `less`
 work, along with arrow keys, tab completion and colours. The size follows
 the pane. **Ctrl+C** interrupts (on macOS, **⌘C** copies the screen and
-**⌘V** pastes). Images with no shell at all, like distroless ones, say so.
+**⌘V** pastes).
+
+Images with no shell at all, like distroless ones, offer **Open a debug
+shell** instead. It starts a small helper container (`busybox`) next to
+yours that shares its processes and network, so `ps`, `netstat` and
+`wget localhost:8080` see your container, and its files are in `/target`.
+The helper is hidden from the list and removed when the session ends. To
+use another image for the helper (say, a mirror when Docker Hub can't be
+reached), set the `FERRODOCK_DEBUG_IMAGE` environment variable.
 
 ### Files
 
@@ -167,6 +189,21 @@ its size comes from.
 
 The equivalent `docker run` command is shown as you type, with a Copy
 button, so you can reuse it in scripts.
+
+### Search, tag, push, save and load
+
+- **Search Docker Hub** next to the Pull box lists matching images, official
+  ones first, with their stars; **Pull** on a result pulls it.
+- In an image's details, the **⋯** menu has **Tag…** (give it another
+  name, such as `ghcr.io/me/app:1.0`), **Push** (with progress, to the
+  registry its name starts with) and **Save as .tar** (to your Downloads
+  folder).
+- To load a saved image, drop its `.tar` on the window while the Images
+  page is open.
+
+Pulling and pushing use the logins of the Docker CLI: whatever
+`docker login` stored in `~/.docker/config.json`, including credential
+helpers such as the macOS keychain. Private registries work the same way.
 
 ## Inspect
 
@@ -211,6 +248,22 @@ it's done, a notification says how much space was freed.
 Disk usage is loaded when you open the page or press refresh, never in the
 background. It needs Docker Engine 29 or newer.
 
+## Docker engines
+
+Ferrodock connects to the same engine as the `docker` command: your
+current Docker context, or `DOCKER_HOST`. To use another one, click the
+engine's status at the bottom of the sidebar (**● Docker 29.8 …**) and pick
+it from the list. The switch happens right away, without restarting, and
+Ferrodock remembers it.
+
+The list has:
+
+- **default**, and every **Docker context** (`docker context ls`), whether
+  it uses a local socket, a remote `tcp://` host with TLS, or `ssh://`
+  (macOS and Linux).
+- Engines found on this machine: **Docker Desktop**, **Colima** (every
+  profile), **Rancher Desktop** and **Podman**.
+
 ## Menu bar and notification area
 
 On macOS, Ferrodock puts an icon in the menu bar showing how many
@@ -239,6 +292,9 @@ on Windows and Linux).
 - **Density**: Comfortable shows two lines per row; Compact fits about
   twice as many rows on screen.
 - **Interface size**: 90% to 125%.
+- **Startup**: open Ferrodock when you log in. On macOS and Windows it
+  then starts in the menu bar / notification area, without opening the
+  window.
 - **Menu bar** (macOS) / **Notification area** (Windows): keep running
   there when the window is closed.
 

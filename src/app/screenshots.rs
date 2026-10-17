@@ -292,3 +292,190 @@ fn screenshots_of_terminal() {
         &id,
     ));
 }
+
+/// A container without the asked-for shell, then the debug shell next to
+/// it. Set `FERRODOCK_DEBUG_IMAGE` to a local image if Docker Hub can't be
+/// reached.
+#[test]
+#[ignore]
+fn screenshots_of_debug_shell() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let client = crate::docker::DockerClient::connect().unwrap();
+    let image = runtime
+        .block_on(client.list_images())
+        .unwrap()
+        .into_iter()
+        .next()
+        .expect("an image to run");
+    let spec = crate::docker::RunSpec {
+        image: image.id,
+        name: "ferrodock-debug-demo".into(),
+        command: "sleep 600".into(),
+        ..Default::default()
+    };
+    let remove = |id: &str| {
+        let _ = runtime.block_on(client.perform(crate::docker::Action::Stop, id));
+        let _ = runtime.block_on(client.perform(
+            crate::docker::Action::Remove(crate::docker::Resource::Containers),
+            id,
+        ));
+    };
+    remove(&spec.name);
+    let id = runtime.block_on(client.run(&spec)).unwrap();
+
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(3));
+    set_theme(&mut h, Theme::Light);
+    open(&mut h, 0, Some(id.clone()));
+    click(&mut h, "Terminal");
+    settle(&mut h, Duration::from_secs(1));
+    // Ask for a shell the container doesn't have.
+    h.get_by_label("Shell").click();
+    h.run_steps(2);
+    h.event(egui::Event::Text("/bin/no-such-shell".into()));
+    click(&mut h, "New session");
+    settle(&mut h, Duration::from_secs(3));
+    save(&mut h, "no-shell");
+    click(&mut h, "Open a debug shell");
+    settle(&mut h, Duration::from_secs(4));
+    for line in ["ps", "ls /target/"] {
+        h.event(egui::Event::Text(line.into()));
+        h.key_press(egui::Key::Enter);
+        settle(&mut h, Duration::from_secs(1));
+    }
+    save(&mut h, "debug-shell");
+    remove(&id);
+}
+
+/// Docker Hub search, and the Tag dialog, on the Images page.
+#[test]
+#[ignore]
+fn screenshots_of_image_tools() {
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(3));
+    set_theme(&mut h, Theme::Light);
+    let first = h.state().store.images.first().map(|i| i.id.clone());
+    open(&mut h, 2, first);
+    h.get_by_role_and_label(egui::accesskit::Role::TextInput, "Pull")
+        .click();
+    h.run_steps(2);
+    h.event(egui::Event::Text("nginx".into()));
+    h.run_steps(2);
+    click(&mut h, "Search Docker Hub");
+    settle(&mut h, Duration::from_secs(5));
+    save(&mut h, "image-search");
+    click(&mut h, "More actions");
+    click(&mut h, "Tag…");
+    settle(&mut h, Duration::from_millis(500));
+    h.event(egui::Event::Text("ghcr.io/me/app:1.0".into()));
+    h.run_steps(3);
+    save(&mut h, "image-tag");
+}
+
+/// The engine picker, and switching to another engine without restarting.
+/// A second Docker context ("staging") reaches the same daemon through
+/// another socket path, so the switch is real but the data stays the same.
+#[test]
+#[ignore]
+fn screenshots_of_engines() {
+    let config = std::env::temp_dir().join(format!("ferrodock-config-{}", std::process::id()));
+    let meta = config.join("contexts/meta/0123abcd");
+    std::fs::create_dir_all(&meta).unwrap();
+    let socket = config.join("staging.sock");
+    let _ = std::fs::remove_file(&socket);
+    #[cfg(unix)]
+    std::os::unix::fs::symlink("/var/run/docker.sock", &socket).unwrap();
+    std::fs::write(
+        meta.join("meta.json"),
+        format!(
+            r#"{{"Name":"staging","Endpoints":{{"docker":{{"Host":"unix://{}"}}}}}}"#,
+            socket.display()
+        ),
+    )
+    .unwrap();
+    // Only this test runs in its process when it's run on its own.
+    unsafe { std::env::set_var("DOCKER_CONFIG", &config) };
+
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(3));
+    set_theme(&mut h, Theme::Light);
+    h.state_mut().settings.engine = None;
+    click(&mut h, "Docker engine");
+    settle(&mut h, Duration::from_millis(500));
+    save(&mut h, "engines");
+    click(&mut h, "staging");
+    settle(&mut h, Duration::from_secs(4));
+    save(&mut h, "engine-switched");
+    let state = h.state();
+    assert_eq!(state.store.engine.as_deref(), Some("staging"));
+    assert!(
+        !state.store.containers.is_empty(),
+        "reloaded from the new engine"
+    );
+    assert!(matches!(
+        state.store.connection,
+        crate::app::store::Connection::Connected { .. }
+    ));
+    std::fs::remove_dir_all(&config).unwrap();
+}
+
+/// Brings a two-service project up from its compose.yaml through the UI,
+/// then shows its merged logs. Takes it down again at the end.
+#[test]
+#[ignore]
+fn screenshots_of_compose_up() {
+    use egui::accesskit::Role;
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let client = crate::docker::DockerClient::connect().unwrap();
+    let image = runtime
+        .block_on(client.list_images())
+        .unwrap()
+        .into_iter()
+        .next()
+        .expect("an image to run");
+    let tag = image.tags.first().cloned().unwrap_or(image.id);
+    let dir = std::env::temp_dir().join("shop");
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("compose.yaml");
+    std::fs::write(
+        &file,
+        format!(
+            "services:\n\
+             \x20 web:\n    image: {tag}\n    command: sh -c 'while true; do echo GET / 200; sleep 1; done'\n\
+             \x20 worker:\n    image: {tag}\n    command: sh -c 'while true; do echo processed job; sleep 2; done'\n"
+        ),
+    )
+    .unwrap();
+
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(3));
+    set_theme(&mut h, Theme::Light);
+    open(&mut h, 1, None);
+    h.get_by_role_and_label(Role::TextInput, "Up").click();
+    h.run_steps(2);
+    h.event(egui::Event::Text(file.display().to_string()));
+    h.run_steps(2);
+    h.get_by_role_and_label(Role::Button, "Up").click();
+    settle(&mut h, Duration::from_secs(8));
+    save(&mut h, "compose-up");
+    let up_ok = h
+        .state()
+        .store
+        .compose
+        .run
+        .as_ref()
+        .is_some_and(|j| j.ended == Some(None));
+    h.state_mut().pages[1].select("shop");
+    settle(&mut h, Duration::from_secs(1));
+    click(&mut h, "Logs");
+    settle(&mut h, Duration::from_secs(5));
+    save(&mut h, "compose-logs");
+
+    let down = ["-p", "shop", "down", "-t", "1"].map(str::to_owned);
+    let _ = runtime.block_on(crate::docker::compose_cli::stream(
+        crate::docker::compose_cli::command(None, None, &down),
+        |_| {},
+    ));
+    std::fs::remove_dir_all(&dir).unwrap();
+    assert!(up_ok, "compose up finished without errors");
+}

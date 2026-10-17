@@ -3,8 +3,10 @@
 //! The UI thread never blocks: it sends [`Request`]s and drains
 //! [`Response`]s once per frame.
 
+mod compose;
 mod dedup;
 mod files;
+mod images;
 mod live;
 mod terminal;
 
@@ -15,9 +17,9 @@ use std::time::Duration;
 use tokio::sync::mpsc as tokio_mpsc;
 
 use crate::docker::{
-    Action, Change, ContainerInfo, DiskUsage, DockerClient, EngineEvent, FileOp, ImageInfo,
-    Inspection, Layer, Listing, NetworkInfo, Preview, Processes, PullProgress, Resource, RunSpec,
-    StatsSample, Task, TermOp, VolumeInfo,
+    Action, Change, ComposeOp, ContainerInfo, DiskUsage, DockerClient, Engine, EngineEvent, FileOp,
+    ImageInfo, ImageOp, Inspection, Layer, Listing, NetworkInfo, Preview, Processes, PullProgress,
+    Resource, RunSpec, SearchResult, StatsSample, Task, TermOp, VolumeInfo,
 };
 
 /// How often the worker re-checks the engine on its own. Changes normally
@@ -59,6 +61,12 @@ pub enum Request {
     Files(FileOp),
     /// Open, type into, resize or close a shell.
     Terminal(TermOp),
+    /// Search, tag, push, save or load images.
+    Image(ImageOp),
+    /// Talk to this engine from now on.
+    UseEngine(Engine),
+    /// Run `docker compose`.
+    Compose(ComposeOp),
 }
 
 #[derive(Debug)]
@@ -89,10 +97,25 @@ pub enum Response {
         path: String,
         preview: Result<Preview, String>,
     },
+    /// Docker Hub's answer to a search.
+    SearchResults {
+        term: String,
+        results: Result<Vec<SearchResult>, String>,
+    },
     /// The helper container for browsing a volume, or why there isn't one.
     VolumeHelper {
         volume: String,
         result: Result<String, String>,
+    },
+    /// Lines a `docker compose` job printed.
+    ComposeOutput {
+        job: u64,
+        lines: Vec<String>,
+    },
+    /// A `docker compose` job ended; `error` says why when it failed.
+    ComposeDone {
+        job: u64,
+        error: Option<String>,
     },
     /// What a shell printed.
     TermOutput {
@@ -103,6 +126,8 @@ pub enum Response {
     TermExit {
         session: u64,
         message: Option<String>,
+        /// The container has no shell; a debug shell would work.
+        no_shell: bool,
     },
     /// A download or upload finished. `changed_dir` is the folder an upload
     /// changed, to list again.
@@ -218,8 +243,11 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
         usage_at: std::sync::Mutex::new(None),
     });
     let mut client: Option<DockerClient> = None;
+    // None until the UI picks one: the Docker CLI's defaults.
+    let mut engine: Option<Engine> = None;
     let mut watch = live::Watch::default();
     let mut terminals = terminal::Sessions::default();
+    let mut compose_jobs = compose::Jobs::default();
     let mut events: Option<tokio::task::JoinHandle<()>> = None;
     let mut polled = Resource::Containers;
     let mut ticker = tokio::time::interval(POLL_INTERVAL);
@@ -238,6 +266,20 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
             }),
         };
 
+        // Switching engines drops everything tied to the old one.
+        if let Request::UseEngine(next) = request {
+            client = None;
+            if let Some(task) = events.take() {
+                task.abort();
+            }
+            watch.stop();
+            terminals.close_all();
+            compose_jobs.cancel_all();
+            shared.disconnected(format!("Connecting to {}…", next.name));
+            engine = Some(next);
+            continue;
+        }
+
         // Stopping a watch must work even while Docker is unreachable.
         match request {
             Request::Watch(None) => {
@@ -253,7 +295,11 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
 
         // Docker may not be running yet (or its socket may not exist), so
         // keep trying to set up the client until it works.
-        let docker = match client.clone().map_or_else(DockerClient::connect, Ok) {
+        let connect = || match &engine {
+            Some(engine) => DockerClient::connect_to(engine),
+            None => DockerClient::connect(),
+        };
+        let docker = match client.clone().map_or_else(connect, Ok) {
             Ok(docker) => docker,
             Err(e) => {
                 shared.disconnected(e);
@@ -263,7 +309,10 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
         if client.is_none() {
             // Helpers left from browsing volumes in an earlier run.
             let docker = docker.clone();
-            tokio::spawn(async move { docker.remove_helpers(None).await });
+            tokio::spawn(async move {
+                let _ = docker.remove_helpers(None).await;
+                let _ = docker.remove_debug_helpers().await;
+            });
         }
         client = Some(docker.clone());
         // (Re)start following the event stream; it ends when the
@@ -324,6 +373,10 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
                 tokio::spawn(async move { pull(&docker, &shared, image).await });
             }
             Request::Terminal(op) => terminals.handle(&docker, &shared, op),
+            Request::Compose(op) => compose_jobs.handle(&docker, &shared, engine.clone(), op),
+            Request::Image(op) => {
+                tokio::spawn(async move { images::handle(&docker, &shared, op).await });
+            }
             Request::Files(op) => {
                 tokio::spawn(async move { files::handle(&docker, &shared, op).await });
             }
@@ -339,7 +392,7 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
                     shared.send(response);
                 });
             }
-            Request::Watch(None) => unreachable!("handled above"),
+            Request::Watch(None) | Request::UseEngine(_) => unreachable!("handled above"),
         }
     }
     watch.stop();

@@ -3,10 +3,12 @@
 //! The store is fed by worker responses and read by the pages. It holds no
 //! UI state of its own.
 
+mod compose;
 mod files;
 mod live;
 mod terminal;
 
+pub use compose::ComposeJobs;
 pub use files::FileView;
 pub use terminal::Terminal;
 
@@ -14,8 +16,9 @@ use std::collections::{HashMap, VecDeque};
 use std::time::Instant;
 
 use crate::docker::{
-    Action, ComposeProject, ContainerInfo, DiskUsage, ImageInfo, Inspection, Layer, NetworkInfo,
-    Processes, PullProgress, StatsSample, VolumeInfo, format_size, group_projects,
+    Action, ComposeProject, ContainerInfo, DiskUsage, Engine, ImageInfo, Inspection, Layer,
+    NetworkInfo, Processes, PullProgress, SearchResult, StatsSample, VolumeInfo, format_size,
+    group_projects,
 };
 use crate::worker::Response;
 pub use live::Live;
@@ -37,6 +40,9 @@ pub struct Notice {
     pub text: String,
     pub is_error: bool,
 }
+
+/// Docker Hub's results, or why there are none.
+pub type SearchAnswer = Result<Vec<SearchResult>, String>;
 
 pub struct Store {
     pub connection: Connection,
@@ -63,6 +69,16 @@ pub struct Store {
     pub volume_browser: Option<(String, Option<Result<String, String>>)>,
     /// The open shell, if any.
     pub terminal: Option<Terminal>,
+    /// `docker compose` jobs: the last command, and followed logs.
+    pub compose: ComposeJobs,
+    /// Compose files brought up from Ferrodock, newest first (a copy of
+    /// the setting, for the Compose page).
+    pub recent_compose: Vec<String>,
+    /// Engines to choose from, and the name of the one in use.
+    pub engines: Vec<Engine>,
+    pub engine: Option<String>,
+    /// The last Docker Hub search, and its results once in.
+    pub search: Option<(String, Option<SearchAnswer>)>,
     /// Recent CPU and memory of each running container (oldest first),
     /// while the Containers page is open.
     pub usage: HashMap<String, VecDeque<StatsSample>>,
@@ -93,6 +109,11 @@ impl Store {
             history: None,
             files: None,
             terminal: None,
+            search: None,
+            compose: ComposeJobs::default(),
+            recent_compose: Vec::new(),
+            engines: Vec::new(),
+            engine: None,
             volume_browser: None,
             pending: HashMap::new(),
             live: None,
@@ -161,6 +182,19 @@ impl Store {
                     None => self.pulls.push((image, progress)),
                 }
             }
+            Response::ComposeOutput { job, lines } => self.compose.output(job, lines),
+            Response::ComposeDone { job, error } => {
+                if let Some((text, is_error)) = self.compose.done(job, error) {
+                    return Some(Notice { text, is_error });
+                }
+            }
+            Response::SearchResults { term, results } => {
+                if let Some((asked, slot)) = &mut self.search
+                    && *asked == term
+                {
+                    *slot = Some(results);
+                }
+            }
             Response::VolumeHelper { volume, result } => {
                 if let Some((asked, slot)) = &mut self.volume_browser
                     && *asked == volume
@@ -171,8 +205,12 @@ impl Store {
             Response::TermOutput { session, bytes } => {
                 terminal::output(&mut self.terminal, session, &bytes);
             }
-            Response::TermExit { session, message } => {
-                terminal::exited(&mut self.terminal, session, message);
+            Response::TermExit {
+                session,
+                message,
+                no_shell,
+            } => {
+                terminal::exited(&mut self.terminal, session, message, no_shell);
             }
             Response::Files(result) => files::listed(&mut self.files, result),
             Response::FilePreview {
@@ -231,7 +269,12 @@ impl Store {
                 }
             }
             Response::Disconnected(reason) => {
+                // Which engines there are doesn't depend on reaching one,
+                // and switching is how to get out of a dead engine.
+                let (engines, engine) = (std::mem::take(&mut self.engines), self.engine.take());
                 *self = Self::new();
+                self.engines = engines;
+                self.engine = engine;
                 self.connection = Connection::Disconnected { reason };
             }
             Response::Done { task, freed } => {
@@ -375,7 +418,13 @@ mod tests {
         let mut store = Store::new();
         store.apply(Response::Containers(vec![container("web", "", &[], &[])]));
         store.pending.insert("web-id".into(), Action::Stop);
+        store.engine = Some("colima".into());
         store.apply(Response::Disconnected("gone".into()));
+        assert_eq!(
+            store.engine.as_deref(),
+            Some("colima"),
+            "the engine is kept"
+        );
         assert!(store.containers.is_empty());
         assert!(store.pending.is_empty());
         assert!(matches!(store.connection, Connection::Disconnected { .. }));

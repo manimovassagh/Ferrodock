@@ -12,6 +12,10 @@ pub struct Terminal {
     /// Set when the shell ended; the message says why, if it wasn't a
     /// normal exit.
     pub ended: Option<Option<String>>,
+    /// It ended because the container has no shell.
+    pub no_shell: bool,
+    /// A debug shell, running in a helper next to the container.
+    pub debug: bool,
 }
 
 /// Records what a terminal request changes on screen. Returns the session
@@ -21,6 +25,7 @@ pub fn requested(term: &mut Option<Terminal>, op: &TermOp) -> Option<u64> {
         TermOp::Open {
             session,
             container,
+            debug,
             cols,
             rows,
             ..
@@ -31,6 +36,8 @@ pub fn requested(term: &mut Option<Terminal>, op: &TermOp) -> Option<u64> {
                 container_id: container.clone(),
                 parser: vt100::Parser::new(*rows, *cols, SCROLLBACK),
                 ended: None,
+                no_shell: false,
+                debug: *debug,
             });
             replaced
         }
@@ -61,9 +68,10 @@ pub fn output(term: &mut Option<Terminal>, session: u64, bytes: &[u8]) {
     }
 }
 
-pub fn exited(term: &mut Option<Terminal>, session: u64, message: Option<String>) {
+pub fn exited(term: &mut Option<Terminal>, session: u64, message: Option<String>, no_shell: bool) {
     if let Some(t) = term.as_mut().filter(|t| t.session == session) {
         t.ended = Some(message);
+        t.no_shell = no_shell;
     }
 }
 
@@ -78,6 +86,7 @@ mod tests {
             session,
             container: "c1".into(),
             shell: String::new(),
+            debug: false,
             cols: 20,
             rows: 4,
         };
@@ -88,7 +97,7 @@ mod tests {
         assert_eq!(screen.trim(), "hello");
         // A new session replaces the old one, which should be closed.
         assert_eq!(requested(&mut term, &open(2)), Some(1));
-        exited(&mut term, 2, Some("gone".into()));
+        exited(&mut term, 2, Some("gone".into()), false);
         assert_eq!(term.as_ref().unwrap().ended, Some(Some("gone".into())));
     }
 }

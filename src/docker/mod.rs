@@ -10,9 +10,12 @@
 mod actions;
 mod browse;
 mod compose;
+pub mod compose_cli;
 mod containers;
 mod create;
+mod debug;
 mod disk;
+mod engines;
 mod events;
 mod files;
 mod format;
@@ -23,6 +26,7 @@ mod logs;
 mod networks;
 mod ports;
 mod processes;
+mod registry;
 mod run;
 mod stats;
 mod terminal;
@@ -31,9 +35,12 @@ mod volumes;
 pub use actions::{Action, Task};
 pub use browse::VOLUME_ROOT;
 pub use compose::{ComposeProject, group_projects};
+pub use compose_cli::{ComposeAction, ComposeOp, ComposeTarget, next_job, split_log_line};
 pub use containers::ContainerInfo;
 pub use create::Change;
+pub use debug::{TARGET_ROOT, debug_image};
 pub use disk::{DiskUsage, PruneKind, Usage};
+pub use engines::{Engine, engines, pick};
 pub use events::EngineEvent;
 pub use files::{
     FileEntry, FileKind, FileOp, Listing, Preview, downloads_dir, join_path, parent_path,
@@ -45,6 +52,7 @@ pub use limits::{cpus_text, memory_text, parse_cpus, parse_memory};
 pub use networks::NetworkInfo;
 pub use ports::{PortMapping, engine_host};
 pub use processes::{Layer, Processes};
+pub use registry::{ImageOp, SearchResult};
 pub use run::{PullProgress, Restart, RunSpec};
 pub use stats::StatsSample;
 pub use terminal::{TermOp, exit_message, next_session};
@@ -76,6 +84,12 @@ impl DockerClient {
         Docker::connect_with_defaults()
             .map(|docker| Self { docker })
             .map_err(|e| format!("Could not set up Docker connection: {e}"))
+    }
+
+    /// A client for `engine`. Like [`DockerClient::connect`], this doesn't
+    /// touch the engine yet.
+    pub fn connect_to(engine: &Engine) -> Result<Self, String> {
+        engine.connect().map(|docker| Self { docker })
     }
 
     /// Returns the Docker Engine version, used as a connectivity check.

@@ -1,4 +1,9 @@
-//! Images page: local images, their size and which containers use them.
+//! Images page: local images, their size and which containers use them;
+//! pulling, Docker Hub search, tagging, pushing, and saving and loading
+//! `.tar` files.
+
+mod search;
+mod tag_dialog;
 
 use eframe::egui;
 
@@ -10,7 +15,8 @@ use crate::app::components::icons::Icon;
 use crate::app::components::{details, inspect, table, widgets};
 use crate::app::page::{Command, Intent, Page, PageCtx, toggle_selection};
 use crate::app::store::Store;
-use crate::docker::{ImageInfo, Resource, Task, format_size, plural, time_ago};
+use crate::docker::{ImageInfo, ImageOp, Resource, Task, format_size, plural, time_ago};
+use tag_dialog::TagForm;
 
 #[derive(Default)]
 pub struct ImagesPage {
@@ -19,6 +25,10 @@ pub struct ImagesPage {
     pull_input: String,
     /// The Run dialog, while it's open.
     run_form: Option<RunForm>,
+    /// The Tag dialog, while it's open.
+    tag_form: Option<TagForm>,
+    /// Whether the search results show.
+    searching: bool,
 }
 
 impl ImagesPage {
@@ -44,15 +54,79 @@ impl ImagesPage {
         );
         let submitted = field.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
         let image = self.pull_input.trim().to_owned();
-        let clicked = ui
+        let pull = ui
             .add_enabled_ui(!image.is_empty() && !busy, |ui| {
                 widgets::button(ui, Icon::Download, "Pull")
             })
-            .inner
-            .clicked();
+            .inner;
+        // The button names the field for screen readers.
+        field.labelled_by(pull.id);
+        let clicked = pull.clicked();
         if (clicked || submitted) && !image.is_empty() && !busy {
-            ctx.request(Intent::Pull(image));
+            ctx.request(Intent::Pull(image.clone()));
             self.pull_input.clear();
+        }
+        let search = ui
+            .add_enabled_ui(!image.is_empty(), |ui| {
+                widgets::button(ui, Icon::Search, "Search Docker Hub")
+            })
+            .inner;
+        if search.clicked() {
+            ctx.request(Intent::Image(ImageOp::Search(image)));
+            self.searching = true;
+        }
+    }
+
+    /// Loads `.tar` files dropped on the window; says where they'll go
+    /// while they're dragged over it.
+    fn loads(&self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
+        let p = ctx.palette;
+        let (hovering, dropped) = ui.input(|i| {
+            let dropped: Vec<_> = i
+                .raw
+                .dropped_files
+                .iter()
+                .map(|f| f.path().to_path_buf())
+                .filter(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("tar")))
+                .collect();
+            (!i.raw.hovered_files.is_empty(), dropped)
+        });
+        for path in dropped {
+            ctx.request(Intent::Image(ImageOp::Load(path)));
+        }
+        if hovering {
+            egui::Frame::new()
+                .fill(p.accent.gamma_multiply(0.15))
+                .stroke(egui::Stroke::new(1.5, p.accent))
+                .corner_radius(egui::CornerRadius::same(8))
+                .inner_margin(egui::Margin::same(12))
+                .show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+                    ui.label(
+                        egui::RichText::new("Drop an image .tar to load it")
+                            .strong()
+                            .color(p.accent),
+                    );
+                });
+            ui.add_space(8.0);
+        }
+    }
+
+    /// The Tag dialog, while it's open.
+    fn tag_dialog(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
+        let Some(form) = &mut self.tag_form else {
+            return;
+        };
+        match tag_dialog::show(ui, ctx.palette, form) {
+            Some(Some(target)) => {
+                ctx.request(Intent::Image(ImageOp::Tag {
+                    image: form.image_id.clone(),
+                    target,
+                }));
+                self.tag_form = None;
+            }
+            Some(None) => self.tag_form = None,
+            None => {}
         }
     }
 
@@ -97,15 +171,20 @@ impl Page for ImagesPage {
     }
 
     fn has_overlay(&self) -> bool {
-        self.run_form.is_some()
+        self.run_form.is_some() || self.tag_form.is_some()
     }
 
     fn show(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
         let p = ctx.palette;
         let store = ctx.store;
         self.run_dialog(ui, ctx);
+        self.tag_dialog(ui, ctx);
+        self.loads(ui, ctx);
         ui.horizontal(|ui| self.pull_box(ui, ctx));
         ui.add_space(8.0);
+        if self.searching {
+            self.searching = search::show(ui, ctx);
+        }
         pulls(ui, p, store);
         let visible: Vec<&ImageInfo> = store
             .images
@@ -195,6 +274,8 @@ impl Page for ImagesPage {
             } else {
                 ui.spinner();
             }
+            let more = widgets::icon_button(ui, Icon::More, "More actions");
+            egui::Popup::menu(&more).show(|ui| self.more_menu(ui, ctx, image));
         });
         if run {
             let image = image.clone();
@@ -254,6 +335,38 @@ fn secondary_line(image: &ImageInfo) -> String {
 }
 
 impl ImagesPage {
+    /// The ⋯ menu: tag, push and save.
+    fn more_menu(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx, image: &ImageInfo) {
+        ui.set_min_width(170.0);
+        if ui.button("Tag…").clicked() {
+            self.tag_form = Some(TagForm {
+                image_id: image.id.clone(),
+                current: image.name().to_owned(),
+                target: String::new(),
+            });
+        }
+        let name = image.tags.first();
+        let push = ui
+            .add_enabled(name.is_some(), egui::Button::new("Push"))
+            .on_hover_text(format!(
+                "Push {} with your Docker login",
+                name.map_or("", String::as_str)
+            ))
+            .on_disabled_hover_text("Tag it with a registry name first");
+        if push.clicked()
+            && let Some(name) = name
+        {
+            ctx.request(Intent::Image(ImageOp::Push(name.clone())));
+        }
+        let save = ui
+            .button("Save as .tar")
+            .on_hover_text("Save it to your Downloads folder, to move it without a registry");
+        if save.clicked() {
+            let reference = name.cloned().unwrap_or_else(|| image.id.clone());
+            ctx.request(Intent::Image(ImageOp::Save(reference)));
+        }
+    }
+
     /// Draws the Run dialog while it's open, and runs the container when
     /// the user confirms.
     fn run_dialog(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
@@ -311,7 +424,12 @@ fn history_section(ui: &mut egui::Ui, ctx: &mut PageCtx, image_id: &str) {
 fn pulls(ui: &mut egui::Ui, p: &crate::theme::Palette, store: &Store) {
     for (image, progress) in &store.pulls {
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new(format!("Pulling {image}")).color(p.text));
+            let verb = if progress.pushing {
+                "Pushing"
+            } else {
+                "Pulling"
+            };
+            ui.label(egui::RichText::new(format!("{verb} {image}")).color(p.text));
             let detail = if progress.total > 0 {
                 format!(
                     "{} · {} of {}",

@@ -176,11 +176,13 @@ impl DockerClient {
             .await
             .map_err(describe)?
             .into_iter()
-            // Helpers for browsing volumes are an implementation detail.
+            // Helpers for browsing volumes and debug shells are an
+            // implementation detail.
             .filter(|c| {
-                c.labels
-                    .as_ref()
-                    .is_none_or(|l| !l.contains_key(super::browse::HELPER_LABEL))
+                c.labels.as_ref().is_none_or(|l| {
+                    !l.contains_key(super::browse::HELPER_LABEL)
+                        && !l.contains_key(super::debug::DEBUG_LABEL)
+                })
             })
             .map(ContainerInfo::from)
             .collect();

@@ -40,6 +40,15 @@ pub struct Settings {
     /// Closing the window hides it, leaving Ferrodock in the menu bar
     /// (notification area on Windows).
     pub close_to_tray: bool,
+    /// The engine picked last (a Docker context's name, or a detected
+    /// engine's); None follows the Docker CLI's current context.
+    pub engine: Option<String>,
+    /// Compose files brought up from Ferrodock, newest first.
+    pub recent_compose: Vec<String>,
+    /// Ferrodock opens when the user logs in. Read from the system at
+    /// start, never saved: the system's login items are the record.
+    #[serde(skip)]
+    pub launch_at_login: bool,
 }
 
 impl Default for Settings {
@@ -50,11 +59,27 @@ impl Default for Settings {
             scale: 1.0,
             check_updates: true,
             close_to_tray: true,
+            engine: None,
+            recent_compose: Vec::new(),
+            launch_at_login: false,
         }
     }
 }
 
 impl Settings {
+    /// Compose files kept in the recent list.
+    const RECENT: usize = 8;
+
+    /// Puts `files` at the top of the recent Compose files.
+    pub fn remember_compose_files(&mut self, files: &[std::path::PathBuf]) {
+        for file in files.iter().rev() {
+            let file = file.display().to_string();
+            self.recent_compose.retain(|f| *f != file);
+            self.recent_compose.insert(0, file);
+        }
+        self.recent_compose.truncate(Self::RECENT);
+    }
+
     pub const MIN_SCALE: f32 = 0.9;
     pub const MAX_SCALE: f32 = 1.25;
 
@@ -130,6 +155,23 @@ pub fn show(ui: &mut egui::Ui, p: &Palette, settings: &mut Settings, updater: &U
                     ui.end_row();
                 });
 
+            ui.add_space(18.0);
+            heading(ui, p, "Startup");
+            let before = settings.launch_at_login;
+            ui.checkbox(
+                &mut settings.launch_at_login,
+                "Open Ferrodock when you log in",
+            );
+            let error_id = egui::Id::unique("launch-at-login-error");
+            if settings.launch_at_login != before
+                && let Err(e) = crate::app::autostart::set(settings.launch_at_login)
+            {
+                settings.launch_at_login = before;
+                ui.data_mut(|d| d.insert_temp(error_id, e));
+            }
+            if let Some(error) = ui.data(|d| d.get_temp::<String>(error_id)) {
+                ui.label(RichText::new(format!("Couldn't change it: {error}")).color(p.danger));
+            }
             if crate::app::tray::Tray::SUPPORTED {
                 ui.add_space(18.0);
                 let place = if cfg!(target_os = "macos") {
