@@ -1,16 +1,11 @@
-//! Thin wrapper around the Docker Engine API (via `bollard`).
-//!
-//! On Windows this talks to Docker Desktop / dockerd over the
-//! `\\.\pipe\docker_engine` named pipe; elsewhere it uses the unix socket.
-//! `DOCKER_HOST` is honoured on every platform.
+//! Containers: listing and start/stop/restart.
 
-use std::time::{SystemTime, UNIX_EPOCH};
-
-use bollard::Docker;
 use bollard::models::{ContainerSummary, ContainerSummaryStateEnum};
 use bollard::query_parameters::{
     ListContainersOptions, RestartContainerOptions, StartContainerOptions, StopContainerOptions,
 };
+
+use super::{DockerClient, describe};
 
 /// UI-friendly snapshot of a container.
 #[derive(Debug, Clone, PartialEq)]
@@ -18,6 +13,8 @@ pub struct ContainerInfo {
     pub id: String,
     pub name: String,
     pub image: String,
+    /// Full ID of the image the container was created from.
+    pub image_id: String,
     pub command: String,
     /// Machine-readable state, e.g. `running`, `exited`.
     pub state: String,
@@ -27,7 +24,11 @@ pub struct ContainerInfo {
     pub created: i64,
     pub ports: Vec<String>,
     pub ip_addresses: Vec<String>,
+    /// Names of the networks the container is attached to.
+    pub networks: Vec<String>,
     pub mounts: Vec<String>,
+    /// Names of the named volumes the container uses.
+    pub volumes: Vec<String>,
 }
 
 impl ContainerInfo {
@@ -41,6 +42,11 @@ impl ContainerInfo {
 
     pub fn is_paused(&self) -> bool {
         self.state == "paused"
+    }
+
+    /// Running or paused, i.e. not stopped.
+    pub fn is_active(&self) -> bool {
+        self.is_running() || self.is_paused()
     }
 }
 
@@ -71,28 +77,33 @@ impl From<ContainerSummary> for ContainerInfo {
         ports.sort();
         ports.dedup();
 
-        let ip_addresses = c
+        let networks: Vec<(String, String)> = c
             .network_settings
             .and_then(|n| n.networks)
             .map(|nets| {
-                let mut ips: Vec<String> = nets
+                let mut nets: Vec<(String, String)> = nets
                     .into_iter()
-                    .filter_map(|(net, ep)| {
-                        ep.ip_address
-                            .filter(|ip| !ip.is_empty())
-                            .map(|ip| format!("{ip} ({net})"))
-                    })
+                    .map(|(net, ep)| (net, ep.ip_address.unwrap_or_default()))
                     .collect();
-                ips.sort();
-                ips
+                nets.sort();
+                nets
             })
             .unwrap_or_default();
+        let ip_addresses = networks
+            .iter()
+            .filter(|(_, ip)| !ip.is_empty())
+            .map(|(net, ip)| format!("{ip} ({net})"))
+            .collect();
 
+        let mut volumes = Vec::new();
         let mounts = c
             .mounts
             .unwrap_or_default()
             .into_iter()
             .map(|m| {
+                if let Some(name) = &m.name {
+                    volumes.push(name.clone());
+                }
                 let src = m.name.or(m.source).unwrap_or_default();
                 let dst = m.destination.unwrap_or_default();
                 format!("{src} -> {dst}")
@@ -103,6 +114,7 @@ impl From<ContainerSummary> for ContainerInfo {
             id: c.id.unwrap_or_default(),
             name,
             image: c.image.unwrap_or_default(),
+            image_id: c.image_id.unwrap_or_default(),
             command: c.command.unwrap_or_default(),
             state: c
                 .state
@@ -113,7 +125,9 @@ impl From<ContainerSummary> for ContainerInfo {
             created: c.created.unwrap_or_default(),
             ports,
             ip_addresses,
+            networks: networks.into_iter().map(|(net, _)| net).collect(),
             mounts,
+            volumes,
         }
     }
 }
@@ -136,26 +150,7 @@ impl Action {
     }
 }
 
-#[derive(Clone)]
-pub struct DockerClient {
-    docker: Docker,
-}
-
 impl DockerClient {
-    /// Creates a client. This does not touch the daemon yet; connection
-    /// errors surface on the first request.
-    pub fn connect() -> Result<Self, String> {
-        Docker::connect_with_defaults()
-            .map(|docker| Self { docker })
-            .map_err(|e| format!("Could not set up Docker connection: {e}"))
-    }
-
-    /// Returns the Docker Engine version, used as a connectivity check.
-    pub async fn version(&self) -> Result<String, String> {
-        let v = self.docker.version().await.map_err(describe)?;
-        Ok(v.version.unwrap_or_else(|| "unknown".into()))
-    }
-
     /// Lists all containers (running and stopped), sorted by name.
     pub async fn list_containers(&self) -> Result<Vec<ContainerInfo>, String> {
         let opts = ListContainersOptions {
@@ -194,41 +189,6 @@ impl DockerClient {
         };
         result.map_err(describe)
     }
-}
-
-/// Turns bollard errors into a short message, with a hint when the daemon
-/// is simply not reachable (the most common case on a fresh Windows box).
-fn describe(err: bollard::errors::Error) -> String {
-    use bollard::errors::Error as E;
-    match err {
-        E::DockerResponseServerError { message, .. } => message,
-        E::HyperResponseError { .. } | E::IOError { .. } => {
-            format!("Cannot reach the Docker Engine ({err}). Is Docker Desktop running?")
-        }
-        other => other.to_string(),
-    }
-}
-
-/// Formats a unix timestamp as a coarse "N units ago" string.
-pub fn time_ago(unix_secs: i64) -> String {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0);
-    format_age(now - unix_secs)
-}
-
-fn format_age(secs: i64) -> String {
-    let (n, unit) = match secs.max(0) {
-        s if s < 60 => return "just now".into(),
-        s if s < 3_600 => (s / 60, "minute"),
-        s if s < 86_400 => (s / 3_600, "hour"),
-        s if s < 2_592_000 => (s / 86_400, "day"),
-        s if s < 31_536_000 => (s / 2_592_000, "month"),
-        s => (s / 31_536_000, "year"),
-    };
-    let plural = if n == 1 { "" } else { "s" };
-    format!("{n} {unit}{plural} ago")
 }
 
 #[cfg(test)]
@@ -275,15 +235,6 @@ mod tests {
         assert_eq!(info.short_id(), "");
         assert_eq!(info.state, "unknown");
         assert!(!info.is_running());
-    }
-
-    #[test]
-    fn formats_age() {
-        assert_eq!(format_age(5), "just now");
-        assert_eq!(format_age(60), "1 minute ago");
-        assert_eq!(format_age(7_200), "2 hours ago");
-        assert_eq!(format_age(86_400 * 3), "3 days ago");
-        assert_eq!(format_age(-10), "just now");
     }
 
     /// Talks to a real daemon: `cargo test -- --ignored`.
