@@ -213,7 +213,7 @@ fn sort(entries: &mut [FileEntry]) {
 }
 
 /// `name`, or `name (1)`, `name (2)`, … if that's taken in `dir`.
-fn unique_path(dir: &Path, name: &str) -> PathBuf {
+pub(super) fn unique_path(dir: &Path, name: &str) -> PathBuf {
     let first = dir.join(name);
     if !first.exists() {
         return first;

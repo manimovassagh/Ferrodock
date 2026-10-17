@@ -1588,6 +1588,7 @@ name = "ferrodock"
 version = "1.6.0"
 dependencies = [
  "bollard",
+ "bytes",
  "eframe",
  "egui_extras",
  "egui_kittest",

@@ -193,6 +193,8 @@ pub struct PullProgress {
     pub total: u64,
     /// Docker's latest status line, e.g. "Downloading".
     pub status: String,
+    /// A push rather than a pull.
+    pub pushing: bool,
 }
 
 impl DockerClient {
@@ -227,7 +229,8 @@ impl DockerClient {
             tag: Some(tag.to_owned()),
             ..Default::default()
         };
-        let mut stream = self.docker.create_image(Some(options), None, None);
+        let credentials = super::registry::credentials_for(image);
+        let mut stream = self.docker.create_image(Some(options), None, credentials);
         let mut layers: HashMap<String, (u64, u64)> = HashMap::new();
         while let Some(item) = stream.next().await {
             let info = item.map_err(describe)?;
@@ -252,6 +255,7 @@ impl DockerClient {
                 done: layers.values().map(|(d, _)| d).sum(),
                 total: layers.values().map(|(_, t)| t).sum(),
                 status: info.status.unwrap_or_default(),
+                pushing: false,
             });
         }
         Ok(())

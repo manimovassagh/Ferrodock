@@ -346,3 +346,28 @@ fn screenshots_of_debug_shell() {
     save(&mut h, "debug-shell");
     remove(&id);
 }
+
+/// Docker Hub search, and the Tag dialog, on the Images page.
+#[test]
+#[ignore]
+fn screenshots_of_image_tools() {
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(3));
+    set_theme(&mut h, Theme::Light);
+    let first = h.state().store.images.first().map(|i| i.id.clone());
+    open(&mut h, 2, first);
+    h.get_by_role_and_label(egui::accesskit::Role::TextInput, "Pull")
+        .click();
+    h.run_steps(2);
+    h.event(egui::Event::Text("nginx".into()));
+    h.run_steps(2);
+    click(&mut h, "Search Docker Hub");
+    settle(&mut h, Duration::from_secs(5));
+    save(&mut h, "image-search");
+    click(&mut h, "More actions");
+    click(&mut h, "Tag…");
+    settle(&mut h, Duration::from_millis(500));
+    h.event(egui::Event::Text("ghcr.io/me/app:1.0".into()));
+    h.run_steps(3);
+    save(&mut h, "image-tag");
+}

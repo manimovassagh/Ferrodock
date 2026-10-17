@@ -268,6 +268,23 @@ impl FerrodockApp {
                 self.worker.send(Request::Pull(image));
             }
             Intent::RunImage(spec) => self.worker.send(Request::RunImage(spec)),
+            Intent::Image(op) => {
+                use crate::docker::ImageOp;
+                let busy = match &op {
+                    ImageOp::Search(term) => {
+                        self.store.search = Some((term.clone(), None));
+                        None
+                    }
+                    ImageOp::Tag { image, .. } => Some((image.clone(), Action::Tag)),
+                    ImageOp::Push(reference) => Some((reference.clone(), Action::Push)),
+                    ImageOp::Save(image) => Some((image.clone(), Action::Save)),
+                    ImageOp::Load(path) => Some((path.display().to_string(), Action::Load)),
+                };
+                if let Some((id, action)) = busy {
+                    self.store.pending.insert(id, action);
+                }
+                self.worker.send(Request::Image(op));
+            }
             Intent::Terminal(op) => {
                 if let Some(old) = self.store.terminal_requested(&op) {
                     self.worker

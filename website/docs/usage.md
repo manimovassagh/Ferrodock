@@ -176,6 +176,21 @@ its size comes from.
 The equivalent `docker run` command is shown as you type, with a Copy
 button, so you can reuse it in scripts.
 
+### Search, tag, push, save and load
+
+- **Search Docker Hub** next to the Pull box lists matching images, official
+  ones first, with their stars; **Pull** on a result pulls it.
+- In an image's details, the **⋯** menu has **Tag…** (give it another
+  name, such as `ghcr.io/me/app:1.0`), **Push** (with progress, to the
+  registry its name starts with) and **Save as .tar** (to your Downloads
+  folder).
+- To load a saved image, drop its `.tar` on the window while the Images
+  page is open.
+
+Pulling and pushing use the logins of the Docker CLI: whatever
+`docker login` stored in `~/.docker/config.json`, including credential
+helpers such as the macOS keychain. Private registries work the same way.
+
 ## Inspect
 
 Every details pane can show what `docker inspect` knows. Containers have an

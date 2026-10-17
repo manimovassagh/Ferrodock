@@ -5,6 +5,7 @@
 
 mod dedup;
 mod files;
+mod images;
 mod live;
 mod terminal;
 
@@ -16,8 +17,8 @@ use tokio::sync::mpsc as tokio_mpsc;
 
 use crate::docker::{
     Action, Change, ContainerInfo, DiskUsage, DockerClient, EngineEvent, FileOp, ImageInfo,
-    Inspection, Layer, Listing, NetworkInfo, Preview, Processes, PullProgress, Resource, RunSpec,
-    StatsSample, Task, TermOp, VolumeInfo,
+    ImageOp, Inspection, Layer, Listing, NetworkInfo, Preview, Processes, PullProgress, Resource,
+    RunSpec, SearchResult, StatsSample, Task, TermOp, VolumeInfo,
 };
 
 /// How often the worker re-checks the engine on its own. Changes normally
@@ -59,6 +60,8 @@ pub enum Request {
     Files(FileOp),
     /// Open, type into, resize or close a shell.
     Terminal(TermOp),
+    /// Search, tag, push, save or load images.
+    Image(ImageOp),
 }
 
 #[derive(Debug)]
@@ -88,6 +91,11 @@ pub enum Response {
         container: String,
         path: String,
         preview: Result<Preview, String>,
+    },
+    /// Docker Hub's answer to a search.
+    SearchResults {
+        term: String,
+        results: Result<Vec<SearchResult>, String>,
     },
     /// The helper container for browsing a volume, or why there isn't one.
     VolumeHelper {
@@ -329,6 +337,9 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
                 tokio::spawn(async move { pull(&docker, &shared, image).await });
             }
             Request::Terminal(op) => terminals.handle(&docker, &shared, op),
+            Request::Image(op) => {
+                tokio::spawn(async move { images::handle(&docker, &shared, op).await });
+            }
             Request::Files(op) => {
                 tokio::spawn(async move { files::handle(&docker, &shared, op).await });
             }

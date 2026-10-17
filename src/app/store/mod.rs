@@ -15,7 +15,7 @@ use std::time::Instant;
 
 use crate::docker::{
     Action, ComposeProject, ContainerInfo, DiskUsage, ImageInfo, Inspection, Layer, NetworkInfo,
-    Processes, PullProgress, StatsSample, VolumeInfo, format_size, group_projects,
+    Processes, PullProgress, SearchResult, StatsSample, VolumeInfo, format_size, group_projects,
 };
 use crate::worker::Response;
 pub use live::Live;
@@ -37,6 +37,9 @@ pub struct Notice {
     pub text: String,
     pub is_error: bool,
 }
+
+/// Docker Hub's results, or why there are none.
+pub type SearchAnswer = Result<Vec<SearchResult>, String>;
 
 pub struct Store {
     pub connection: Connection,
@@ -63,6 +66,8 @@ pub struct Store {
     pub volume_browser: Option<(String, Option<Result<String, String>>)>,
     /// The open shell, if any.
     pub terminal: Option<Terminal>,
+    /// The last Docker Hub search, and its results once in.
+    pub search: Option<(String, Option<SearchAnswer>)>,
     /// Recent CPU and memory of each running container (oldest first),
     /// while the Containers page is open.
     pub usage: HashMap<String, VecDeque<StatsSample>>,
@@ -93,6 +98,7 @@ impl Store {
             history: None,
             files: None,
             terminal: None,
+            search: None,
             volume_browser: None,
             pending: HashMap::new(),
             live: None,
@@ -159,6 +165,13 @@ impl Store {
                 match self.pulls.iter_mut().find(|(i, _)| *i == image) {
                     Some(entry) => entry.1 = progress,
                     None => self.pulls.push((image, progress)),
+                }
+            }
+            Response::SearchResults { term, results } => {
+                if let Some((asked, slot)) = &mut self.search
+                    && *asked == term
+                {
+                    *slot = Some(results);
                 }
             }
             Response::VolumeHelper { volume, result } => {
