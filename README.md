@@ -30,7 +30,7 @@ Grab the latest build from the
 
 | Platform | File | First launch |
 |---|---|---|
-| **macOS** 11+ (Apple Silicon and Intel) | `Ferrodock-…-macos-universal.dmg` (or `.zip`) | Open the DMG, drag **Ferrodock.app** to Applications, then **right-click → Open** once (the app isn't notarized yet). |
+| **macOS** 11+ (Apple Silicon and Intel) | `Ferrodock-…-macos-universal.dmg` (or `.zip`) | Open the DMG and drag **Ferrodock.app** to Applications. The app isn't notarized yet, so allow it once: run `xattr -dr com.apple.quarantine /Applications/Ferrodock.app`, or click **Open Anyway** in System Settings → Privacy & Security. |
 | **Windows** 10/11 (x64) | `Ferrodock-…-windows-x64.zip` | Unzip and run **Ferrodock.exe**. If SmartScreen appears, choose **More info → Run anyway**. |
 | **Linux** (x64) | `Ferrodock-…-linux-x64.tar.gz` | Extract and run `./ferrodock`. |
 

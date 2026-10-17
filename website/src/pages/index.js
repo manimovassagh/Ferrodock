@@ -237,7 +237,7 @@ function Why() {
 }
 
 const INSTALL = {
-  macOS: { cmd: BREW, note: "Or download the DMG from the Releases page and drag Ferrodock to Applications." },
+  macOS: { cmd: BREW, note: "Or download the DMG and drag Ferrodock to Applications. It isn't notarized yet, so allow it once in System Settings → Privacy & Security → Open Anyway." },
   Windows: {
     cmd: "# Download Ferrodock-<version>-windows-x64.zip, unzip it and run:\n.\\Ferrodock.exe",
     note: "Windows 10 and 11 (x64). If SmartScreen appears, choose More info → Run anyway.",

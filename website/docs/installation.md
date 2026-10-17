@@ -29,14 +29,22 @@ instead:
    available). It runs natively on both Apple Silicon and Intel Macs,
    macOS 11 or newer.
 2. Open the DMG and drag **Ferrodock.app** to **Applications**.
-3. The first time, **right-click the app → Open**, then confirm. Ferrodock
-   isn't notarized by Apple yet, so a plain double-click is blocked once.
+3. Ferrodock isn't notarized by Apple yet, so macOS blocks the first launch.
+   Allow it once, either from a terminal:
 
-If macOS still refuses, clear the quarantine flag from a terminal:
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/Ferrodock.app
+   ```
 
-```bash
-xattr -cr /Applications/Ferrodock.app
-```
+   or in **System Settings → Privacy & Security**: double-click Ferrodock,
+   click **Done** when it's blocked, then click **Open Anyway** next to
+   *"Ferrodock" was blocked* and confirm.
+
+On macOS 14 and older, **right-click the app → Open** also works. If macOS
+says the app "is damaged", run the `xattr` command above; it means the same
+thing.
+
+Installed with Homebrew? Run the same `xattr` command once after installing.
 
 ### Windows
 
