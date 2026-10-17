@@ -21,6 +21,8 @@ pub enum Intent {
     Confirm(Confirmation),
     /// Load the full inspect output of an item (by the ID the Engine uses).
     Inspect(Resource, String),
+    /// Tell the user something, e.g. where a file was saved.
+    Notify { text: String, is_error: bool },
     /// Pull an image by reference, e.g. `nginx:alpine`.
     Pull(String),
     /// Create and start a container.

@@ -1,5 +1,6 @@
 //! Reusable UI pieces shared by the shell and the pages.
 
+pub mod ansi;
 pub mod confirm;
 pub mod details;
 pub mod icons;

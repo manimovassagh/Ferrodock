@@ -34,8 +34,18 @@ killed for **running out of memory**, a notification tells you.
 
 ### Logs
 
-The **Logs** tab shows the last 500 lines, then follows new output live. Use
-the filter box to narrow it down, and **Copy** to copy the shown lines.
+The **Logs** tab shows the last 500 lines, then follows new output live.
+
+- Colours from the container (ANSI escape codes) are shown as colours.
+  Lines without colours that mention an error or a warning are tinted red
+  or amber.
+- Type in **Filter logs** to show only matching lines; matches are
+  highlighted.
+- **Time** shows when each line was written; **Wrap** wraps long lines.
+- Scroll up to read back; **Latest** jumps to the newest line and keeps
+  following.
+- **Copy** copies the shown lines, and **Save** writes the whole log to
+  your Downloads folder.
 
 ![Live logs](/img/logs.png)
 

@@ -48,7 +48,7 @@ pub struct ContainersPage {
     filter: StateFilter,
     selected: Option<String>,
     tab: DetailsTab,
-    log_filter: String,
+    log_view: logs::LogView,
 }
 
 impl ContainersPage {
@@ -57,7 +57,7 @@ impl ContainersPage {
             filter: StateFilter::All,
             selected: None,
             tab: DetailsTab::Overview,
-            log_filter: String::new(),
+            log_view: logs::LogView::default(),
         }
     }
 
