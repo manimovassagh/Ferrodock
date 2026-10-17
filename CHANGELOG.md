@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.1](https://github.com/manimovassagh/Ferrodock/compare/v1.1.0...v1.1.1) - 2026-10-17
+
+### Documentation
+
+- download buttons for macOS, Windows and Linux on the landing page ([#89](https://github.com/manimovassagh/Ferrodock/pull/89))
+
 ## [1.1.0](https://github.com/manimovassagh/Ferrodock/compare/v1.0.0...v1.1.0) - 2026-10-17
 
 ### Added
