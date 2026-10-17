@@ -3,14 +3,13 @@
 use eframe::egui::{self, RichText};
 
 use super::{
-    ContainersPage, DetailsTab, actions, files, limits, logs, ports, processes, stats, status,
-    terminal,
+    ContainersPage, DetailsTab, actions, limits, logs, ports, processes, stats, status, terminal,
 };
 use crate::app::components::icons::Icon;
 use crate::app::components::{details, inspect, widgets};
 use crate::app::page::{Intent, PageCtx};
 use crate::app::pages::run_dialog::{self, RunForm};
-use crate::app::pages::{confirm_removal, remove_task};
+use crate::app::pages::{confirm_removal, files, remove_task};
 use crate::docker::{Change, ContainerInfo, Inspection, Resource, Restart, time_ago};
 
 pub(super) fn show(page: &mut ContainersPage, ui: &mut egui::Ui, ctx: &mut PageCtx) {
@@ -81,7 +80,16 @@ pub(super) fn show(page: &mut ContainersPage, ui: &mut egui::Ui, ctx: &mut PageC
         }
         DetailsTab::Stats => stats::show(ui, p, live, c.is_running()),
         DetailsTab::Processes => processes::show(ui, ctx, c),
-        DetailsTab::Files => files::show(ui, ctx, &mut page.files, c),
+        DetailsTab::Files => {
+            let target = files::Target {
+                container: &c.id,
+                root: "/",
+                writable: true,
+                note: (!c.is_running())
+                    .then_some("The container is stopped: this is its filesystem as it was left."),
+            };
+            files::show(ui, ctx, &mut page.files, &target);
+        }
         DetailsTab::Terminal => terminal::show(ui, ctx, &mut page.terminal, c),
         DetailsTab::Inspect => {
             if inspect::needs_loading(ctx.store, &c.id) {

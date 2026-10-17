@@ -59,6 +59,8 @@ pub struct Store {
     pub history: Option<(String, Option<Vec<Layer>>)>,
     /// The Files tab of the container it was last opened for.
     pub files: Option<FileView>,
+    /// The volume being browsed, and its helper container once made.
+    pub volume_browser: Option<(String, Option<Result<String, String>>)>,
     /// The open shell, if any.
     pub terminal: Option<Terminal>,
     /// Recent CPU and memory of each running container (oldest first),
@@ -91,6 +93,7 @@ impl Store {
             history: None,
             files: None,
             terminal: None,
+            volume_browser: None,
             pending: HashMap::new(),
             live: None,
         }
@@ -99,7 +102,20 @@ impl Store {
     /// Records that a file operation was asked for, so the Files tab shows
     /// it loading.
     pub fn files_requested(&mut self, op: &crate::docker::FileOp) {
-        files::requested(&mut self.files, op);
+        use crate::docker::FileOp;
+        match op {
+            FileOp::BrowseVolume { volume } => self.volume_browser = Some((volume.clone(), None)),
+            FileOp::EndBrowse { volume } => {
+                if self
+                    .volume_browser
+                    .as_ref()
+                    .is_some_and(|(v, _)| v == volume)
+                {
+                    self.volume_browser = None;
+                }
+            }
+            _ => files::requested(&mut self.files, op),
+        }
     }
 
     /// Records a terminal request. Returns a session that's now replaced
@@ -143,6 +159,13 @@ impl Store {
                 match self.pulls.iter_mut().find(|(i, _)| *i == image) {
                     Some(entry) => entry.1 = progress,
                     None => self.pulls.push((image, progress)),
+                }
+            }
+            Response::VolumeHelper { volume, result } => {
+                if let Some((asked, slot)) = &mut self.volume_browser
+                    && *asked == volume
+                {
+                    *slot = Some(result);
                 }
             }
             Response::TermOutput { session, bytes } => {

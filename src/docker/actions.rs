@@ -141,6 +141,8 @@ impl DockerClient {
                 docker.remove_image(id, Some(opts), None).await.map(drop)
             }
             Action::Remove(Resource::Volumes) => {
+                // A helper left from browsing it would keep it in use.
+                self.remove_helpers(Some(id)).await?;
                 docker.remove_volume(id, None::<RemoveVolumeOptions>).await
             }
             Action::Remove(Resource::Networks) => docker.remove_network(id).await,

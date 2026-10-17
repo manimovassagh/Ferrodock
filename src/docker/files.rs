@@ -41,6 +41,14 @@ pub enum FileOp {
         dir: String,
         files: Vec<PathBuf>,
     },
+    /// Get a (helper) container whose files show `volume`.
+    BrowseVolume {
+        volume: String,
+    },
+    /// Remove the helper of `volume`.
+    EndBrowse {
+        volume: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

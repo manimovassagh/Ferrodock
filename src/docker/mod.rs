@@ -8,6 +8,7 @@
 //! [`DockerClient`].
 
 mod actions;
+mod browse;
 mod compose;
 mod containers;
 mod create;
@@ -28,6 +29,7 @@ mod terminal;
 mod volumes;
 
 pub use actions::{Action, Task};
+pub use browse::VOLUME_ROOT;
 pub use compose::{ComposeProject, group_projects};
 pub use containers::ContainerInfo;
 pub use create::Change;
