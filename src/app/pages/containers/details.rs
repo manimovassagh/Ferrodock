@@ -3,8 +3,8 @@
 use eframe::egui::{self, RichText};
 
 use super::{ContainersPage, DetailsTab, actions, logs, ports, stats, status};
-use crate::app::components::{details, widgets};
-use crate::app::page::PageCtx;
+use crate::app::components::{details, inspect, widgets};
+use crate::app::page::{Intent, PageCtx};
 use crate::app::pages::{remove_button, remove_task};
 use crate::docker::{ContainerInfo, Resource, time_ago};
 use crate::theme::Palette;
@@ -42,6 +42,7 @@ pub(super) fn show(page: &mut ContainersPage, ui: &mut egui::Ui, ctx: &mut PageC
             (DetailsTab::Overview, "Overview"),
             (DetailsTab::Logs, "Logs"),
             (DetailsTab::Stats, "Stats"),
+            (DetailsTab::Inspect, "Inspect"),
         ] {
             if widgets::tab(ui, p, label, None, page.tab == tab).clicked() {
                 page.tab = tab;
@@ -55,6 +56,14 @@ pub(super) fn show(page: &mut ContainersPage, ui: &mut egui::Ui, ctx: &mut PageC
         DetailsTab::Overview => overview(ui, p, c),
         DetailsTab::Logs => logs::show(ui, p, live, &mut page.log_filter),
         DetailsTab::Stats => stats::show(ui, p, live, c.is_running()),
+        DetailsTab::Inspect => {
+            if inspect::needs_loading(ctx.store, &c.id) {
+                ctx.request(Intent::Inspect(Resource::Containers, c.id.clone()));
+            }
+            egui::ScrollArea::vertical()
+                .auto_shrink(false)
+                .show(ui, |ui| inspect::show(ui, p, ctx.store, &c.id));
+        }
     }
 }
 

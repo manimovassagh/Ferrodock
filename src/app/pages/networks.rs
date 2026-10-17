@@ -2,7 +2,7 @@
 
 use eframe::egui;
 
-use super::{confirm_removal, remove_button, remove_task, remove_unused_button};
+use super::{confirm_removal, inspect_section, remove_button, remove_task, remove_unused_button};
 use crate::app::components::{details, table, widgets};
 use crate::app::page::{Command, Page, PageCtx, toggle_selection};
 use crate::app::store::Store;
@@ -145,6 +145,7 @@ impl Page for NetworksPage {
                 details::section(ui, p, "Connected", |ui| {
                     details::field(ui, p, "Containers", &widgets::join_or_dash(&attached));
                 });
+                inspect_section(ui, ctx, Resource::Networks, &net.id);
             });
     }
 

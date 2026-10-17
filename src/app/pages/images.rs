@@ -2,7 +2,9 @@
 
 use eframe::egui;
 
-use super::{confirm_removal, remove_button, remove_task, remove_unused_button, usage_pill};
+use super::{
+    confirm_removal, inspect_section, remove_button, remove_task, remove_unused_button, usage_pill,
+};
 use crate::app::components::{details, table, widgets};
 use crate::app::page::{Command, Page, PageCtx, toggle_selection};
 use crate::app::store::Store;
@@ -133,6 +135,7 @@ impl Page for ImagesPage {
                 details::section(ui, p, "Used by", |ui| {
                     details::field(ui, p, "Containers", &widgets::join_or_dash(&users));
                 });
+                inspect_section(ui, ctx, Resource::Images, &image.id);
             });
     }
 

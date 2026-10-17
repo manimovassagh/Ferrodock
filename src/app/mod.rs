@@ -190,6 +190,11 @@ impl FerrodockApp {
         match intent {
             Intent::Run(task) => self.run(task),
             Intent::Confirm(confirmation) => self.confirmation = Some(confirmation),
+            Intent::Inspect(resource, id) => {
+                self.store.inspection = None;
+                self.store.inspecting = Some(id.clone());
+                self.worker.send(Request::Inspect(resource, id));
+            }
         }
     }
 

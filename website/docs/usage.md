@@ -69,6 +69,20 @@ Ferrodock follows your system's light or dark setting.
 
 ![Light mode](/img/light-mode.png)
 
+## Inspect
+
+Every details pane can show what `docker inspect` knows. Containers have an
+**Inspect** tab; images, volumes and networks have an **Inspect** section at
+the bottom.
+
+- **Runtime**: the restart policy, and for containers with a healthcheck,
+  the health status, how many checks failed in a row and the last output.
+- **Environment**: every variable. Values that look like secrets
+  (passwords, tokens, keys) are hidden until you tick **Show secrets**.
+  Click a row to copy it as `KEY=value`.
+- **Labels**, including the ones Docker Compose adds.
+- **Raw JSON**: the full output, with a copy button.
+
 ## Disk
 
 The **Disk** page shows how much space images, containers, volumes and the

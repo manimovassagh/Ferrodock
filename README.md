@@ -61,6 +61,8 @@ Get-FileHash .\Ferrodock-*-windows-x64.zip            # Windows (compare with SH
 - **Logs**: the last 500 lines, then live output as it happens, with a
   filter and copy.
 - **Stats**: live CPU and memory charts, plus network and disk totals.
+- **Inspect**: environment variables (secrets hidden until you ask),
+  labels, restart policy, health checks and the raw JSON for anything.
 - **Compose**: containers grouped by Docker Compose project. Start, stop,
   restart or remove a whole project at once.
 - **Images, Volumes, Networks**: size, mountpoints, subnets, and which

@@ -13,8 +13,8 @@ use std::time::Duration;
 use tokio::sync::mpsc as tokio_mpsc;
 
 use crate::docker::{
-    Action, ContainerInfo, DiskUsage, DockerClient, ImageInfo, NetworkInfo, Resource, StatsSample,
-    Task, VolumeInfo,
+    Action, ContainerInfo, DiskUsage, DockerClient, ImageInfo, Inspection, NetworkInfo, Resource,
+    StatsSample, Task, VolumeInfo,
 };
 
 /// How often the worker re-checks the engine on its own.
@@ -32,6 +32,8 @@ pub enum Request {
     /// Stream logs and stats of this container (replacing any previous
     /// one), or stop streaming with `None`.
     Watch(Option<String>),
+    /// Load the full inspect output of one item.
+    Inspect(Resource, String),
 }
 
 #[derive(Debug)]
@@ -44,6 +46,11 @@ pub enum Response {
     Volumes(Vec<VolumeInfo>),
     Networks(Vec<NetworkInfo>),
     Disk(DiskUsage),
+    Inspected(Inspection),
+    InspectFailed {
+        id: String,
+        message: String,
+    },
     /// The daemon could not be reached or listing failed.
     Disconnected(String),
     Done {
@@ -194,6 +201,15 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
             }
             Request::Run(task) => {
                 tokio::spawn(async move { run_task(&docker, &shared, task).await });
+            }
+            Request::Inspect(resource, id) => {
+                tokio::spawn(async move {
+                    let response = match docker.inspect(resource, &id).await {
+                        Ok(inspection) => Response::Inspected(inspection),
+                        Err(message) => Response::InspectFailed { id, message },
+                    };
+                    shared.send(response);
+                });
             }
             Request::Watch(None) => unreachable!("handled above"),
         }

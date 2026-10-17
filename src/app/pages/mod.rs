@@ -10,7 +10,7 @@ mod volumes;
 
 use eframe::egui;
 
-use super::components::widgets;
+use super::components::{inspect, widgets};
 use super::page::{Confirmation, Intent, Page, PageCtx};
 use crate::docker::{Action, Resource, Task, plural};
 use crate::theme::Palette;
@@ -25,6 +25,20 @@ pub fn all() -> Vec<Box<dyn Page>> {
         Box::new(networks::NetworksPage::default()),
         Box::new(disk::DiskPage::default()),
     ]
+}
+
+/// Collapsible Inspect section at the end of a details pane. The inspect
+/// output is loaded the first time it's opened.
+fn inspect_section(ui: &mut egui::Ui, ctx: &mut PageCtx, resource: Resource, id: &str) {
+    let p = ctx.palette;
+    egui::CollapsingHeader::new(egui::RichText::new("INSPECT").size(11.0).color(p.muted))
+        .id_salt(("inspect", id))
+        .show(ui, |ui| {
+            if inspect::needs_loading(ctx.store, id) {
+                ctx.request(Intent::Inspect(resource, id.to_owned()));
+            }
+            inspect::show(ui, p, ctx.store, id);
+        });
 }
 
 /// "In use" / "Unused" badge for images and volumes.
