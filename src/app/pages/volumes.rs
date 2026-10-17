@@ -176,7 +176,7 @@ impl Page for VolumesPage {
                     details::field(ui, p, "Mountpoint", &volume.mountpoint);
                 });
                 details::section(ui, p, "Used by", |ui| {
-                    details::field(ui, p, "Containers", &widgets::join_or_dash(&users));
+                    super::container_links(ui, ctx, &users);
                 });
                 inspect_section(ui, ctx, Resource::Volumes, &volume.name);
             });

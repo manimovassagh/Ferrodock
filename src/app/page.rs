@@ -23,6 +23,8 @@ pub enum Intent {
     Inspect(Resource, String),
     /// Switch to the page with this title.
     OpenPage(&'static str),
+    /// Switch to the page with this title and select an item there.
+    Open { page: &'static str, id: String },
     /// Empty the search box.
     ClearSearch,
     /// Tell the user something, e.g. where a file was saved.

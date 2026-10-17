@@ -6,8 +6,9 @@ use crate::theme::Palette;
 
 const HEIGHT: f32 = 56.0;
 
-/// Draws `values` (oldest first) scaled to `0..=max`, full width.
-pub fn show(ui: &mut egui::Ui, p: &Palette, values: &[f64], max: f64, color: Color32) {
+/// Draws `values` (oldest first) scaled to `0..=max`, full width, with
+/// `scale` (what the top of the chart stands for) in the corner.
+pub fn show(ui: &mut egui::Ui, p: &Palette, values: &[f64], max: f64, color: Color32, scale: &str) {
     let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), HEIGHT), Sense::hover());
     let painter = ui.painter_at(rect);
     painter.rect(
@@ -16,6 +17,13 @@ pub fn show(ui: &mut egui::Ui, p: &Palette, values: &[f64], max: f64, color: Col
         p.bg,
         Stroke::new(1.0, p.border),
         egui::StrokeKind::Inside,
+    );
+    painter.text(
+        rect.right_top() + vec2(-6.0, 4.0),
+        egui::Align2::RIGHT_TOP,
+        scale,
+        egui::FontId::proportional(10.5),
+        p.muted,
     );
     if values.len() < 2 || max <= 0.0 {
         return;
