@@ -371,3 +371,50 @@ fn screenshots_of_image_tools() {
     h.run_steps(3);
     save(&mut h, "image-tag");
 }
+
+/// The engine picker, and switching to another engine without restarting.
+/// A second Docker context ("staging") reaches the same daemon through
+/// another socket path, so the switch is real but the data stays the same.
+#[test]
+#[ignore]
+fn screenshots_of_engines() {
+    let config = std::env::temp_dir().join(format!("ferrodock-config-{}", std::process::id()));
+    let meta = config.join("contexts/meta/0123abcd");
+    std::fs::create_dir_all(&meta).unwrap();
+    let socket = config.join("staging.sock");
+    let _ = std::fs::remove_file(&socket);
+    #[cfg(unix)]
+    std::os::unix::fs::symlink("/var/run/docker.sock", &socket).unwrap();
+    std::fs::write(
+        meta.join("meta.json"),
+        format!(
+            r#"{{"Name":"staging","Endpoints":{{"docker":{{"Host":"unix://{}"}}}}}}"#,
+            socket.display()
+        ),
+    )
+    .unwrap();
+    // Only this test runs in its process when it's run on its own.
+    unsafe { std::env::set_var("DOCKER_CONFIG", &config) };
+
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(3));
+    set_theme(&mut h, Theme::Light);
+    h.state_mut().settings.engine = None;
+    click(&mut h, "Docker engine");
+    settle(&mut h, Duration::from_millis(500));
+    save(&mut h, "engines");
+    click(&mut h, "staging");
+    settle(&mut h, Duration::from_secs(4));
+    save(&mut h, "engine-switched");
+    let state = h.state();
+    assert_eq!(state.store.engine.as_deref(), Some("staging"));
+    assert!(
+        !state.store.containers.is_empty(),
+        "reloaded from the new engine"
+    );
+    assert!(matches!(
+        state.store.connection,
+        crate::app::store::Connection::Connected { .. }
+    ));
+    std::fs::remove_dir_all(&config).unwrap();
+}

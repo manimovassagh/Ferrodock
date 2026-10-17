@@ -15,7 +15,7 @@ categories = ["gui", "development-tools"]
 include = ["/src", "/assets", "/build.rs", "/README.md", "/LICENSE", "/CHANGELOG.md"]
 
 [dependencies]
-bollard = { version = "0.21.1", features = ["time"] }
+bollard = { version = "0.21.1", features = ["time", "ssl"] }
 bytes = "1.12.1"
 eframe = { version = "0.37.0", features = ["persistence"] }
 egui_extras = { version = "0.37", default-features = false }
@@ -28,6 +28,10 @@ sha2 = "0.10.9"
 tar = "0.4.46"
 vt100 = "0.16.2"
 tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros", "time", "fs"] }
+
+# Contexts over SSH run the system's ssh, which bollard supports on Unix.
+[target.'cfg(unix)'.dependencies]
+bollard = { version = "0.21.1", features = ["ssh"] }
 
 # The menu bar / notification area icon. Linux would need GTK, so it's
 # left out there.

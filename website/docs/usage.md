@@ -234,6 +234,22 @@ it's done, a notification says how much space was freed.
 Disk usage is loaded when you open the page or press refresh, never in the
 background. It needs Docker Engine 29 or newer.
 
+## Docker engines
+
+Ferrodock connects to the same engine as the `docker` command: your
+current Docker context, or `DOCKER_HOST`. To use another one, click the
+engine's status at the bottom of the sidebar (**● Docker 29.8 …**) and pick
+it from the list. The switch happens right away, without restarting, and
+Ferrodock remembers it.
+
+The list has:
+
+- **default**, and every **Docker context** (`docker context ls`), whether
+  it uses a local socket, a remote `tcp://` host with TLS, or `ssh://`
+  (macOS and Linux).
+- Engines found on this machine: **Docker Desktop**, **Colima** (every
+  profile), **Rancher Desktop** and **Podman**.
+
 ## Menu bar and notification area
 
 On macOS, Ferrodock puts an icon in the menu bar showing how many

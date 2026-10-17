@@ -40,6 +40,9 @@ pub struct Settings {
     /// Closing the window hides it, leaving Ferrodock in the menu bar
     /// (notification area on Windows).
     pub close_to_tray: bool,
+    /// The engine picked last (a Docker context's name, or a detected
+    /// engine's); None follows the Docker CLI's current context.
+    pub engine: Option<String>,
 }
 
 impl Default for Settings {
@@ -50,6 +53,7 @@ impl Default for Settings {
             scale: 1.0,
             check_updates: true,
             close_to_tray: true,
+            engine: None,
         }
     }
 }

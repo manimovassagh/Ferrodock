@@ -18,6 +18,8 @@ pub enum Click {
     Update,
     /// Restart into the installed update.
     Restart,
+    /// Switch to another Docker engine.
+    Engine(crate::docker::Engine),
 }
 
 /// Draws the sidebar.
@@ -58,7 +60,9 @@ pub fn show(
     }
 
     ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
-        ui.horizontal(|ui| engine_status(ui, p, &store.connection));
+        if let Some(engine) = engine_picker(ui, p, store) {
+            clicked = Some(Click::Engine(engine));
+        }
         ui.add_space(6.0);
         let settings =
             widgets::nav_item(ui, p, Icon::Gear, "Settings", "", false).on_hover_text(format!(
@@ -120,19 +124,55 @@ fn update_item(ui: &mut egui::Ui, p: &Palette, update: &Status) -> Option<Click>
     }
 }
 
-fn engine_status(ui: &mut egui::Ui, p: &Palette, connection: &Connection) {
-    match connection {
-        Connection::Connecting => {
-            ui.spinner();
-            ui.label(RichText::new("Connecting…").color(p.muted));
+/// The engine's status; clicking it lists the engines to switch to.
+fn engine_picker(ui: &mut egui::Ui, p: &Palette, store: &Store) -> Option<crate::docker::Engine> {
+    let on = match store.engine.as_deref() {
+        Some(name) if name != "default" => format!(" · {name}"),
+        _ => String::new(),
+    };
+    let (dot, text) = match &store.connection {
+        Connection::Connecting => (None, "Connecting…".to_owned()),
+        Connection::Connected { version } => (Some(p.success), format!("Docker {version}{on}")),
+        Connection::Disconnected { .. } if on.is_empty() => {
+            (Some(p.danger), "Docker not running".to_owned())
         }
-        Connection::Connected { version } => {
-            widgets::dot(ui, p.success);
-            ui.label(RichText::new(format!("Docker {version}")).color(p.muted));
+        Connection::Disconnected { .. } => (Some(p.danger), format!("Not running{on}")),
+    };
+    let mut picked = None;
+    ui.horizontal(|ui| {
+        match dot {
+            Some(color) => widgets::dot(ui, color),
+            None => {
+                ui.spinner();
+            }
         }
-        Connection::Disconnected { .. } => {
-            widgets::dot(ui, p.danger);
-            ui.label(RichText::new("Docker not running").color(p.muted));
-        }
-    }
+        let row = ui
+            .add(egui::Button::new(RichText::new(text).color(p.muted)).frame(false))
+            .on_hover_cursor(egui::CursorIcon::PointingHand)
+            .on_hover_text("Switch Docker engine");
+        row.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, "Docker engine"));
+        egui::Popup::menu(&row).show(|ui| {
+            ui.set_min_width(240.0);
+            ui.label(RichText::new("DOCKER ENGINES").size(11.0).color(p.muted));
+            for engine in &store.engines {
+                let active = store.engine.as_deref() == Some(engine.name.as_str());
+                let label = if engine.current && engine.name != "default" {
+                    format!("{} (current context)", engine.name)
+                } else {
+                    engine.name.clone()
+                };
+                let item = ui
+                    .add_enabled(engine.supported(), egui::Button::selectable(active, label))
+                    .on_hover_text(&engine.host)
+                    .on_disabled_hover_text(format!(
+                        "{} isn't supported on this system",
+                        engine.host
+                    ));
+                if item.clicked() && !active {
+                    picked = Some(engine.clone());
+                }
+            }
+        });
+    });
+    picked
 }

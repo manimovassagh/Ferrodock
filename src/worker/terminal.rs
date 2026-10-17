@@ -62,6 +62,13 @@ impl Sessions {
         }
     }
 
+    /// Ends every session, e.g. when switching to another engine.
+    pub(super) fn close_all(&mut self) {
+        for (_, (_, task)) in self.open.drain() {
+            task.abort();
+        }
+    }
+
     fn send(&self, session: u64, msg: Msg) {
         if let Some((tx, _)) = self.open.get(&session) {
             let _ = tx.send(msg);

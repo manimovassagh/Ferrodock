@@ -75,6 +75,12 @@ impl FerrodockApp {
         let ctx = cc.egui_ctx.clone();
         let worker = Worker::spawn(move || ctx.request_repaint());
         let pages = pages::all();
+        let mut store = Store::new();
+        store.engines = crate::docker::engines();
+        if let Some(engine) = crate::docker::pick(&store.engines, settings.engine.as_deref()) {
+            store.engine = Some(engine.name.clone());
+            worker.send(Request::UseEngine(engine));
+        }
         // Load everything once so the sidebar counts are filled in.
         for page in &pages {
             worker.send(Request::Refresh(page.resource()));
@@ -84,7 +90,7 @@ impl FerrodockApp {
         worker.send(Request::Poll(pages[0].resource()));
         Self {
             worker,
-            store: Store::new(),
+            store,
             pages,
             active: 0,
             search: String::new(),
@@ -134,6 +140,21 @@ impl FerrodockApp {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
         }
+    }
+
+    /// Talks to `engine` from now on, and remembers it.
+    fn switch_engine(&mut self, engine: crate::docker::Engine) {
+        self.settings.engine = Some(engine.name.clone());
+        self.store = Store::new();
+        self.store.engines = crate::docker::engines();
+        self.store.engine = Some(engine.name.clone());
+        self.watching = None;
+        self.worker.send(Request::UseEngine(engine));
+        for page in &self.pages {
+            self.worker.send(Request::Refresh(page.resource()));
+        }
+        self.worker
+            .send(Request::Poll(self.pages[self.active].resource()));
     }
 
     /// Reloads the open page's data (plus the containers) right away.
@@ -396,6 +417,7 @@ impl eframe::App for FerrodockApp {
         match clicked_page {
             Some(sidebar::Click::Page(index)) => self.open_page(index),
             Some(sidebar::Click::Settings) => self.show_settings = true,
+            Some(sidebar::Click::Engine(engine)) => self.switch_engine(engine),
             Some(sidebar::Click::Update) => {
                 if let crate::update::Status::Available(available) = self.updater.status() {
                     self.updater.install(available);

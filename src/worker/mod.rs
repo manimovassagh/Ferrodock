@@ -16,7 +16,7 @@ use std::time::Duration;
 use tokio::sync::mpsc as tokio_mpsc;
 
 use crate::docker::{
-    Action, Change, ContainerInfo, DiskUsage, DockerClient, EngineEvent, FileOp, ImageInfo,
+    Action, Change, ContainerInfo, DiskUsage, DockerClient, Engine, EngineEvent, FileOp, ImageInfo,
     ImageOp, Inspection, Layer, Listing, NetworkInfo, Preview, Processes, PullProgress, Resource,
     RunSpec, SearchResult, StatsSample, Task, TermOp, VolumeInfo,
 };
@@ -62,6 +62,8 @@ pub enum Request {
     Terminal(TermOp),
     /// Search, tag, push, save or load images.
     Image(ImageOp),
+    /// Talk to this engine from now on.
+    UseEngine(Engine),
 }
 
 #[derive(Debug)]
@@ -228,6 +230,8 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
         usage_at: std::sync::Mutex::new(None),
     });
     let mut client: Option<DockerClient> = None;
+    // None until the UI picks one: the Docker CLI's defaults.
+    let mut engine: Option<Engine> = None;
     let mut watch = live::Watch::default();
     let mut terminals = terminal::Sessions::default();
     let mut events: Option<tokio::task::JoinHandle<()>> = None;
@@ -248,6 +252,19 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
             }),
         };
 
+        // Switching engines drops everything tied to the old one.
+        if let Request::UseEngine(next) = request {
+            client = None;
+            if let Some(task) = events.take() {
+                task.abort();
+            }
+            watch.stop();
+            terminals.close_all();
+            shared.disconnected(format!("Connecting to {}…", next.name));
+            engine = Some(next);
+            continue;
+        }
+
         // Stopping a watch must work even while Docker is unreachable.
         match request {
             Request::Watch(None) => {
@@ -263,7 +280,11 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
 
         // Docker may not be running yet (or its socket may not exist), so
         // keep trying to set up the client until it works.
-        let docker = match client.clone().map_or_else(DockerClient::connect, Ok) {
+        let connect = || match &engine {
+            Some(engine) => DockerClient::connect_to(engine),
+            None => DockerClient::connect(),
+        };
+        let docker = match client.clone().map_or_else(connect, Ok) {
             Ok(docker) => docker,
             Err(e) => {
                 shared.disconnected(e);
@@ -355,7 +376,7 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
                     shared.send(response);
                 });
             }
-            Request::Watch(None) => unreachable!("handled above"),
+            Request::Watch(None) | Request::UseEngine(_) => unreachable!("handled above"),
         }
     }
     watch.stop();

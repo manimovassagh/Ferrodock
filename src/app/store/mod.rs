@@ -14,8 +14,9 @@ use std::collections::{HashMap, VecDeque};
 use std::time::Instant;
 
 use crate::docker::{
-    Action, ComposeProject, ContainerInfo, DiskUsage, ImageInfo, Inspection, Layer, NetworkInfo,
-    Processes, PullProgress, SearchResult, StatsSample, VolumeInfo, format_size, group_projects,
+    Action, ComposeProject, ContainerInfo, DiskUsage, Engine, ImageInfo, Inspection, Layer,
+    NetworkInfo, Processes, PullProgress, SearchResult, StatsSample, VolumeInfo, format_size,
+    group_projects,
 };
 use crate::worker::Response;
 pub use live::Live;
@@ -66,6 +67,9 @@ pub struct Store {
     pub volume_browser: Option<(String, Option<Result<String, String>>)>,
     /// The open shell, if any.
     pub terminal: Option<Terminal>,
+    /// Engines to choose from, and the name of the one in use.
+    pub engines: Vec<Engine>,
+    pub engine: Option<String>,
     /// The last Docker Hub search, and its results once in.
     pub search: Option<(String, Option<SearchAnswer>)>,
     /// Recent CPU and memory of each running container (oldest first),
@@ -99,6 +103,8 @@ impl Store {
             files: None,
             terminal: None,
             search: None,
+            engines: Vec::new(),
+            engine: None,
             volume_browser: None,
             pending: HashMap::new(),
             live: None,
@@ -248,7 +254,12 @@ impl Store {
                 }
             }
             Response::Disconnected(reason) => {
+                // Which engines there are doesn't depend on reaching one,
+                // and switching is how to get out of a dead engine.
+                let (engines, engine) = (std::mem::take(&mut self.engines), self.engine.take());
                 *self = Self::new();
+                self.engines = engines;
+                self.engine = engine;
                 self.connection = Connection::Disconnected { reason };
             }
             Response::Done { task, freed } => {
@@ -392,7 +403,13 @@ mod tests {
         let mut store = Store::new();
         store.apply(Response::Containers(vec![container("web", "", &[], &[])]));
         store.pending.insert("web-id".into(), Action::Stop);
+        store.engine = Some("colima".into());
         store.apply(Response::Disconnected("gone".into()));
+        assert_eq!(
+            store.engine.as_deref(),
+            Some("colima"),
+            "the engine is kept"
+        );
         assert!(store.containers.is_empty());
         assert!(store.pending.is_empty());
         assert!(matches!(store.connection, Connection::Disconnected { .. }));

@@ -14,6 +14,7 @@ mod containers;
 mod create;
 mod debug;
 mod disk;
+mod engines;
 mod events;
 mod files;
 mod format;
@@ -37,6 +38,7 @@ pub use containers::ContainerInfo;
 pub use create::Change;
 pub use debug::{TARGET_ROOT, debug_image};
 pub use disk::{DiskUsage, PruneKind, Usage};
+pub use engines::{Engine, engines, pick};
 pub use events::EngineEvent;
 pub use files::{
     FileEntry, FileKind, FileOp, Listing, Preview, downloads_dir, join_path, parent_path,
@@ -80,6 +82,12 @@ impl DockerClient {
         Docker::connect_with_defaults()
             .map(|docker| Self { docker })
             .map_err(|e| format!("Could not set up Docker connection: {e}"))
+    }
+
+    /// A client for `engine`. Like [`DockerClient::connect`], this doesn't
+    /// touch the engine yet.
+    pub fn connect_to(engine: &Engine) -> Result<Self, String> {
+        engine.connect().map(|docker| Self { docker })
     }
 
     /// Returns the Docker Engine version, used as a connectivity check.
