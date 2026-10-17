@@ -3,7 +3,10 @@
 //! The store is fed by worker responses and read by the pages. It holds no
 //! UI state of its own.
 
+mod files;
 mod live;
+
+pub use files::FileView;
 
 use std::collections::{HashMap, VecDeque};
 use std::time::Instant;
@@ -52,6 +55,8 @@ pub struct Store {
     pub processes: Option<(String, Instant, Option<ProcessTable>)>,
     /// The layers of the image asked about last.
     pub history: Option<(String, Option<Vec<Layer>>)>,
+    /// The Files tab of the container it was last opened for.
+    pub files: Option<FileView>,
     /// Recent CPU and memory of each running container (oldest first),
     /// while the Containers page is open.
     pub usage: HashMap<String, VecDeque<StatsSample>>,
@@ -80,9 +85,16 @@ impl Store {
             usage: HashMap::new(),
             processes: None,
             history: None,
+            files: None,
             pending: HashMap::new(),
             live: None,
         }
+    }
+
+    /// Records that a file operation was asked for, so the Files tab shows
+    /// it loading.
+    pub fn files_requested(&mut self, op: &crate::docker::FileOp) {
+        files::requested(&mut self.files, op);
     }
 
     /// Applies a worker response. Returns a notice when the user should be
@@ -121,6 +133,21 @@ impl Store {
                     Some(entry) => entry.1 = progress,
                     None => self.pulls.push((image, progress)),
                 }
+            }
+            Response::Files(result) => files::listed(&mut self.files, result),
+            Response::FilePreview {
+                container,
+                path,
+                preview,
+            } => files::previewed(&mut self.files, &container, &path, preview),
+            Response::Transferred {
+                container,
+                changed_dir,
+                text,
+                is_error,
+            } => {
+                files::transferred(&mut self.files, &container, changed_dir.as_deref());
+                return Some(Notice { text, is_error });
             }
             Response::Processes(result) => {
                 let id = match &result {

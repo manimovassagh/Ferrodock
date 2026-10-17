@@ -209,3 +209,28 @@ fn screenshots_of_empty_states() {
     save(&mut h, "no-docker");
     unsafe { std::env::remove_var("DOCKER_HOST") };
 }
+
+/// The Files tab of the first container, a folder and a previewed file.
+/// Works with stopped containers too (their files come from the archive
+/// API).
+#[test]
+#[ignore]
+fn screenshots_of_files() {
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(3));
+    set_theme(&mut h, Theme::Light);
+    let first = h.state().store.containers.first().map(|c| c.id.clone());
+    open(&mut h, 0, first);
+    click(&mut h, "Files");
+    settle(&mut h, Duration::from_secs(2));
+    save(&mut h, "files");
+    click(&mut h, "etc");
+    settle(&mut h, Duration::from_secs(2));
+    click(&mut h, "hosts");
+    settle(&mut h, Duration::from_secs(2));
+    save(&mut h, "files-preview");
+    // A link to a file opens as a preview, not an empty folder.
+    click(&mut h, "mtab");
+    settle(&mut h, Duration::from_secs(3));
+    save(&mut h, "files-link");
+}

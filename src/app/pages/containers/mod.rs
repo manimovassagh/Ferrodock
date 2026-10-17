@@ -3,6 +3,7 @@
 
 mod actions;
 mod details;
+mod files;
 mod limits;
 mod logs;
 pub(super) mod ports;
@@ -45,6 +46,7 @@ enum DetailsTab {
     Logs,
     Stats,
     Processes,
+    Files,
     Inspect,
 }
 
@@ -59,6 +61,8 @@ pub struct ContainersPage {
     anchor: Option<String>,
     /// The Edit or Duplicate dialog, while it's open.
     run_form: Option<RunForm>,
+    /// Where the Files tab is.
+    files: files::FilesTab,
     /// The Limits dialog, while it's open.
     limits: Option<limits::LimitsForm>,
     /// The new name being typed in the Rename dialog, while it's open.
@@ -75,6 +79,7 @@ impl ContainersPage {
             marked: Default::default(),
             anchor: None,
             run_form: None,
+            files: Default::default(),
             limits: None,
             rename: None,
         }

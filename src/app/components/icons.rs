@@ -17,6 +17,8 @@ pub enum Icon {
     Download,
     /// Three dots, for a menu of more actions.
     More,
+    Folder,
+    File,
     // Pages.
     Container,
     Stack,
@@ -92,6 +94,24 @@ pub fn paint(painter: &egui::Painter, rect: Rect, icon: Icon, color: Color32) {
             }
             v
         }
+        Icon::Folder => vec![poly(&[
+            p(3.5, 6.0),
+            p(9.5, 6.0),
+            p(11.5, 8.0),
+            p(20.5, 8.0),
+            p(20.5, 18.5),
+            p(3.5, 18.5),
+        ])],
+        Icon::File => vec![
+            poly(&[
+                p(6.0, 3.5),
+                p(14.0, 3.5),
+                p(18.5, 8.0),
+                p(18.5, 20.5),
+                p(6.0, 20.5),
+            ]),
+            line(&[p(14.0, 3.5), p(14.0, 8.0), p(18.5, 8.0)]),
+        ],
         Icon::More => [5.5, 12.0, 18.5]
             .into_iter()
             .map(|x| Shape::circle_filled(p(x, 12.0), 1.9 * s, color))

@@ -1509,6 +1509,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "tar",
  "tokio",
  "winresource",
 ]

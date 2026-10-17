@@ -4,6 +4,7 @@
 //! [`Response`]s once per frame.
 
 mod dedup;
+mod files;
 mod live;
 
 use std::sync::{Arc, mpsc};
@@ -13,8 +14,9 @@ use std::time::Duration;
 use tokio::sync::mpsc as tokio_mpsc;
 
 use crate::docker::{
-    Action, Change, ContainerInfo, DiskUsage, DockerClient, EngineEvent, ImageInfo, Inspection,
-    Layer, NetworkInfo, Processes, PullProgress, Resource, RunSpec, StatsSample, Task, VolumeInfo,
+    Action, Change, ContainerInfo, DiskUsage, DockerClient, EngineEvent, FileOp, ImageInfo,
+    Inspection, Layer, Listing, NetworkInfo, Preview, Processes, PullProgress, Resource, RunSpec,
+    StatsSample, Task, VolumeInfo,
 };
 
 /// How often the worker re-checks the engine on its own. Changes normally
@@ -52,6 +54,8 @@ pub enum Request {
     History(String),
     /// Create and start a container.
     RunImage(RunSpec),
+    /// List, preview or copy files of a container.
+    Files(FileOp),
 }
 
 #[derive(Debug)]
@@ -74,6 +78,21 @@ pub enum Response {
     History {
         image: String,
         layers: Vec<Layer>,
+    },
+    /// A folder listing, or (container, path, why) it couldn't be read.
+    Files(Result<Listing, (String, String, String)>),
+    FilePreview {
+        container: String,
+        path: String,
+        preview: Result<Preview, String>,
+    },
+    /// A download or upload finished. `changed_dir` is the folder an upload
+    /// changed, to list again.
+    Transferred {
+        container: String,
+        changed_dir: Option<String>,
+        text: String,
+        is_error: bool,
     },
     /// Progress of a pull started with [`Request::Pull`].
     Pulling {
@@ -279,6 +298,9 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
             }
             Request::Pull(image) => {
                 tokio::spawn(async move { pull(&docker, &shared, image).await });
+            }
+            Request::Files(op) => {
+                tokio::spawn(async move { files::handle(&docker, &shared, op).await });
             }
             Request::RunImage(spec) => {
                 tokio::spawn(async move { run_image(&docker, &shared, spec).await });

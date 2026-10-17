@@ -13,6 +13,7 @@ mod containers;
 mod create;
 mod disk;
 mod events;
+mod files;
 mod format;
 mod images;
 mod inspect;
@@ -31,6 +32,9 @@ pub use containers::ContainerInfo;
 pub use create::Change;
 pub use disk::{DiskUsage, PruneKind, Usage};
 pub use events::EngineEvent;
+pub use files::{
+    FileEntry, FileKind, FileOp, Listing, Preview, downloads_dir, join_path, parent_path,
+};
 pub use format::{format_size, plural, time_ago};
 pub use images::ImageInfo;
 pub use inspect::{Inspection, RunSettings, looks_secret};
