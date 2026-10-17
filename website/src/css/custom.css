@@ -1,26 +1,32 @@
-/* Ferrodock brand colours, matching the app's palette. */
+/* Ferrodock brand colours: the rust of the app icon. */
 :root {
-  --ifm-color-primary: #2f6bff;
-  --ifm-color-primary-dark: #1a5cff;
-  --ifm-color-primary-darker: #0f54ff;
-  --ifm-color-primary-darkest: #0044e6;
-  --ifm-color-primary-light: #447aff;
-  --ifm-color-primary-lighter: #4f82ff;
-  --ifm-color-primary-lightest: #7099ff;
+  --ifm-color-primary: #c8482a;
+  --ifm-color-primary-dark: #b44126;
+  --ifm-color-primary-darker: #aa3d24;
+  --ifm-color-primary-darkest: #8c321d;
+  --ifm-color-primary-light: #d5553a;
+  --ifm-color-primary-lighter: #d85f45;
+  --ifm-color-primary-lightest: #df7a63;
   --ifm-code-font-size: 92%;
+  --ifm-navbar-shadow: 0 1px 0 rgb(0 0 0 / 6%);
 }
 
 [data-theme="dark"] {
-  --ifm-color-primary: #5b8cff;
-  --ifm-color-primary-dark: #3d77ff;
-  --ifm-color-primary-darker: #2e6cff;
-  --ifm-color-primary-darkest: #0050ff;
-  --ifm-color-primary-light: #79a1ff;
-  --ifm-color-primary-lighter: #88acff;
-  --ifm-color-primary-lightest: #b4caff;
-  --ifm-background-color: #16181d;
-  --ifm-navbar-background-color: #1c1f26;
-  --ifm-footer-background-color: #1c1f26;
+  --ifm-color-primary: #f0714f;
+  --ifm-color-primary-dark: #ee5d37;
+  --ifm-color-primary-darker: #ed532b;
+  --ifm-color-primary-darkest: #d53d14;
+  --ifm-color-primary-light: #f28567;
+  --ifm-color-primary-lighter: #f38f73;
+  --ifm-color-primary-lightest: #f6ac98;
+  --ifm-background-color: #121419;
+  --ifm-background-surface-color: #181b22;
+  --ifm-navbar-background-color: #0d0f14;
+  --ifm-footer-background-color: #0d0f14;
+}
+
+.footer--dark {
+  --ifm-footer-background-color: #0d0f14;
 }
 
 .markdown img {
