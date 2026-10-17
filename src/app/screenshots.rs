@@ -174,6 +174,12 @@ fn screenshots() {
 fn screenshots_of_empty_states() {
     let mut h = harness();
     settle(&mut h, Duration::from_secs(3));
+    h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::A);
+    settle(&mut h, Duration::from_millis(500));
+    save(&mut h, "bulk");
+    h.key_press(egui::Key::Escape);
+    h.run_steps(3);
+
     h.state_mut().search = "no-such-thing".into();
     settle(&mut h, Duration::from_millis(500));
     save(&mut h, "empty-search");

@@ -51,6 +51,10 @@ pub struct ContainersPage {
     selected: Option<String>,
     tab: DetailsTab,
     log_view: logs::LogView,
+    /// Rows picked with Cmd/Ctrl- or Shift-click, for bulk actions.
+    marked: std::collections::BTreeSet<String>,
+    /// The row Shift-click extends from.
+    anchor: Option<String>,
 }
 
 impl ContainersPage {
@@ -60,7 +64,19 @@ impl ContainersPage {
             selected: None,
             tab: DetailsTab::Overview,
             log_view: logs::LogView::default(),
+            marked: Default::default(),
+            anchor: None,
         }
+    }
+
+    /// The containers the list shows, after the state filter and search.
+    fn visible<'a>(&self, ctx: &PageCtx<'a>) -> Vec<&'a ContainerInfo> {
+        ctx.store
+            .containers
+            .iter()
+            .filter(|c| self.filter.matches(c))
+            .filter(|c| ctx.matches_search(&[&c.name, &c.image, c.short_id()]))
+            .collect()
     }
 
     fn selected<'a>(&self, store: &'a Store) -> Option<&'a ContainerInfo> {
@@ -119,12 +135,7 @@ impl Page for ContainersPage {
         self.state_tabs(ui, p, store);
         ui.add_space(8.0);
 
-        let visible: Vec<&ContainerInfo> = store
-            .containers
-            .iter()
-            .filter(|c| self.filter.matches(c))
-            .filter(|c| ctx.matches_search(&[&c.name, &c.image, c.short_id()]))
-            .collect();
+        let visible = self.visible(ctx);
         if visible.is_empty() {
             let exists = !store.containers.is_empty();
             if exists && ctx.search_is_empty() {
@@ -164,6 +175,12 @@ impl Page for ContainersPage {
     }
 
     fn clear_selection(&mut self) {
+        self.selected = None;
+        self.marked.clear();
+    }
+
+    fn select_all(&mut self, ctx: &PageCtx) {
+        self.marked = self.visible(ctx).iter().map(|c| c.id.clone()).collect();
         self.selected = None;
     }
 

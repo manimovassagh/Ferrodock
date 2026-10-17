@@ -161,6 +161,9 @@ pub trait Page {
     /// Selects an item by ID, e.g. when it's picked in the command palette.
     fn select(&mut self, id: &str);
 
+    /// Marks every item shown, for bulk actions (Cmd/Ctrl+A).
+    fn select_all(&mut self, _ctx: &PageCtx) {}
+
     /// What this page offers in the command palette.
     fn commands(&self, _store: &Store) -> Vec<Command> {
         Vec::new()

@@ -4,9 +4,10 @@ use eframe::egui;
 
 use super::{ContainersPage, actions, ports, status};
 use crate::app::components::icons::Icon;
-use crate::app::components::table;
+use crate::app::components::{table, widgets};
 use crate::app::page::{PageCtx, toggle_selection};
-use crate::docker::ContainerInfo;
+use crate::app::pages::{confirm_removal, remove_task};
+use crate::docker::{Action, ContainerInfo, Resource, Task};
 
 pub(super) fn show(
     page: &mut ContainersPage,
@@ -31,14 +32,19 @@ pub(super) fn show(
     }
     columns.push(table::Col::fixed("", 100.0));
 
+    if !page.marked.is_empty() {
+        bulk_bar(page, ui, ctx, visible);
+    }
+
     let selected = page.selected.clone();
+    let marked = page.marked.clone();
     let clicked = table::show(
         ui,
         p,
         "containers",
         columns,
         visible.len(),
-        |i| selected.as_deref() == Some(visible[i].id.as_str()),
+        |i| selected.as_deref() == Some(visible[i].id.as_str()) || marked.contains(&visible[i].id),
         |i, row| {
             let c = visible[i];
             row.col(|ui| {
@@ -67,6 +73,106 @@ pub(super) fn show(
         },
     );
     if let Some(i) = clicked {
-        toggle_selection(&mut page.selected, visible[i].id.clone());
+        let modifiers = ui.input(|input| input.modifiers);
+        let id = visible[i].id.clone();
+        if modifiers.shift && !page.marked.is_empty() {
+            // Mark everything between the last marked row and this one.
+            let anchor = page
+                .anchor
+                .as_ref()
+                .and_then(|a| visible.iter().position(|c| c.id == *a))
+                .unwrap_or(i);
+            let (from, to) = (anchor.min(i), anchor.max(i));
+            page.marked
+                .extend(visible[from..=to].iter().map(|c| c.id.clone()));
+        } else if modifiers.command {
+            if !page.marked.remove(&id) {
+                // Start the selection with the row that was open, if any.
+                if let Some(open) = page.selected.take() {
+                    page.marked.insert(open);
+                }
+                page.marked.insert(id.clone());
+            }
+            page.anchor = Some(id);
+        } else {
+            page.marked.clear();
+            toggle_selection(&mut page.selected, id.clone());
+            page.anchor = Some(id);
+        }
     }
+}
+
+/// "3 selected" with the actions that apply to them.
+fn bulk_bar(
+    page: &mut ContainersPage,
+    ui: &mut egui::Ui,
+    ctx: &mut PageCtx,
+    visible: &[&ContainerInfo],
+) {
+    let p = ctx.palette;
+    let chosen: Vec<&ContainerInfo> = visible
+        .iter()
+        .copied()
+        .filter(|c| page.marked.contains(&c.id))
+        .collect();
+    egui::Frame::new()
+        .fill(p.accent.gamma_multiply(0.08))
+        .stroke(egui::Stroke::new(1.0, p.accent.gamma_multiply(0.3)))
+        .corner_radius(egui::CornerRadius::same(10))
+        .inner_margin(egui::Margin::symmetric(12, 6))
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.horizontal(|ui| {
+                ui.label(
+                    egui::RichText::new(format!("{} selected", chosen.len()))
+                        .font(egui::FontId::new(13.5, crate::theme::semibold()))
+                        .color(p.text),
+                );
+                ui.add_space(8.0);
+                let groups = [
+                    (Action::Start, Icon::Play, "Start"),
+                    (Action::Stop, Icon::Stop, "Stop"),
+                    (Action::Restart, Icon::Restart, "Restart"),
+                ];
+                for (action, icon, label) in groups {
+                    let targets: Vec<&ContainerInfo> = chosen
+                        .iter()
+                        .copied()
+                        .filter(|c| match action {
+                            Action::Start => !c.is_active(),
+                            Action::Stop => c.is_active(),
+                            _ => true,
+                        })
+                        .collect();
+                    let response = ui
+                        .add_enabled_ui(!targets.is_empty(), |ui| widgets::button(ui, icon, label))
+                        .inner;
+                    if response.clicked() {
+                        for c in targets {
+                            ctx.request(actions::intent(action, c));
+                        }
+                    }
+                }
+                let stopped: Vec<Task> = chosen
+                    .iter()
+                    .filter(|c| !c.is_active())
+                    .map(|c| remove_task(Resource::Containers, &c.id, &c.name))
+                    .collect();
+                let remove = ui
+                    .add_enabled_ui(!stopped.is_empty(), |ui| {
+                        widgets::danger_button(ui, p, "Remove…")
+                    })
+                    .inner
+                    .on_disabled_hover_text("Stop them first");
+                if remove.clicked() {
+                    ctx.request(confirm_removal("container", stopped));
+                }
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.button("Clear").clicked() {
+                        page.marked.clear();
+                    }
+                });
+            });
+        });
+    ui.add_space(6.0);
 }
