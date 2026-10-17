@@ -6,6 +6,7 @@
 
 use eframe::egui;
 
+use super::components::icons::Icon;
 use super::store::Store;
 use crate::docker::{Resource, Task};
 use crate::theme::Palette;
@@ -105,6 +106,9 @@ impl<'a> PageCtx<'a> {
 
 pub trait Page {
     fn title(&self) -> &'static str;
+
+    /// Shown next to the title in the sidebar.
+    fn icon(&self) -> Icon;
 
     /// The data this page shows; it's refreshed while the page is open.
     fn resource(&self) -> Resource;

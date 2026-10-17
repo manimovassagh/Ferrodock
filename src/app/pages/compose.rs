@@ -3,6 +3,7 @@
 
 use eframe::egui::{self, Color32, RichText};
 
+use crate::app::components::icons::Icon;
 use crate::app::components::{details, table, widgets};
 use crate::app::page::{
     Command, CommandRun, Confirmation, Intent, Page, PageCtx, toggle_selection,
@@ -27,6 +28,10 @@ impl ComposePage {
 impl Page for ComposePage {
     fn title(&self) -> &'static str {
         "Compose"
+    }
+
+    fn icon(&self) -> Icon {
+        Icon::Stack
     }
 
     fn resource(&self) -> Resource {
@@ -83,7 +88,14 @@ impl Page for ComposePage {
             |i, row| {
                 let project = visible[i];
                 let services = plural(project.services().len(), "service");
-                row.col(|ui| table::two_line(ui, p, &project.name, &services));
+                row.col(|ui| {
+                    let color = if project.running() > 0 {
+                        p.success
+                    } else {
+                        p.muted
+                    };
+                    table::with_icon(ui, p, Icon::Stack, color, &project.name, &services)
+                });
                 row.col(|ui| state_pill(ui, p, project));
                 row.col(|ui| {
                     ui.spacing_mut().item_spacing.x = 4.0;
@@ -223,14 +235,14 @@ fn project_buttons(
     }
     let any_running = project.running() > 0;
     let toggle = if any_running {
-        (Action::Stop, "■", "Stop all")
+        (Action::Stop, Icon::Stop, "Stop all")
     } else {
-        (Action::Start, "▶", "Start all")
+        (Action::Start, Icon::Play, "Start all")
     };
     let mut clicked = None;
-    for (action, icon, label) in [toggle, (Action::Restart, "⟳", "Restart all")] {
+    for (action, icon, label) in [toggle, (Action::Restart, Icon::Restart, "Restart all")] {
         let response = if with_labels {
-            ui.button(format!("{icon}  {label}"))
+            widgets::button(ui, icon, label)
         } else {
             widgets::icon_button(ui, icon, label)
         };

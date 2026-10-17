@@ -3,6 +3,7 @@
 use eframe::egui;
 
 use super::{confirm_removal, inspect_section, remove_button, remove_task, remove_unused_button};
+use crate::app::components::icons::Icon;
 use crate::app::components::{details, table, widgets};
 use crate::app::page::{Command, Page, PageCtx, toggle_selection};
 use crate::app::store::Store;
@@ -23,6 +24,10 @@ impl NetworksPage {
 impl Page for NetworksPage {
     fn title(&self) -> &'static str {
         "Networks"
+    }
+
+    fn icon(&self) -> Icon {
+        Icon::Network
     }
 
     fn resource(&self) -> Resource {
@@ -79,7 +84,9 @@ impl Page for NetworksPage {
             |i, row| {
                 let net = visible[i];
                 let attached = store.containers_on_network(&net.name).len();
-                row.col(|ui| table::two_line(ui, p, &net.name, &net.driver));
+                row.col(|ui| {
+                    table::with_icon(ui, p, Icon::Network, p.muted, &net.name, &net.driver)
+                });
                 row.col(|ui| table::text(ui, p, &widgets::join_or_dash(&net.subnets)));
                 row.col(|ui| table::text(ui, p, &attached.to_string()));
                 row.col(|ui| table::muted(ui, p, &net.created.map(time_ago).unwrap_or_default()));

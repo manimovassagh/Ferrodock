@@ -3,6 +3,7 @@
 use eframe::egui;
 
 use super::{ContainersPage, actions, ports, status};
+use crate::app::components::icons::Icon;
 use crate::app::components::table;
 use crate::app::page::{PageCtx, toggle_selection};
 use crate::docker::ContainerInfo;
@@ -40,7 +41,10 @@ pub(super) fn show(
         |i| selected.as_deref() == Some(visible[i].id.as_str()),
         |i, row| {
             let c = visible[i];
-            row.col(|ui| table::two_line(ui, p, &c.name, &c.image));
+            row.col(|ui| {
+                let color = status::color(p, &c.state);
+                table::with_icon(ui, p, Icon::Container, color, &c.name, &c.image)
+            });
             row.col(|ui| status::cell(ui, p, c));
             if show_id {
                 row.col(|ui| table::mono(ui, p, c.short_id()));
@@ -48,10 +52,15 @@ pub(super) fn show(
             if show_ports {
                 row.col(|ui| ports::cell(ui, p, &c.ports));
             }
+            let selected_row = selected.as_deref() == Some(c.id.as_str());
             row.col(|ui| {
-                ui.spacing_mut().item_spacing.x = 4.0;
+                ui.spacing_mut().item_spacing.x = 2.0;
                 let busy = store.pending.contains(&c.id);
-                if let Some(action) = actions::buttons(ui, c, busy, false) {
+                // Actions show on the hovered or selected row only, so idle
+                // rows stay calm.
+                if (busy || selected_row || table::row_hovered(ui))
+                    && let Some(action) = actions::buttons(ui, c, busy, false)
+                {
                     ctx.request(actions::intent(action, c));
                 }
             });

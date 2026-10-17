@@ -4,6 +4,7 @@
 use eframe::egui::{self, Align, Layout, RichText, Sense};
 use egui_extras::{Column, TableBuilder, TableRow};
 
+use super::icons::{self, Icon};
 use crate::theme::Palette;
 
 const ROW_HEIGHT: f32 = 48.0;
@@ -126,19 +127,52 @@ pub fn show(
     clicked
 }
 
-/// Bold primary text with a muted second line, e.g. name over image. In
+/// Like [`two_line`], with a coloured icon in front, e.g. a container
+/// coloured by its state.
+pub fn with_icon(
+    ui: &mut egui::Ui,
+    p: &Palette,
+    icon: Icon,
+    color: egui::Color32,
+    primary: &str,
+    secondary: &str,
+) {
+    let size = if is_compact(ui) { 18.0 } else { 30.0 };
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(size, size), Sense::hover());
+    ui.painter().rect_filled(
+        rect,
+        egui::CornerRadius::same(7),
+        color.gamma_multiply(0.12),
+    );
+    icons::paint(ui.painter(), rect.shrink(size * 0.22), icon, color);
+    ui.add_space(4.0);
+    two_line(ui, p, primary, secondary);
+}
+
+/// Primary text with a muted second line, e.g. name over image. In
 /// compact mode both go on one line.
 pub fn two_line(ui: &mut egui::Ui, p: &Palette, primary: &str, secondary: &str) {
+    let primary_text = RichText::new(primary)
+        .font(egui::FontId::new(13.5, crate::theme::semibold()))
+        .color(p.text);
     if is_compact(ui) {
-        label(ui, RichText::new(primary).strong().color(p.text));
+        label(ui, primary_text);
         label(ui, RichText::new(secondary).size(12.0).color(p.muted));
         return;
     }
     ui.vertical(|ui| {
         ui.add_space(6.0);
-        label(ui, RichText::new(primary).strong().color(p.text));
+        label(ui, primary_text);
         label(ui, RichText::new(secondary).size(12.0).color(p.muted));
     });
+}
+
+/// Whether the pointer is over the row this cell belongs to.
+pub fn row_hovered(ui: &egui::Ui) -> bool {
+    let cell = ui.max_rect();
+    ui.ctx().pointer_hover_pos().is_some_and(|pos| {
+        ui.clip_rect().contains(pos) && pos.y >= cell.top() && pos.y < cell.bottom()
+    })
 }
 
 pub fn text(ui: &mut egui::Ui, p: &Palette, value: &str) {

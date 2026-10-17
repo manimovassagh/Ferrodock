@@ -51,7 +51,9 @@ impl Toast {
                         ui.horizontal(|ui| {
                             widgets::dot(ui, color);
                             ui.label(RichText::new(&self.text).color(p.text));
-                            dismissed = widgets::icon_button(ui, "✕", "Dismiss").clicked();
+                            dismissed =
+                                widgets::icon_button(ui, super::icons::Icon::Close, "Dismiss")
+                                    .clicked();
                         });
                     });
             });

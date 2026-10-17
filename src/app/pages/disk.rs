@@ -5,6 +5,7 @@ use std::collections::BTreeSet;
 
 use eframe::egui::{self, CornerRadius, RichText, Sense, Stroke, vec2};
 
+use crate::app::components::icons::Icon;
 use crate::app::components::widgets;
 use crate::app::page::{Command, Confirmation, Intent, Page, PageCtx};
 use crate::app::store::Store;
@@ -164,6 +165,10 @@ impl Page for DiskPage {
         "Disk"
     }
 
+    fn icon(&self) -> Icon {
+        Icon::HardDrive
+    }
+
     fn resource(&self) -> Resource {
         Resource::Disk
     }
@@ -209,7 +214,7 @@ impl Page for DiskPage {
                             ("Images", &disk.images, "image"),
                             ("Containers", &disk.containers, "container"),
                             ("Volumes", &disk.volumes, "volume"),
-                            ("Build cache", &disk.build_cache, "entry"),
+                            ("Build cache", &disk.build_cache, "item"),
                         ];
                         for (ui, (title, usage, noun)) in cols.iter_mut().zip(parts) {
                             card(ui, p, title, usage.as_ref(), noun);
@@ -259,7 +264,7 @@ impl DiskPage {
         ui.label(RichText::new("CLEAN UP").size(11.0).color(p.muted));
         ui.add_space(4.0);
         egui::Frame::new()
-            .fill(p.sidebar)
+            .fill(p.bg)
             .stroke(Stroke::new(1.0, p.border))
             .corner_radius(CornerRadius::same(10))
             .inner_margin(egui::Margin::same(14))
@@ -347,7 +352,7 @@ impl DiskPage {
 /// One usage summary: size, a bar of how much could be freed, counts.
 fn card(ui: &mut egui::Ui, p: &Palette, title: &str, usage: Option<&Usage>, noun: &str) {
     egui::Frame::new()
-        .fill(p.sidebar)
+        .fill(p.bg)
         .stroke(Stroke::new(1.0, p.border))
         .corner_radius(CornerRadius::same(10))
         .inner_margin(egui::Margin::same(14))

@@ -5,6 +5,7 @@ use eframe::egui;
 use super::{
     confirm_removal, inspect_section, remove_button, remove_task, remove_unused_button, usage_pill,
 };
+use crate::app::components::icons::Icon;
 use crate::app::components::{details, table, widgets};
 use crate::app::page::{Command, Page, PageCtx, toggle_selection};
 use crate::app::store::Store;
@@ -25,6 +26,10 @@ impl ImagesPage {
 impl Page for ImagesPage {
     fn title(&self) -> &'static str {
         "Images"
+    }
+
+    fn icon(&self) -> Icon {
+        Icon::Layers
     }
 
     fn resource(&self) -> Resource {
@@ -87,7 +92,10 @@ impl Page for ImagesPage {
             |i, row| {
                 let image = visible[i];
                 let users = store.containers_using_image(&image.id).len();
-                row.col(|ui| table::two_line(ui, p, image.name(), &secondary_line(image)));
+                row.col(|ui| {
+                    let line = secondary_line(image);
+                    table::with_icon(ui, p, Icon::Layers, p.accent, image.name(), &line)
+                });
                 row.col(|ui| usage_pill(ui, p, users));
                 row.col(|ui| table::text(ui, p, &format_size(image.size)));
                 row.col(|ui| table::muted(ui, p, &time_ago(image.created)));

@@ -2,6 +2,7 @@
 
 use eframe::egui;
 
+use crate::app::components::icons::Icon;
 use crate::app::components::widgets;
 use crate::app::page::Intent;
 use crate::docker::{Action, ContainerInfo, Task};
@@ -16,18 +17,18 @@ pub(super) fn intent(action: Action, c: &ContainerInfo) -> Intent {
 
 /// The lifecycle actions that apply to `c` right now, with their icon and
 /// label: start or stop, pause or resume (when it applies), restart.
-pub(super) fn available(c: &ContainerInfo) -> Vec<(Action, &'static str, &'static str)> {
+pub(super) fn available(c: &ContainerInfo) -> Vec<(Action, Icon, &'static str)> {
     let mut list = vec![if c.is_active() {
-        (Action::Stop, "■", "Stop")
+        (Action::Stop, Icon::Stop, "Stop")
     } else {
-        (Action::Start, "▶", "Start")
+        (Action::Start, Icon::Play, "Start")
     }];
     if c.is_paused() {
-        list.push((Action::Unpause, "⏵", "Resume"));
+        list.push((Action::Unpause, Icon::Play, "Resume"));
     } else if c.can_pause() {
-        list.push((Action::Pause, "⏸", "Pause"));
+        list.push((Action::Pause, Icon::Pause, "Pause"));
     }
-    list.push((Action::Restart, "⟳", "Restart"));
+    list.push((Action::Restart, Icon::Restart, "Restart"));
     list
 }
 
@@ -47,7 +48,7 @@ pub(super) fn buttons(
     let mut clicked = None;
     for (action, icon, label) in available(c) {
         let response = if with_labels {
-            ui.button(format!("{icon}  {label}"))
+            widgets::button(ui, icon, label)
         } else {
             widgets::icon_button(ui, icon, label)
         };

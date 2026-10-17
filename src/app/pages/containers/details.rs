@@ -36,8 +36,7 @@ pub(super) fn show(page: &mut ContainersPage, ui: &mut egui::Ui, ctx: &mut PageC
     });
     ui.add_space(12.0);
 
-    ui.horizontal(|ui| {
-        ui.spacing_mut().item_spacing.x = 4.0;
+    widgets::segmented(ui, p, |ui| {
         for (tab, label) in [
             (DetailsTab::Overview, "Overview"),
             (DetailsTab::Logs, "Logs"),

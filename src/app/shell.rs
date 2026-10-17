@@ -3,6 +3,7 @@
 
 use eframe::egui::{self, Align, Layout, RichText};
 
+use super::components::icons::{self, Icon};
 use super::components::widgets;
 use crate::theme::Palette;
 
@@ -26,26 +27,46 @@ pub fn header(
     let mut refresh = false;
     ui.horizontal(|ui| {
         ui.vertical(|ui| {
-            ui.label(RichText::new(title).size(22.0).strong().color(p.text));
+            ui.label(
+                RichText::new(title)
+                    .font(egui::FontId::new(24.0, crate::theme::semibold()))
+                    .color(p.text),
+            );
             ui.label(RichText::new(summary).color(p.muted));
         });
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            refresh = widgets::icon_button(ui, "⟳", "Refresh (F5)").clicked();
-            ui.add(
-                egui::TextEdit::singleline(search)
-                    .id(search_id())
-                    .hint_text(search_hint)
-                    .desired_width(240.0)
-                    .margin(egui::vec2(8.0, 5.0)),
-            )
-            .on_hover_text(format!(
-                "Press / to search this page, {}K to search everything",
-                super::keys::COMMAND
-            ));
+            refresh = widgets::icon_button(ui, Icon::Refresh, "Refresh (F5)").clicked();
+            search_box(ui, p, search_hint, search);
             toolbar(ui);
         });
     });
     refresh
+}
+
+/// A rounded search field with a magnifier icon.
+fn search_box(ui: &mut egui::Ui, p: &Palette, hint: &str, search: &mut String) {
+    egui::Frame::new()
+        .fill(p.raised)
+        .corner_radius(egui::CornerRadius::same(8))
+        .inner_margin(egui::Margin::symmetric(9, 0))
+        .show(ui, |ui| {
+            ui.set_width(240.0);
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                icons::show(ui, Icon::Search, 14.0, p.muted);
+                ui.add(
+                    egui::TextEdit::singleline(search)
+                        .id(search_id())
+                        .hint_text(hint)
+                        .frame(egui::Frame::NONE)
+                        .desired_width(220.0)
+                        .margin(egui::vec2(2.0, 5.0)),
+                )
+                .on_hover_text(format!(
+                    "Press / to search this page, {}K to search everything",
+                    super::keys::COMMAND
+                ));
+            });
+        });
 }
 
 /// Shown instead of the page while the engine is unreachable.

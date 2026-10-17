@@ -9,6 +9,8 @@ mod components;
 mod keys;
 mod page;
 mod pages;
+#[cfg(test)]
+mod screenshots;
 mod settings;
 mod shell;
 mod sidebar;

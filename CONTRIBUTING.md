@@ -78,3 +78,15 @@ release PR does that.
 
 By contributing, you agree that your contributions are licensed under the
 [MIT License](LICENSE).
+
+## Screenshots
+
+The screenshots in the README and on the website are rendered offscreen
+from the real app, against whatever your local Docker Engine is running:
+
+```bash
+SCREENSHOTS=target/screenshots cargo test screenshots -- --ignored
+```
+
+The test fails if any text uses a glyph the bundled fonts don't have, so
+it also guards against icons turning into empty boxes.
