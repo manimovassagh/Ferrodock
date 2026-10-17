@@ -48,6 +48,9 @@ jobs:
     permissions:
       contents: write
     uses: ./.github/workflows/release-assets.yml
+    # Called workflows don't see the repository's secrets unless passed on;
+    # the crates.io step needs CARGO_REGISTRY_TOKEN.
+    secrets: inherit
     with:
       tag: ${{ needs.release.outputs.tag }}
 
