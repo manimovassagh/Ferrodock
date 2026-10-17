@@ -7,6 +7,17 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/manimovassagh/Ferrodock/compare/v0.2.1...v0.3.0) - 2026-10-17
+
+### Changed
+
+- [**breaking**] Renamed from IronStack to **Ferrodock**: the app, the binary
+  (`ferrodock`), `Ferrodock.exe`, `Ferrodock.app` and the download files
+  ([#31](https://github.com/manimovassagh/Ferrodock/pull/31))
+- Releases are automated: every release has its changelog as release notes,
+  downloads for all platforms and a `SHA256SUMS.txt` file
+  ([#30](https://github.com/manimovassagh/Ferrodock/pull/30))
+
 ## [0.2.1] - 2026-10-17
 
 ### Added
