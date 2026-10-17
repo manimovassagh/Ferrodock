@@ -62,13 +62,21 @@ pub fn nav_item(
     response
 }
 
-/// A tab with a count, e.g. "Running 3".
-pub fn tab(ui: &mut egui::Ui, p: &Palette, label: &str, count: usize, selected: bool) -> Response {
-    let galley = ui.painter().layout_no_wrap(
-        format!("{label}  {count}"),
-        FontId::proportional(13.0),
-        p.text,
-    );
+/// A tab, optionally with a count, e.g. "Running 3".
+pub fn tab(
+    ui: &mut egui::Ui,
+    p: &Palette,
+    label: &str,
+    count: Option<usize>,
+    selected: bool,
+) -> Response {
+    let text = match count {
+        Some(count) => format!("{label}  {count}"),
+        None => label.to_owned(),
+    };
+    let galley = ui
+        .painter()
+        .layout_no_wrap(text, FontId::proportional(13.0), p.text);
     let (rect, response) = ui.allocate_exact_size(galley.size() + vec2(24.0, 12.0), Sense::click());
     let painter = ui.painter();
     if selected {

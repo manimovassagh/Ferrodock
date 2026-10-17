@@ -94,6 +94,12 @@ pub trait Page {
     fn show_details(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx);
 
     fn clear_selection(&mut self);
+
+    /// A container whose logs and stats should stream while this page is
+    /// open (the worker follows at most one at a time).
+    fn watched_container(&self, _store: &Store) -> Option<String> {
+        None
+    }
 }
 
 /// Shared click behaviour: a click opens the row, a second click closes it.

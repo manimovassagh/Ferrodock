@@ -11,7 +11,9 @@ mod actions;
 mod containers;
 mod format;
 mod images;
+mod logs;
 mod networks;
+mod stats;
 mod volumes;
 
 pub use actions::{Action, Task};
@@ -19,6 +21,7 @@ pub use containers::ContainerInfo;
 pub use format::{format_size, plural, time_ago};
 pub use images::ImageInfo;
 pub use networks::NetworkInfo;
+pub use stats::StatsSample;
 pub use volumes::VolumeInfo;
 
 use bollard::Docker;
