@@ -3,10 +3,12 @@
 //! The UI thread never blocks: it sends [`Request`]s and drains
 //! [`Response`]s once per frame.
 
+mod dedup;
 mod live;
 
 use std::sync::{Arc, mpsc};
 use std::thread;
+use std::time::Duration;
 
 use tokio::sync::mpsc as tokio_mpsc;
 
@@ -14,10 +16,16 @@ use crate::docker::{
     ContainerInfo, DockerClient, ImageInfo, NetworkInfo, Resource, StatsSample, Task, VolumeInfo,
 };
 
+/// How often the worker re-checks the engine on its own.
+const POLL_INTERVAL: Duration = Duration::from_secs(3);
+
 #[derive(Debug)]
 pub enum Request {
-    /// Reload one list.
+    /// Reload one list now.
     Refresh(Resource),
+    /// Keep this list fresh, re-checking it (and the containers) every few
+    /// seconds. Changed results are sent; unchanged ones are not.
+    Poll(Resource),
     /// Run an action, then reload the list it changed.
     Run(Task),
     /// Stream logs and stats of this container (replacing any previous
@@ -112,16 +120,43 @@ impl Sender {
     }
 }
 
+/// State shared by the worker's tasks.
+struct Shared {
+    out: Sender,
+    dedup: dedup::Dedup,
+}
+
 async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) {
-    let out = Arc::new(out);
+    let shared = Arc::new(Shared {
+        out,
+        dedup: dedup::Dedup::default(),
+    });
     let mut client: Option<DockerClient> = None;
     let mut watch = live::Watch::default();
+    let mut polled = Resource::Containers;
+    let mut ticker = tokio::time::interval(POLL_INTERVAL);
+    ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
 
-    while let Some(request) = requests.recv().await {
+    loop {
+        let request = tokio::select! {
+            request = requests.recv() => match request {
+                Some(request) => request,
+                None => break, // The UI is gone.
+            },
+            _ = ticker.tick() => Request::Refresh(polled),
+        };
+
         // Stopping a watch must work even while Docker is unreachable.
-        if let Request::Watch(None) = request {
-            watch.stop();
-            continue;
+        match request {
+            Request::Watch(None) => {
+                watch.stop();
+                continue;
+            }
+            Request::Poll(resource) => {
+                polled = resource;
+                ticker.reset();
+            }
+            _ => {}
         }
 
         // Docker may not be running yet (or its socket may not exist), so
@@ -129,62 +164,118 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
         let docker = match client.clone().map_or_else(DockerClient::connect, Ok) {
             Ok(docker) => docker,
             Err(e) => {
-                out.send(Response::Disconnected(e));
+                shared.disconnected(e);
                 continue;
             }
         };
         client = Some(docker.clone());
 
-        if let Request::Watch(Some(container_id)) = request {
-            watch.start(&docker, &out, container_id);
-            continue;
-        }
-
-        // Each request runs as its own task so a slow `stop` (which waits
-        // for the container to exit) doesn't block refreshes.
-        let client = docker;
-        let out = out.clone();
-        tokio::spawn(async move {
-            match request {
-                Request::Watch(_) => unreachable!("handled above"),
-                Request::Refresh(resource) => refresh(&client, &out, resource).await,
-                Request::Run(task) => {
-                    match client.perform(task.action, &task.id).await {
-                        Ok(()) => {
-                            let affected = task.action.affects();
-                            out.send(Response::Done(task));
-                            if affected != Resource::Containers {
-                                refresh(&client, &out, affected).await;
-                            }
-                        }
-                        Err(e) => {
-                            let message =
-                                format!("Couldn't {} {}: {e}", task.action.verb(), task.name);
-                            out.send(Response::Failed { task, message });
-                        }
-                    }
-                    // Container state may change either way (and removals
-                    // change the "in use" info), so always reload them.
-                    refresh(&client, &out, Resource::Containers).await;
-                }
+        let shared = shared.clone();
+        match request {
+            Request::Watch(Some(container_id)) => {
+                watch.start(&docker, &shared, container_id);
             }
-        });
+            // Each request runs as its own task so a slow `stop` (which
+            // waits for the container to exit) doesn't hold up refreshes.
+            Request::Refresh(resource) | Request::Poll(resource) => {
+                tokio::spawn(
+                    async move { refresh_with_containers(&docker, &shared, resource).await },
+                );
+            }
+            Request::Run(task) => {
+                tokio::spawn(async move { run_task(&docker, &shared, task).await });
+            }
+            Request::Watch(None) => unreachable!("handled above"),
+        }
+    }
+    watch.stop();
+}
+
+impl Shared {
+    fn send(&self, response: Response) {
+        self.out.send(response);
+    }
+
+    /// Reports a lost connection. Everything is sent again once it's back,
+    /// because the UI clears its data on disconnect.
+    fn disconnected(&self, reason: String) {
+        self.dedup.reset();
+        self.send(Response::Disconnected(reason));
     }
 }
 
-async fn refresh(client: &DockerClient, out: &Sender, resource: Resource) {
-    let result = match resource {
-        Resource::Containers => {
-            // The containers list doubles as the connection heartbeat.
-            match client.version().await {
-                Ok(version) => out.send(Response::Connected { version }),
-                Err(e) => return out.send(Response::Disconnected(e)),
+async fn run_task(client: &DockerClient, shared: &Shared, task: Task) {
+    match client.perform(task.action, &task.id).await {
+        Ok(()) => {
+            let affected = task.action.affects();
+            shared.send(Response::Done(task));
+            if affected != Resource::Containers {
+                refresh(client, shared, affected).await;
             }
-            client.list_containers().await.map(Response::Containers)
         }
-        Resource::Images => client.list_images().await.map(Response::Images),
-        Resource::Volumes => client.list_volumes().await.map(Response::Volumes),
-        Resource::Networks => client.list_networks().await.map(Response::Networks),
+        Err(e) => {
+            let message = format!("Couldn't {} {}: {e}", task.action.verb(), task.name);
+            shared.send(Response::Failed { task, message });
+        }
+    }
+    // Container state may change either way (and removals change the
+    // "in use" info), so always reload them.
+    refresh(client, shared, Resource::Containers).await;
+}
+
+/// Containers drive the connection status and the "in use" info on every
+/// page, so they're refreshed alongside any other list.
+async fn refresh_with_containers(client: &DockerClient, shared: &Shared, resource: Resource) {
+    refresh(client, shared, Resource::Containers).await;
+    if resource != Resource::Containers {
+        refresh(client, shared, resource).await;
+    }
+}
+
+/// Loads one list and sends it if it changed since last time.
+async fn refresh(client: &DockerClient, shared: &Shared, resource: Resource) {
+    use dedup::Key;
+
+    if resource == Resource::Containers {
+        // The containers list doubles as the connection heartbeat.
+        match client.version().await {
+            Ok(version) => {
+                if shared.dedup.changed(Key::Version, &version) {
+                    shared.send(Response::Connected { version });
+                }
+            }
+            Err(e) => return shared.disconnected(e),
+        }
+    }
+
+    let key = Key::List(resource);
+    let response = match resource {
+        Resource::Containers => client.list_containers().await.map(|l| {
+            shared
+                .dedup
+                .changed(key, &l)
+                .then_some(Response::Containers(l))
+        }),
+        Resource::Images => client
+            .list_images()
+            .await
+            .map(|l| shared.dedup.changed(key, &l).then_some(Response::Images(l))),
+        Resource::Volumes => client.list_volumes().await.map(|l| {
+            shared
+                .dedup
+                .changed(key, &l)
+                .then_some(Response::Volumes(l))
+        }),
+        Resource::Networks => client.list_networks().await.map(|l| {
+            shared
+                .dedup
+                .changed(key, &l)
+                .then_some(Response::Networks(l))
+        }),
     };
-    out.send(result.unwrap_or_else(Response::Disconnected));
+    match response {
+        Ok(Some(response)) => shared.send(response),
+        Ok(None) => {}
+        Err(e) => shared.disconnected(e),
+    }
 }

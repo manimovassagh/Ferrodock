@@ -6,7 +6,7 @@ use bollard::query_parameters::ListContainersOptions;
 use super::{DockerClient, describe};
 
 /// UI-friendly snapshot of a container.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ContainerInfo {
     pub id: String,
     pub name: String,
@@ -32,7 +32,7 @@ pub struct ContainerInfo {
 }
 
 /// What Docker Compose records about a container in its labels.
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct ComposeLabels {
     pub project: String,
     pub service: String,

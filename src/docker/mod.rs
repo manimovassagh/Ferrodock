@@ -29,7 +29,7 @@ pub use volumes::VolumeInfo;
 use bollard::Docker;
 
 /// The kinds of things the Docker Engine manages that IronStack shows.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Resource {
     Containers,
     Images,

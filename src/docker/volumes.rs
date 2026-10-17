@@ -5,7 +5,7 @@ use bollard::query_parameters::ListVolumesOptions;
 
 use super::{DockerClient, describe};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct VolumeInfo {
     pub name: String,
     pub driver: String,

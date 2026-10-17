@@ -1,6 +1,6 @@
 [package]
 name = "ironstack"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 rust-version = "1.95"
 authors = ["Mani Movassagh"]
@@ -13,7 +13,7 @@ bollard = { version = "0.21.1", features = ["time"] }
 eframe = "0.37.0"
 egui_extras = { version = "0.37", default-features = false }
 futures-util = "0.3.34"
-tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros", "time"] }
 
 [build-dependencies]
 winresource = "0.1.34"

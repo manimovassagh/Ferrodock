@@ -5,7 +5,7 @@ use std::sync::Arc;
 use futures_util::StreamExt;
 use tokio::task::AbortHandle;
 
-use super::{Response, Sender};
+use super::{Response, Shared};
 use crate::docker::DockerClient;
 
 /// Log lines loaded when watching starts.
@@ -22,7 +22,7 @@ pub struct Watch {
 
 impl Watch {
     /// Starts streaming `container_id`, replacing any previous watch.
-    pub fn start(&mut self, client: &DockerClient, out: &Arc<Sender>, container_id: String) {
+    pub fn start(&mut self, client: &DockerClient, out: &Arc<Shared>, container_id: String) {
         self.stop();
         let logs = tokio::spawn(stream_logs(
             client.clone(),
@@ -40,7 +40,7 @@ impl Watch {
     }
 }
 
-async fn stream_logs(client: DockerClient, out: Arc<Sender>, container_id: String) {
+async fn stream_logs(client: DockerClient, out: Arc<Shared>, container_id: String) {
     let mut batches = std::pin::pin!(client.logs(&container_id, LOG_TAIL).ready_chunks(LOG_BATCH));
     while let Some(batch) = batches.next().await {
         let mut text = String::new();
@@ -63,7 +63,7 @@ async fn stream_logs(client: DockerClient, out: Arc<Sender>, container_id: Strin
     }
 }
 
-async fn stream_stats(client: DockerClient, out: Arc<Sender>, container_id: String) {
+async fn stream_stats(client: DockerClient, out: Arc<Shared>, container_id: String) {
     let mut readings = std::pin::pin!(client.stats(&container_id));
     while let Some(Ok(sample)) = readings.next().await {
         out.send(Response::Stats {
