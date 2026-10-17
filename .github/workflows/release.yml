@@ -1,0 +1,92 @@
+name: Release
+
+# Publishes a GitHub Release for the version in Cargo.toml.
+# Runs when a v* tag is pushed, or manually from the Actions tab.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release
+      - name: Package
+        shell: bash
+        run: |
+          version=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
+          mkdir dist
+          cp target/release/ironstack.exe dist/IronStack.exe
+          cd dist && 7z a "IronStack-$version-windows-x64.zip" IronStack.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/*.zip
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: packaging/macos/bundle.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/*.zip
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release
+      - name: Package
+        run: |
+          version=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
+          mkdir dist
+          tar -czf "dist/IronStack-$version-linux-x64.tar.gz" -C target/release ironstack
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: dist/*.tar.gz
+
+  publish:
+    needs: [windows, macos, linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Read version
+        id: version
+        run: echo "tag=v$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)" >> "$GITHUB_OUTPUT"
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: IronStack ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
+          files: dist/*
+          body: |
+            ## Download
+
+            | Platform | File |
+            |---|---|
+            | **macOS** (Apple Silicon and Intel) | `IronStack-*-macos-universal.zip` |
+            | **Windows** 10/11 (x64) | `IronStack-*-windows-x64.zip` |
+            | **Linux** (x64) | `IronStack-*-linux-x64.tar.gz` |
+
+            IronStack needs a running Docker Engine (Docker Desktop, Colima, Rancher Desktop, …).
+
+            **macOS:** unzip, move `IronStack.app` to Applications, then **right-click → Open** the first time (the app isn't notarized yet).
+            **Windows:** unzip and run `IronStack.exe`. If SmartScreen appears, choose **More info → Run anyway**.
