@@ -5,12 +5,14 @@ use eframe::egui::{self, CornerRadius, Frame, Margin, RichText, Stroke};
 
 use crate::app::components::{inspect, widgets};
 use crate::app::store::Store;
-use crate::docker::{ImageInfo, Restart, RunSpec};
+use crate::docker::{ContainerInfo, ImageInfo, Inspection, Restart, RunSpec};
 use crate::theme::Palette;
 
 /// The form's state while the dialog is open. Numbers are kept as text so
 /// half-typed values don't get lost.
 pub struct RunForm {
+    /// The dialog's title, e.g. "Run nginx:alpine".
+    title: String,
     image_id: String,
     image: String,
     name: String,
@@ -30,8 +32,46 @@ pub enum Outcome {
 }
 
 impl RunForm {
+    /// A copy of a running container's setup, under a new name. Host ports
+    /// move up by one so the copy doesn't clash with the original.
+    pub fn duplicate(c: &ContainerInfo, i: &Inspection) -> Self {
+        let run = &i.run;
+        let image = if run.image.is_empty() {
+            c.image.clone()
+        } else {
+            run.image.clone()
+        };
+        Self {
+            title: format!("Duplicate {}", c.name),
+            image_id: c.image_id.clone(),
+            image,
+            name: format!("{}-copy", c.name),
+            ports: run
+                .ports
+                .iter()
+                .map(|(host, container)| {
+                    (host.saturating_add(1).to_string(), container.to_string())
+                })
+                .collect(),
+            env: i.env.clone(),
+            volumes: run.volumes.clone(),
+            network: run.network.clone(),
+            restart: Restart::from_name(i.restart_policy.as_deref().unwrap_or("no")),
+            command: run.command.clone(),
+            prefilled: true,
+        }
+    }
+
     pub fn new(image: &ImageInfo) -> Self {
         Self {
+            title: format!(
+                "Run {}",
+                if image.tags.is_empty() {
+                    image.short_id()
+                } else {
+                    image.name()
+                }
+            ),
             image_id: image.id.clone(),
             image: if image.tags.is_empty() {
                 image.id.clone()
@@ -123,7 +163,7 @@ pub fn show(ui: &mut egui::Ui, p: &Palette, form: &mut RunForm, store: &Store) -
         .show(ui.ctx(), |ui| {
             ui.set_width(540.0);
             ui.label(
-                RichText::new(format!("Run {}", form.image))
+                RichText::new(&form.title)
                     .font(egui::FontId::new(18.0, crate::theme::semibold()))
                     .color(p.text),
             );

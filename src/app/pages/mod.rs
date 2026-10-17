@@ -7,7 +7,7 @@ mod create_dialog;
 mod disk;
 mod images;
 mod networks;
-mod run_dialog;
+pub(super) mod run_dialog;
 mod volumes;
 
 use eframe::egui;

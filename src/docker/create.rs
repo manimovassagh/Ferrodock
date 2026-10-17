@@ -1,11 +1,12 @@
 //! Creating volumes and networks, and connecting containers to networks.
 
 use bollard::models::{
-    Ipam, IpamConfig, NetworkConnectRequest, NetworkCreateRequest, NetworkDisconnectRequest,
-    VolumeCreateRequest,
+    ContainerUpdateBody, Ipam, IpamConfig, NetworkConnectRequest, NetworkCreateRequest,
+    NetworkDisconnectRequest, RestartPolicy, VolumeCreateRequest,
 };
+use bollard::query_parameters::RenameContainerOptions;
 
-use super::{Action, DockerClient, Resource, Task, describe};
+use super::{Action, DockerClient, Resource, Restart, Task, describe};
 
 /// A change that needs more than an ID to describe it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -29,6 +30,18 @@ pub enum Change {
     Disconnect {
         network: String,
         container: String,
+    },
+    /// Give a container a new name.
+    Rename {
+        id: String,
+        from: String,
+        to: String,
+    },
+    /// Change a container's restart policy in place.
+    SetRestart {
+        id: String,
+        name: String,
+        policy: Restart,
     },
 }
 
@@ -55,6 +68,14 @@ impl Change {
                 Action::Disconnect,
                 format!("{network}+{container}"),
                 format!("{container} from {network}"),
+            ),
+            Change::Rename { id, from, to } => {
+                (Action::Rename, id.clone(), format!("{from} to {to}"))
+            }
+            Change::SetRestart { id, name, policy } => (
+                Action::Update,
+                id.clone(),
+                format!("{name}'s restart policy to {}", policy.as_str()),
             ),
         };
         Task { action, id, name }
@@ -100,6 +121,25 @@ impl DockerClient {
                         &network,
                         NetworkConnectRequest {
                             container,
+                            ..Default::default()
+                        },
+                    )
+                    .await
+            }
+            Change::Rename { id, to, .. } => {
+                docker
+                    .rename_container(&id, RenameContainerOptions { name: to })
+                    .await
+            }
+            Change::SetRestart { id, policy, .. } => {
+                docker
+                    .update_container(
+                        &id,
+                        ContainerUpdateBody {
+                            restart_policy: Some(RestartPolicy {
+                                name: Some(policy.engine_name()),
+                                maximum_retry_count: None,
+                            }),
                             ..Default::default()
                         },
                     )
@@ -180,5 +220,50 @@ mod tests {
             .perform(Action::Remove(Resource::Volumes), "ferrodock-test-volume")
             .await
             .unwrap();
+    }
+
+    /// Talks to a real daemon: `cargo test -- --ignored`. Runs a container,
+    /// renames it, changes its restart policy, then removes it.
+    #[tokio::test]
+    #[ignore]
+    async fn live_daemon_renames_and_updates() {
+        use crate::docker::RunSpec;
+        let client = DockerClient::connect().unwrap();
+        let Some(image) = client.list_images().await.unwrap().into_iter().next() else {
+            return;
+        };
+        let spec = RunSpec {
+            image: image.id,
+            name: "ferrodock-rename-a".into(),
+            ..Default::default()
+        };
+        let id = client.run(&spec).await.unwrap();
+        let rename = Change::Rename {
+            id: id.clone(),
+            from: "ferrodock-rename-a".into(),
+            to: "ferrodock-rename-b".into(),
+        };
+        let restart = Change::SetRestart {
+            id: id.clone(),
+            name: "ferrodock-rename-b".into(),
+            policy: Restart::UnlessStopped,
+        };
+        let renamed = client.apply(&rename).await;
+        let updated = client.apply(&restart).await;
+        let inspected = client.inspect(Resource::Containers, &id).await;
+        let opts = bollard::query_parameters::RemoveContainerOptions {
+            force: true,
+            ..Default::default()
+        };
+        client
+            .docker
+            .remove_container(&id, Some(opts))
+            .await
+            .unwrap();
+        renamed.unwrap();
+        updated.unwrap();
+        let inspected = inspected.unwrap();
+        assert!(inspected.json.contains("ferrodock-rename-b"));
+        assert_eq!(inspected.restart_policy.as_deref(), Some("unless-stopped"));
     }
 }

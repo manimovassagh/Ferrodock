@@ -47,6 +47,23 @@ impl Restart {
         Restart::OnFailure,
     ];
 
+    /// The policy named `name` (`always`, `unless-stopped`, …).
+    pub fn from_name(name: &str) -> Self {
+        Self::ALL
+            .into_iter()
+            .find(|r| r.as_str() == name)
+            .unwrap_or(Restart::No)
+    }
+
+    pub(super) fn engine_name(self) -> RestartPolicyNameEnum {
+        match self {
+            Restart::No => RestartPolicyNameEnum::NO,
+            Restart::Always => RestartPolicyNameEnum::ALWAYS,
+            Restart::UnlessStopped => RestartPolicyNameEnum::UNLESS_STOPPED,
+            Restart::OnFailure => RestartPolicyNameEnum::ON_FAILURE,
+        }
+    }
+
     /// The name `docker run --restart` uses.
     pub fn as_str(self) -> &'static str {
         match self {
@@ -133,12 +150,7 @@ impl RunSpec {
             .filter(|(s, t)| !s.is_empty() && !t.is_empty())
             .map(|(s, t)| format!("{s}:{t}"))
             .collect();
-        let restart = match self.restart {
-            Restart::No => RestartPolicyNameEnum::NO,
-            Restart::Always => RestartPolicyNameEnum::ALWAYS,
-            Restart::UnlessStopped => RestartPolicyNameEnum::UNLESS_STOPPED,
-            Restart::OnFailure => RestartPolicyNameEnum::ON_FAILURE,
-        };
+        let restart = self.restart.engine_name();
         ContainerCreateBody {
             image: Some(self.image.clone()),
             env: (!env.is_empty()).then_some(env),
