@@ -7,6 +7,16 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.6.0](https://github.com/manimovassagh/Ferrodock/compare/v1.5.0...v1.6.0) - 2026-10-17
+
+### Added
+
+- menu bar and notification area icon with a container menu
+
+### Other
+
+- Merge pull request #104 from manimovassagh/claude/elegant-hopper-qhtyv6
+
 ## [1.5.0](https://github.com/manimovassagh/Ferrodock/compare/v1.4.0...v1.5.0) - 2026-10-17
 
 ### Added
