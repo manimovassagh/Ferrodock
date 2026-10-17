@@ -70,6 +70,23 @@ system, in [Settings](#settings).
 
 ![Dark mode](/img/dark-mode.png)
 
+## Pull and run images
+
+On the **Images** page, type an image name such as `nginx:alpine` in the
+**Pull** box and press Enter. A progress bar shows the download.
+
+To start a container from an image, hover its row and click **▶**, or
+select it and click **Run…**. The dialog asks for:
+
+- **Name** (optional; Docker picks one otherwise).
+- **Ports**, filled in from the ports the image exposes. Change the host
+  side if it's taken.
+- **Environment** variables, **Volumes** (a volume name or a host path),
+  **Network**, **Restart** policy and an optional **Command**.
+
+The equivalent `docker run` command is shown as you type, with a Copy
+button, so you can reuse it in scripts.
+
 ## Inspect
 
 Every details pane can show what `docker inspect` knows. Containers have an

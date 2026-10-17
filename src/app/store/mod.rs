@@ -8,8 +8,8 @@ mod live;
 use std::collections::HashSet;
 
 use crate::docker::{
-    ComposeProject, ContainerInfo, DiskUsage, ImageInfo, Inspection, NetworkInfo, VolumeInfo,
-    format_size, group_projects,
+    ComposeProject, ContainerInfo, DiskUsage, ImageInfo, Inspection, NetworkInfo, PullProgress,
+    VolumeInfo, format_size, group_projects,
 };
 use crate::worker::Response;
 pub use live::Live;
@@ -40,6 +40,8 @@ pub struct Store {
     /// once it arrives (an error message if it failed).
     pub inspecting: Option<String>,
     pub inspection: Option<Result<Inspection, String>>,
+    /// Pulls in progress, by image reference.
+    pub pulls: Vec<(String, PullProgress)>,
     /// IDs (names, for volumes) of items with an action in flight.
     pub pending: HashSet<String>,
     /// Logs and stats of the container being watched, if any.
@@ -58,6 +60,7 @@ impl Store {
             disk: None,
             inspecting: None,
             inspection: None,
+            pulls: Vec::new(),
             pending: HashSet::new(),
             live: None,
         }
@@ -76,6 +79,12 @@ impl Store {
             Response::Volumes(list) => self.volumes = list,
             Response::Networks(list) => self.networks = list,
             Response::Disk(usage) => self.disk = Some(usage),
+            Response::Pulling { image, progress } => {
+                match self.pulls.iter_mut().find(|(i, _)| *i == image) {
+                    Some(entry) => entry.1 = progress,
+                    None => self.pulls.push((image, progress)),
+                }
+            }
             Response::Inspected(inspection) => {
                 if self.inspecting.as_deref() == Some(inspection.id.as_str()) {
                     self.inspection = Some(Ok(inspection));
@@ -105,6 +114,7 @@ impl Store {
             }
             Response::Done { task, freed } => {
                 self.pending.remove(&task.id);
+                self.pulls.retain(|(image, _)| *image != task.id);
                 let mut text = format!("{} {}", task.action.past_tense(), task.name);
                 if let Some(bytes) = freed.filter(|b| *b > 0) {
                     text.push_str(&format!(" · freed {}", format_size(bytes)));
@@ -116,6 +126,7 @@ impl Store {
             }
             Response::Failed { task, message } => {
                 self.pending.remove(&task.id);
+                self.pulls.retain(|(image, _)| *image != task.id);
                 return Some(Notice {
                     text: message,
                     is_error: true,

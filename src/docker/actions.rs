@@ -18,6 +18,11 @@ pub enum Action {
     Remove(Resource),
     /// Clean up a kind of unused thing (`docker … prune`).
     Prune(PruneKind),
+    /// Pull an image; the task's ID is the image reference. Streamed by
+    /// the worker, not run through [`DockerClient::perform`].
+    Pull,
+    /// Create and start a container from an image (also worker-driven).
+    Run,
 }
 
 impl Action {
@@ -31,6 +36,8 @@ impl Action {
             Action::Unpause => "resume",
             Action::Remove(_) => "remove",
             Action::Prune(_) => "clean up",
+            Action::Pull => "pull",
+            Action::Run => "run",
         }
     }
 
@@ -43,6 +50,8 @@ impl Action {
             Action::Pause => "Paused",
             Action::Unpause => "Resumed",
             Action::Remove(_) | Action::Prune(_) => "Removed",
+            Action::Pull => "Pulled",
+            Action::Run => "Started",
         }
     }
 
@@ -51,6 +60,7 @@ impl Action {
         match self {
             Action::Remove(resource) => resource,
             Action::Prune(kind) => kind.affects(),
+            Action::Pull => Resource::Images,
             _ => Resource::Containers,
         }
     }
@@ -108,7 +118,7 @@ impl DockerClient {
                 docker.remove_volume(id, None::<RemoveVolumeOptions>).await
             }
             Action::Remove(Resource::Networks) => docker.remove_network(id).await,
-            Action::Remove(Resource::Disk) | Action::Prune(_) => {
+            Action::Remove(Resource::Disk) | Action::Prune(_) | Action::Pull | Action::Run => {
                 return Err("not something that can be removed".into());
             }
         };

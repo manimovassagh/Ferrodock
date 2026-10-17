@@ -14,6 +14,7 @@ pub enum Icon {
     Close,
     Gear,
     Search,
+    Download,
     // Pages.
     Container,
     Stack,
@@ -89,6 +90,11 @@ pub fn paint(painter: &egui::Painter, rect: Rect, icon: Icon, color: Color32) {
             }
             v
         }
+        Icon::Download => vec![
+            line(&[p(12.0, 3.5), p(12.0, 15.0)]),
+            line(&[p(7.0, 10.0), p(12.0, 15.0), p(17.0, 10.0)]),
+            line(&[p(4.0, 15.5), p(4.0, 20.0), p(20.0, 20.0), p(20.0, 15.5)]),
+        ],
         Icon::Search => vec![
             circle(p(11.0, 11.0), 6.5),
             line(&[p(16.0, 16.0), p(20.5, 20.5)]),

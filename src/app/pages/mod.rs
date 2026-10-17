@@ -6,6 +6,7 @@ mod containers;
 mod disk;
 mod images;
 mod networks;
+mod run_dialog;
 mod volumes;
 
 use eframe::egui;

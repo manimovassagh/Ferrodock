@@ -17,6 +17,7 @@ mod inspect;
 mod logs;
 mod networks;
 mod ports;
+mod run;
 mod stats;
 mod volumes;
 
@@ -29,6 +30,7 @@ pub use images::ImageInfo;
 pub use inspect::{Inspection, looks_secret};
 pub use networks::NetworkInfo;
 pub use ports::{PortMapping, engine_host};
+pub use run::{PullProgress, Restart, RunSpec};
 pub use stats::StatsSample;
 pub use volumes::VolumeInfo;
 

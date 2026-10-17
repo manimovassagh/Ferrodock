@@ -17,6 +17,8 @@ pub struct Inspection {
     pub labels: Vec<(String, String)>,
     pub restart_policy: Option<String>,
     pub health: Option<Health>,
+    /// Container ports the image declares with `EXPOSE`, e.g. `80/tcp`.
+    pub exposed_ports: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -70,8 +72,16 @@ impl Inspection {
                 .trim()
                 .to_owned(),
         });
+        let mut exposed_ports: Vec<String> = config["ExposedPorts"]
+            .as_object()
+            .into_iter()
+            .flatten()
+            .map(|(port, _)| port.clone())
+            .collect();
+        exposed_ports.sort();
         Self {
             id: id.to_owned(),
+            exposed_ports,
             json: serde_json::to_string_pretty(value).unwrap_or_default(),
             env,
             labels,

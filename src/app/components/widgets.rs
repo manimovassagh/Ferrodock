@@ -242,6 +242,33 @@ pub fn button(ui: &mut egui::Ui, icon: Icon, label: &str) -> Response {
     response.on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
+/// The main action of a dialog or pane: filled with the accent colour.
+pub fn primary_button(ui: &mut egui::Ui, label: &str) -> Response {
+    let p = crate::theme::palette(ui);
+    let enabled = ui.is_enabled();
+    let galley = ui.painter().layout_no_wrap(
+        label.to_owned(),
+        FontId::new(13.5, crate::theme::semibold()),
+        Color32::WHITE,
+    );
+    let size = vec2(galley.size().x + 32.0, 30.0);
+    let (rect, response) = ui.allocate_exact_size(size, Sense::click());
+    let fill = if !enabled {
+        p.accent.gamma_multiply(0.4)
+    } else if response.is_pointer_button_down_on() {
+        p.accent.gamma_multiply(0.85)
+    } else if response.hovered() {
+        p.accent.gamma_multiply(0.92)
+    } else {
+        p.accent
+    };
+    ui.painter().rect_filled(rect, CornerRadius::same(8), fill);
+    ui.painter()
+        .galley(rect.center() - galley.size() / 2.0, galley, Color32::WHITE);
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, enabled, label));
+    response.on_hover_cursor(egui::CursorIcon::PointingHand)
+}
+
 /// A button for destructive actions, tinted with the danger colour.
 pub fn danger_button(ui: &mut egui::Ui, p: &Palette, label: &str) -> Response {
     ui.add(

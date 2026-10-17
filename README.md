@@ -65,6 +65,9 @@ Get-FileHash .\Ferrodock-*-windows-x64.zip            # Windows (compare with SH
   labels, restart policy, health checks and the raw JSON for anything.
 - **Compose**: containers grouped by Docker Compose project. Start, stop,
   restart or remove a whole project at once.
+- **Pull and run images**: pull with a progress bar, and start a container
+  from any image with a form for ports, environment, volumes and restart
+  policy. It shows the equivalent `docker run` command as you type.
 - **Images, Volumes, Networks**: size, mountpoints, subnets, and which
   containers use each one.
 - **Disk**: see where the space goes (images, containers, volumes, build
