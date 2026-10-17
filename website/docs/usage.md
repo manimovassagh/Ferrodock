@@ -94,6 +94,20 @@ Containers started by Docker Compose are grouped by project. A project shows
 - **Remove** deletes the project's containers once it's stopped. Volumes,
   networks and images are kept, and `docker compose up` recreates
   everything.
+- **Rebuild** next to a service (in Overview) rebuilds and recreates just
+  that service; **Rebuild all** does every service, and **Pull & recreate**
+  pulls newer images and recreates the containers.
+- **Logs** shows every service's logs together, live, each service in its
+  own colour. Click a service to see only its lines.
+
+To start a project that isn't running yet, paste the path of its
+`compose.yaml` in the box at the top of the page and click **Up**, or drop
+the file on the window. Projects you started this way are listed under
+**Recent** for one-click restarts. The output of `docker compose` shows
+while it works.
+
+These use the `docker compose` command, so the Docker CLI with Compose
+needs to be installed; Ferrodock points it at the engine you picked.
 
 ## Images, volumes and networks
 

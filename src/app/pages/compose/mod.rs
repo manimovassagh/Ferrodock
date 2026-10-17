@@ -1,5 +1,9 @@
 //! Compose page: containers grouped by Docker Compose project, with
-//! project-wide start / stop / restart / remove.
+//! project-wide start / stop / restart / remove; bringing projects up from
+//! their files, rebuilding services, and merged logs.
+
+mod logs;
+mod up;
 
 use eframe::egui::{self, Color32, RichText};
 
@@ -9,13 +13,52 @@ use crate::app::page::{
     Command, CommandRun, Confirmation, Intent, Page, PageCtx, toggle_selection,
 };
 use crate::app::store::Store;
-use crate::docker::{Action, ComposeProject, Resource, Task, plural};
+use crate::docker::{
+    Action, ComposeAction, ComposeOp, ComposeProject, ComposeTarget, Resource, Task, next_job,
+    plural,
+};
 use crate::theme::Palette;
+
+#[derive(Default, Clone, Copy, PartialEq, Eq)]
+enum Tab {
+    #[default]
+    Overview,
+    Logs,
+}
 
 #[derive(Default)]
 pub struct ComposePage {
     /// Project name.
     selected: Option<String>,
+    tab: Tab,
+    /// What's typed in the Compose file box.
+    up_path: String,
+    /// The command whose output was closed.
+    closed_output: Option<u64>,
+    /// The service the logs are limited to.
+    only: Option<String>,
+}
+
+/// The project as Compose sees it, if its files are on this computer.
+fn target(project: &ComposeProject) -> Option<ComposeTarget> {
+    let files: Vec<std::path::PathBuf> = project
+        .config_files
+        .iter()
+        .map(std::path::PathBuf::from)
+        .collect();
+    (!files.is_empty() && files.iter().all(|f| f.is_file())).then(|| ComposeTarget {
+        name: Some(project.name.clone()),
+        files,
+        dir: project.working_dir.clone().into(),
+    })
+}
+
+fn run(ctx: &mut PageCtx, target: ComposeTarget, action: ComposeAction) {
+    ctx.request(Intent::Compose(ComposeOp::Run {
+        job: next_job(),
+        target,
+        action,
+    }));
 }
 
 impl ComposePage {
@@ -57,6 +100,11 @@ impl Page for ComposePage {
     fn show(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
         let p = ctx.palette;
         let store = ctx.store;
+        up::bar(ui, ctx, &mut self.up_path);
+        let job = store.compose.run.as_ref().map(|j| j.id);
+        if job.is_some() && job != self.closed_output && !up::output(ui, ctx) {
+            self.closed_output = job;
+        }
         let visible: Vec<&ComposeProject> = store
             .projects
             .iter()
@@ -70,7 +118,7 @@ impl Page for ComposePage {
                 (
                     Icon::Stack,
                     "No Compose projects",
-                    "Projects show up here when you run `docker compose up`.",
+                    "Start one from its compose.yaml above, or with `docker compose up`.",
                 ),
                 None,
             );
@@ -131,6 +179,7 @@ impl Page for ComposePage {
         }
         state_pill(ui, p, project);
         ui.add_space(10.0);
+        let target = target(project);
         ui.horizontal(|ui| {
             for task in project_buttons(ui, store, project, true) {
                 ctx.request(Intent::Run(task));
@@ -139,7 +188,46 @@ impl Page for ComposePage {
                 remove_project_button(ui, ctx, project);
             }
         });
-        ui.add_space(16.0);
+        ui.horizontal(|ui| {
+            let missing = "Its Compose files aren't on this computer";
+            let rebuild = ui
+                .add_enabled(target.is_some(), egui::Button::new("Rebuild all").small())
+                .on_hover_text("docker compose up -d --build")
+                .on_disabled_hover_text(missing);
+            let pull = ui
+                .add_enabled(
+                    target.is_some(),
+                    egui::Button::new("Pull & recreate").small(),
+                )
+                .on_hover_text("docker compose pull, then up -d --force-recreate")
+                .on_disabled_hover_text(missing);
+            if let Some(target) = &target {
+                if rebuild.clicked() {
+                    run(ctx, target.clone(), ComposeAction::Rebuild(None));
+                }
+                if pull.clicked() {
+                    run(ctx, target.clone(), ComposeAction::PullRecreate);
+                }
+            }
+        });
+        ui.add_space(12.0);
+
+        widgets::segmented(ui, p, |ui| {
+            for (tab, label) in [(Tab::Overview, "Overview"), (Tab::Logs, "Logs")] {
+                if widgets::tab(ui, p, label, None, self.tab == tab).clicked() {
+                    self.tab = tab;
+                }
+            }
+        });
+        ui.add_space(10.0);
+        if self.tab == Tab::Logs {
+            logs::show(ui, ctx, project, &mut self.only);
+            return;
+        }
+        // Nobody's reading the logs: stop following them.
+        if let Some(job) = store.compose.logs.as_ref().filter(|j| j.ended.is_none()) {
+            ctx.request(Intent::Compose(ComposeOp::Cancel { job: job.id }));
+        }
 
         egui::ScrollArea::vertical()
             .auto_shrink(false)
@@ -152,6 +240,18 @@ impl Page for ComposePage {
                             widgets::dot(ui, if c.is_active() { p.success } else { p.muted });
                             ui.label(RichText::new(&c.name).color(p.text));
                             super::containers::ports::links(ui, p, &c.ports);
+                            if let Some(target) = &target {
+                                let rebuild = ui.small_button("Rebuild").on_hover_text(format!(
+                                    "docker compose up -d --build --no-deps {service}"
+                                ));
+                                if rebuild.clicked() {
+                                    run(
+                                        ctx,
+                                        target.clone(),
+                                        ComposeAction::Rebuild(Some(service.to_owned())),
+                                    );
+                                }
+                            }
                         });
                         ui.end_row();
                     }

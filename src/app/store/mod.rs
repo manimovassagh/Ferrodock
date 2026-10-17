@@ -3,10 +3,12 @@
 //! The store is fed by worker responses and read by the pages. It holds no
 //! UI state of its own.
 
+mod compose;
 mod files;
 mod live;
 mod terminal;
 
+pub use compose::ComposeJobs;
 pub use files::FileView;
 pub use terminal::Terminal;
 
@@ -67,6 +69,11 @@ pub struct Store {
     pub volume_browser: Option<(String, Option<Result<String, String>>)>,
     /// The open shell, if any.
     pub terminal: Option<Terminal>,
+    /// `docker compose` jobs: the last command, and followed logs.
+    pub compose: ComposeJobs,
+    /// Compose files brought up from Ferrodock, newest first (a copy of
+    /// the setting, for the Compose page).
+    pub recent_compose: Vec<String>,
     /// Engines to choose from, and the name of the one in use.
     pub engines: Vec<Engine>,
     pub engine: Option<String>,
@@ -103,6 +110,8 @@ impl Store {
             files: None,
             terminal: None,
             search: None,
+            compose: ComposeJobs::default(),
+            recent_compose: Vec::new(),
             engines: Vec::new(),
             engine: None,
             volume_browser: None,
@@ -171,6 +180,12 @@ impl Store {
                 match self.pulls.iter_mut().find(|(i, _)| *i == image) {
                     Some(entry) => entry.1 = progress,
                     None => self.pulls.push((image, progress)),
+                }
+            }
+            Response::ComposeOutput { job, lines } => self.compose.output(job, lines),
+            Response::ComposeDone { job, error } => {
+                if let Some((text, is_error)) = self.compose.done(job, error) {
+                    return Some(Notice { text, is_error });
                 }
             }
             Response::SearchResults { term, results } => {

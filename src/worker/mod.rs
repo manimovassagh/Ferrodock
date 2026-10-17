@@ -3,6 +3,7 @@
 //! The UI thread never blocks: it sends [`Request`]s and drains
 //! [`Response`]s once per frame.
 
+mod compose;
 mod dedup;
 mod files;
 mod images;
@@ -16,9 +17,9 @@ use std::time::Duration;
 use tokio::sync::mpsc as tokio_mpsc;
 
 use crate::docker::{
-    Action, Change, ContainerInfo, DiskUsage, DockerClient, Engine, EngineEvent, FileOp, ImageInfo,
-    ImageOp, Inspection, Layer, Listing, NetworkInfo, Preview, Processes, PullProgress, Resource,
-    RunSpec, SearchResult, StatsSample, Task, TermOp, VolumeInfo,
+    Action, Change, ComposeOp, ContainerInfo, DiskUsage, DockerClient, Engine, EngineEvent, FileOp,
+    ImageInfo, ImageOp, Inspection, Layer, Listing, NetworkInfo, Preview, Processes, PullProgress,
+    Resource, RunSpec, SearchResult, StatsSample, Task, TermOp, VolumeInfo,
 };
 
 /// How often the worker re-checks the engine on its own. Changes normally
@@ -64,6 +65,8 @@ pub enum Request {
     Image(ImageOp),
     /// Talk to this engine from now on.
     UseEngine(Engine),
+    /// Run `docker compose`.
+    Compose(ComposeOp),
 }
 
 #[derive(Debug)]
@@ -103,6 +106,16 @@ pub enum Response {
     VolumeHelper {
         volume: String,
         result: Result<String, String>,
+    },
+    /// Lines a `docker compose` job printed.
+    ComposeOutput {
+        job: u64,
+        lines: Vec<String>,
+    },
+    /// A `docker compose` job ended; `error` says why when it failed.
+    ComposeDone {
+        job: u64,
+        error: Option<String>,
     },
     /// What a shell printed.
     TermOutput {
@@ -234,6 +247,7 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
     let mut engine: Option<Engine> = None;
     let mut watch = live::Watch::default();
     let mut terminals = terminal::Sessions::default();
+    let mut compose_jobs = compose::Jobs::default();
     let mut events: Option<tokio::task::JoinHandle<()>> = None;
     let mut polled = Resource::Containers;
     let mut ticker = tokio::time::interval(POLL_INTERVAL);
@@ -260,6 +274,7 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
             }
             watch.stop();
             terminals.close_all();
+            compose_jobs.cancel_all();
             shared.disconnected(format!("Connecting to {}…", next.name));
             engine = Some(next);
             continue;
@@ -358,6 +373,7 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
                 tokio::spawn(async move { pull(&docker, &shared, image).await });
             }
             Request::Terminal(op) => terminals.handle(&docker, &shared, op),
+            Request::Compose(op) => compose_jobs.handle(&docker, &shared, engine.clone(), op),
             Request::Image(op) => {
                 tokio::spawn(async move { images::handle(&docker, &shared, op).await });
             }

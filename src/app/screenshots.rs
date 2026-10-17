@@ -418,3 +418,64 @@ fn screenshots_of_engines() {
     ));
     std::fs::remove_dir_all(&config).unwrap();
 }
+
+/// Brings a two-service project up from its compose.yaml through the UI,
+/// then shows its merged logs. Takes it down again at the end.
+#[test]
+#[ignore]
+fn screenshots_of_compose_up() {
+    use egui::accesskit::Role;
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let client = crate::docker::DockerClient::connect().unwrap();
+    let image = runtime
+        .block_on(client.list_images())
+        .unwrap()
+        .into_iter()
+        .next()
+        .expect("an image to run");
+    let tag = image.tags.first().cloned().unwrap_or(image.id);
+    let dir = std::env::temp_dir().join("shop");
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("compose.yaml");
+    std::fs::write(
+        &file,
+        format!(
+            "services:\n\
+             \x20 web:\n    image: {tag}\n    command: sh -c 'while true; do echo GET / 200; sleep 1; done'\n\
+             \x20 worker:\n    image: {tag}\n    command: sh -c 'while true; do echo processed job; sleep 2; done'\n"
+        ),
+    )
+    .unwrap();
+
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(3));
+    set_theme(&mut h, Theme::Light);
+    open(&mut h, 1, None);
+    h.get_by_role_and_label(Role::TextInput, "Up").click();
+    h.run_steps(2);
+    h.event(egui::Event::Text(file.display().to_string()));
+    h.run_steps(2);
+    h.get_by_role_and_label(Role::Button, "Up").click();
+    settle(&mut h, Duration::from_secs(8));
+    save(&mut h, "compose-up");
+    let up_ok = h
+        .state()
+        .store
+        .compose
+        .run
+        .as_ref()
+        .is_some_and(|j| j.ended == Some(None));
+    h.state_mut().pages[1].select("shop");
+    settle(&mut h, Duration::from_secs(1));
+    click(&mut h, "Logs");
+    settle(&mut h, Duration::from_secs(5));
+    save(&mut h, "compose-logs");
+
+    let down = ["-p", "shop", "down", "-t", "1"].map(str::to_owned);
+    let _ = runtime.block_on(crate::docker::compose_cli::stream(
+        crate::docker::compose_cli::command(None, None, &down),
+        |_| {},
+    ));
+    std::fs::remove_dir_all(&dir).unwrap();
+    assert!(up_ok, "compose up finished without errors");
+}

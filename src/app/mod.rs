@@ -289,6 +289,18 @@ impl FerrodockApp {
                 self.worker.send(Request::Pull(image));
             }
             Intent::RunImage(spec) => self.worker.send(Request::RunImage(spec)),
+            Intent::Compose(op) => {
+                if let Some(old) = self.store.compose.requested(&op) {
+                    self.worker
+                        .send(Request::Compose(crate::docker::ComposeOp::Cancel {
+                            job: old,
+                        }));
+                }
+                if let crate::docker::ComposeOp::Run { target, .. } = &op {
+                    self.settings.remember_compose_files(&target.files);
+                }
+                self.worker.send(Request::Compose(op));
+            }
             Intent::Image(op) => {
                 use crate::docker::ImageOp;
                 let busy = match &op {
@@ -392,6 +404,9 @@ impl eframe::App for FerrodockApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.handle_responses();
         self.handle_tray(ui.ctx());
+        self.store
+            .recent_compose
+            .clone_from(&self.settings.recent_compose);
         let p = theme::palette(ui);
         if !self.overlay_open() {
             for shortcut in keys::read(ui.ctx()) {

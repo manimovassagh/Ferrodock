@@ -43,6 +43,8 @@ pub struct Settings {
     /// The engine picked last (a Docker context's name, or a detected
     /// engine's); None follows the Docker CLI's current context.
     pub engine: Option<String>,
+    /// Compose files brought up from Ferrodock, newest first.
+    pub recent_compose: Vec<String>,
 }
 
 impl Default for Settings {
@@ -54,11 +56,25 @@ impl Default for Settings {
             check_updates: true,
             close_to_tray: true,
             engine: None,
+            recent_compose: Vec::new(),
         }
     }
 }
 
 impl Settings {
+    /// Compose files kept in the recent list.
+    const RECENT: usize = 8;
+
+    /// Puts `files` at the top of the recent Compose files.
+    pub fn remember_compose_files(&mut self, files: &[std::path::PathBuf]) {
+        for file in files.iter().rev() {
+            let file = file.display().to_string();
+            self.recent_compose.retain(|f| *f != file);
+            self.recent_compose.insert(0, file);
+        }
+        self.recent_compose.truncate(Self::RECENT);
+    }
+
     pub const MIN_SCALE: f32 = 0.9;
     pub const MAX_SCALE: f32 = 1.25;
 
