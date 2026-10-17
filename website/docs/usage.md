@@ -189,6 +189,14 @@ subnet, or be *internal* with no internet access). In a network's details,
 **Disconnect** takes a container off it, and the picker below
 **Connect**s another one.
 
+**Browse files** in a volume's details shows what's in it, even when no
+container uses it: open folders, preview text files and download anything,
+just like a container's **Files** tab. The view is read-only. Behind the
+scenes Ferrodock creates a helper container that mounts the volume
+read-only and never runs; it's hidden from the container list and removed
+when you click **Done browsing**, when the volume is removed, or the next
+time Ferrodock starts.
+
 ## Disk
 
 The **Disk** page shows how much space images, containers, volumes and the

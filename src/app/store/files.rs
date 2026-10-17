@@ -39,7 +39,10 @@ pub fn requested(view: &mut Option<FileView>, op: &FileOp) {
     let (FileOp::List { container, .. }
     | FileOp::Preview { container, .. }
     | FileOp::Download { container, .. }
-    | FileOp::Upload { container, .. }) = op;
+    | FileOp::Upload { container, .. }) = op
+    else {
+        return;
+    };
     if view.as_ref().is_none_or(|v| v.container_id != *container) {
         *view = Some(FileView::new(container, "/"));
     }
@@ -59,6 +62,7 @@ pub fn requested(view: &mut Option<FileView>, op: &FileOp) {
         }
         FileOp::Preview { path, .. } => v.preview = Some((path.clone(), None)),
         FileOp::Download { .. } | FileOp::Upload { .. } => v.transfers += 1,
+        FileOp::BrowseVolume { .. } | FileOp::EndBrowse { .. } => {}
     }
 }
 

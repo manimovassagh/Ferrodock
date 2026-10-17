@@ -176,6 +176,12 @@ impl DockerClient {
             .await
             .map_err(describe)?
             .into_iter()
+            // Helpers for browsing volumes are an implementation detail.
+            .filter(|c| {
+                c.labels
+                    .as_ref()
+                    .is_none_or(|l| !l.contains_key(super::browse::HELPER_LABEL))
+            })
             .map(ContainerInfo::from)
             .collect();
         list.sort_by_cached_key(|c| c.name.to_lowercase());

@@ -233,6 +233,15 @@ fn screenshots_of_files() {
     click(&mut h, "mtab");
     settle(&mut h, Duration::from_secs(3));
     save(&mut h, "files-link");
+
+    // A volume, read-only through a helper container.
+    let volume = h.state().store.volumes.first().map(|v| v.name.clone());
+    open(&mut h, 3, volume);
+    click(&mut h, "Browse files");
+    settle(&mut h, Duration::from_secs(3));
+    save(&mut h, "volume-files");
+    click(&mut h, "Done browsing");
+    settle(&mut h, Duration::from_secs(1));
 }
 
 /// The Terminal tab with a live shell, in a throwaway container.

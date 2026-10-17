@@ -5,6 +5,7 @@ mod compose;
 mod containers;
 mod create_dialog;
 mod disk;
+mod files;
 mod images;
 mod networks;
 pub(super) mod run_dialog;

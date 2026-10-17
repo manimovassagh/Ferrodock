@@ -3,7 +3,6 @@
 
 mod actions;
 mod details;
-mod files;
 mod limits;
 mod logs;
 pub(super) mod ports;
@@ -64,7 +63,7 @@ pub struct ContainersPage {
     /// The Edit or Duplicate dialog, while it's open.
     run_form: Option<RunForm>,
     /// Where the Files tab is.
-    files: files::FilesTab,
+    files: super::files::FilesTab,
     terminal: terminal::TerminalTab,
     /// The Limits dialog, while it's open.
     limits: Option<limits::LimitsForm>,

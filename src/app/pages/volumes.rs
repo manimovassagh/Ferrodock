@@ -3,14 +3,15 @@
 use eframe::egui;
 
 use super::create_dialog::{CreateForm, Kind};
+use super::files::{self, FilesTab, Target};
 use super::{
     confirm_removal, inspect_section, remove_button, remove_task, remove_unused_button, usage_pill,
 };
 use crate::app::components::icons::Icon;
 use crate::app::components::{details, table, widgets};
-use crate::app::page::{Command, Page, PageCtx, toggle_selection};
+use crate::app::page::{Command, Intent, Page, PageCtx, toggle_selection};
 use crate::app::store::Store;
-use crate::docker::{Resource, Task, VolumeInfo, plural, time_ago};
+use crate::docker::{FileOp, Resource, Task, VOLUME_ROOT, VolumeInfo, plural, time_ago};
 
 #[derive(Default)]
 pub struct VolumesPage {
@@ -18,9 +19,55 @@ pub struct VolumesPage {
     selected: Option<String>,
     /// The New volume dialog, while it's open.
     create: Option<CreateForm>,
+    /// Where the file browser is, while browsing a volume.
+    files: FilesTab,
+}
+
+/// Stops browsing `volume` and removes its helper container.
+fn end_browse(ctx: &mut PageCtx, volume: &str) {
+    ctx.request(Intent::Files(FileOp::EndBrowse {
+        volume: volume.to_owned(),
+    }));
 }
 
 impl VolumesPage {
+    /// The volume's files, read-only, through a helper container.
+    fn browse(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx, volume: &str) {
+        let p = ctx.palette;
+        if widgets::button(ui, Icon::Close, "Done browsing").clicked() {
+            end_browse(ctx, volume);
+            return;
+        }
+        ui.add_space(10.0);
+        let helper = ctx
+            .store
+            .volume_browser
+            .as_ref()
+            .and_then(|(_, helper)| helper.clone());
+        match helper {
+            None => {
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    ui.label(egui::RichText::new("Opening the volume…").color(p.muted));
+                });
+            }
+            Some(Err(e)) => {
+                ui.label(
+                    egui::RichText::new(format!("Couldn't open the volume: {e}")).color(p.danger),
+                );
+            }
+            Some(Ok(container)) => {
+                let target = Target {
+                    container: &container,
+                    root: VOLUME_ROOT,
+                    writable: false,
+                    note: Some("Read-only: nothing here can be changed from this view."),
+                };
+                files::show(ui, ctx, &mut self.files, &target);
+            }
+        }
+    }
+
     fn selected<'a>(&self, store: &'a Store) -> Option<&'a VolumeInfo> {
         let name = self.selected.as_deref()?;
         store.volumes.iter().find(|v| v.name == name)
@@ -144,18 +191,42 @@ impl Page for VolumesPage {
         };
         let users = ctx.store.containers_using_volume(&volume.name);
 
+        // Browsing another volume, or this one in a closed pane: clean up.
+        let browsing = match &ctx.store.volume_browser {
+            Some((browsed, _)) if *browsed != volume.name => {
+                ctx.request(Intent::Files(FileOp::EndBrowse {
+                    volume: browsed.clone(),
+                }));
+                false
+            }
+            other => other.is_some(),
+        };
         if details::header(ui, p, &volume.name) {
             self.selected = None;
+            if browsing {
+                end_browse(ctx, &volume.name);
+            }
         }
         usage_pill(ui, p, users.len());
         ui.add_space(10.0);
+        if browsing {
+            self.browse(ui, ctx, &volume.name);
+            return;
+        }
         let blocked = (!users.is_empty()).then_some("Mounted by a container");
         let task = remove_task(Resource::Volumes, &volume.name, &volume.name);
-        if !ctx.store.pending.contains_key(&volume.name) {
-            remove_button(ui, ctx, "volume", task, blocked);
-        } else {
-            ui.spinner();
-        }
+        ui.horizontal(|ui| {
+            if widgets::button(ui, Icon::Folder, "Browse files").clicked() {
+                ctx.request(Intent::Files(FileOp::BrowseVolume {
+                    volume: volume.name.clone(),
+                }));
+            }
+            if !ctx.store.pending.contains_key(&volume.name) {
+                remove_button(ui, ctx, "volume", task, blocked);
+            } else {
+                ui.spinner();
+            }
+        });
         ui.add_space(16.0);
 
         egui::ScrollArea::vertical()

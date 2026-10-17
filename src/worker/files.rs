@@ -39,6 +39,15 @@ pub(super) async fn handle(client: &DockerClient, shared: &Shared, op: FileOp) {
                 },
             }
         }
+        FileOp::BrowseVolume { volume } => {
+            let result = client.volume_helper(&volume).await;
+            Response::VolumeHelper { volume, result }
+        }
+        FileOp::EndBrowse { volume } => {
+            // Nothing to tell: a helper that's left is removed next time.
+            let _ = client.remove_helpers(Some(&volume)).await;
+            return;
+        }
         FileOp::Upload {
             container,
             dir,

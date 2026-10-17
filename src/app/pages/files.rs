@@ -1,20 +1,32 @@
-//! Files tab: browse the container's filesystem, preview text files,
-//! download anything to the Downloads folder, and drop files in to upload.
+//! A file browser for a container's filesystem (the Files tab) or a
+//! volume (through a helper container): preview text files, download
+//! anything to the Downloads folder, and drop files in to upload.
 
 use eframe::egui::{self, CornerRadius, RichText, Sense, Stroke, vec2};
 
 use crate::app::components::icons::{self, Icon};
 use crate::app::components::widgets;
 use crate::app::page::{Intent, PageCtx};
-use crate::docker::{
-    ContainerInfo, FileEntry, FileKind, FileOp, Preview, format_size, join_path, parent_path,
-};
+use crate::docker::{FileEntry, FileKind, FileOp, Preview, format_size, join_path, parent_path};
 use crate::theme::Palette;
 
-/// Where the user is in a container's filesystem.
+/// What to browse.
+pub(super) struct Target<'a> {
+    /// The container whose files are read.
+    pub container: &'a str,
+    /// The top folder; the browser doesn't go above it.
+    pub root: &'a str,
+    /// Whether files can be dropped in.
+    pub writable: bool,
+    /// A line shown above the listing, e.g. that the container is stopped.
+    pub note: Option<&'a str>,
+}
+
+/// Where the user is in a filesystem.
 #[derive(Default)]
 pub(super) struct FilesTab {
     container: String,
+    root: String,
     path: String,
     /// The file being previewed.
     selected: Option<String>,
@@ -24,12 +36,13 @@ pub(super) struct FilesTab {
 }
 
 impl FilesTab {
-    /// Starts at `/` whenever another container is shown.
-    fn follow(&mut self, container: &str) {
-        if self.container != container {
+    /// Starts at the top whenever something else is shown.
+    fn follow(&mut self, container: &str, root: &str) {
+        if self.container != container || self.root != root {
             *self = Self {
                 container: container.to_owned(),
-                path: "/".into(),
+                root: root.to_owned(),
+                path: root.to_owned(),
                 selected: None,
                 via_link: None,
             };
@@ -59,14 +72,20 @@ impl FilesTab {
     }
 }
 
-pub(super) fn show(ui: &mut egui::Ui, ctx: &mut PageCtx, tab: &mut FilesTab, c: &ContainerInfo) {
+pub(super) fn show(ui: &mut egui::Ui, ctx: &mut PageCtx, tab: &mut FilesTab, target: &Target) {
     let p = ctx.palette;
-    tab.follow(&c.id);
-    let view = ctx.store.files.as_ref().filter(|v| v.container_id == c.id);
-    if view.is_none_or(|v| !v.shows(&c.id, &tab.path)) {
+    tab.follow(target.container, target.root);
+    let view = ctx
+        .store
+        .files
+        .as_ref()
+        .filter(|v| v.container_id == target.container);
+    if view.is_none_or(|v| !v.shows(target.container, &tab.path)) {
         ctx.request(Intent::Files(tab.op_list()));
     }
-    uploads(ui, ctx, tab);
+    if target.writable {
+        uploads(ui, ctx, tab);
+    }
 
     toolbar(ui, ctx, tab, view.is_some_and(|v| v.transfers > 0));
     ui.add_space(8.0);
@@ -91,12 +110,8 @@ pub(super) fn show(ui: &mut egui::Ui, ctx: &mut PageCtx, tab: &mut FilesTab, c: 
             return;
         }
     };
-    if !c.is_running() {
-        ui.label(
-            RichText::new("The container is stopped: this is its filesystem as it was left.")
-                .size(12.0)
-                .color(p.muted),
-        );
+    if let Some(note) = target.note {
+        ui.label(RichText::new(note).size(12.0).color(p.muted));
         ui.add_space(4.0);
     }
     if !listing.complete {
@@ -124,7 +139,7 @@ pub(super) fn show(ui: &mut egui::Ui, ctx: &mut PageCtx, tab: &mut FilesTab, c: 
                 .max_height(list_height)
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
-                    if tab.path != "/" && row(ui, p, None, false).clicked() {
+                    if tab.path != tab.root && row(ui, p, None, false).clicked() {
                         tab.open(parent_path(&tab.path));
                     }
                     if listing.entries.is_empty() {
@@ -151,7 +166,7 @@ pub(super) fn show(ui: &mut egui::Ui, ctx: &mut PageCtx, tab: &mut FilesTab, c: 
     if let Some(path) = tab.selected.clone() {
         ui.add_space(10.0);
         preview_pane(ui, ctx, tab, &path);
-    } else {
+    } else if target.writable {
         ui.add_space(6.0);
         ui.label(
             RichText::new("Drop files here to copy them into this folder.")
@@ -167,15 +182,23 @@ fn toolbar(ui: &mut egui::Ui, ctx: &mut PageCtx, tab: &mut FilesTab, busy: bool)
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 2.0;
         let mut target = None;
-        if crumb(ui, p, "/", tab.path == "/").clicked() {
-            target = Some("/".to_owned());
+        let top = match tab.root.trim_matches('/') {
+            "" => "/",
+            name => name,
+        };
+        if crumb(ui, p, top, tab.path == tab.root).clicked() {
+            target = Some(tab.root.clone());
         }
-        let parts: Vec<&str> = tab.path.split('/').filter(|s| !s.is_empty()).collect();
+        let below = tab
+            .path
+            .strip_prefix(tab.root.as_str())
+            .unwrap_or(&tab.path);
+        let parts: Vec<&str> = below.split('/').filter(|s| !s.is_empty()).collect();
         for (i, part) in parts.iter().enumerate() {
-            if i > 0 {
+            if i > 0 || tab.root != "/" {
                 ui.label(RichText::new("/").color(p.muted));
             }
-            let path = format!("/{}", parts[..=i].join("/"));
+            let path = join_path(&tab.root, &parts[..=i].join("/"));
             if crumb(ui, p, part, i + 1 == parts.len()).clicked() {
                 target = Some(path);
             }

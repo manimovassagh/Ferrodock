@@ -89,6 +89,11 @@ pub enum Response {
         path: String,
         preview: Result<Preview, String>,
     },
+    /// The helper container for browsing a volume, or why there isn't one.
+    VolumeHelper {
+        volume: String,
+        result: Result<String, String>,
+    },
     /// What a shell printed.
     TermOutput {
         session: u64,
@@ -255,6 +260,11 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
                 continue;
             }
         };
+        if client.is_none() {
+            // Helpers left from browsing volumes in an earlier run.
+            let docker = docker.clone();
+            tokio::spawn(async move { docker.remove_helpers(None).await });
+        }
         client = Some(docker.clone());
         // (Re)start following the event stream; it ends when the
         // connection drops.
