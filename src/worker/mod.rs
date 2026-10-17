@@ -3,13 +3,15 @@
 //! The UI thread never blocks: it sends [`Request`]s and drains
 //! [`Response`]s once per frame.
 
-use std::sync::mpsc;
+mod live;
+
+use std::sync::{Arc, mpsc};
 use std::thread;
 
 use tokio::sync::mpsc as tokio_mpsc;
 
 use crate::docker::{
-    ContainerInfo, DockerClient, ImageInfo, NetworkInfo, Resource, Task, VolumeInfo,
+    ContainerInfo, DockerClient, ImageInfo, NetworkInfo, Resource, StatsSample, Task, VolumeInfo,
 };
 
 #[derive(Debug)]
@@ -18,6 +20,9 @@ pub enum Request {
     Refresh(Resource),
     /// Run an action, then reload the list it changed.
     Run(Task),
+    /// Stream logs and stats of this container (replacing any previous
+    /// one), or stop streaming with `None`.
+    Watch(Option<String>),
 }
 
 #[derive(Debug)]
@@ -35,6 +40,16 @@ pub enum Response {
     Failed {
         task: Task,
         message: String,
+    },
+    /// New log output from the watched container.
+    Logs {
+        container_id: String,
+        text: String,
+    },
+    /// A resource usage reading from the watched container.
+    Stats {
+        container_id: String,
+        sample: StatsSample,
     },
 }
 
@@ -98,10 +113,17 @@ impl Sender {
 }
 
 async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) {
-    let out = std::sync::Arc::new(out);
+    let out = Arc::new(out);
     let mut client: Option<DockerClient> = None;
+    let mut watch = live::Watch::default();
 
     while let Some(request) = requests.recv().await {
+        // Stopping a watch must work even while Docker is unreachable.
+        if let Request::Watch(None) = request {
+            watch.stop();
+            continue;
+        }
+
         // Docker may not be running yet (or its socket may not exist), so
         // keep trying to set up the client until it works.
         let docker = match client.clone().map_or_else(DockerClient::connect, Ok) {
@@ -113,12 +135,18 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
         };
         client = Some(docker.clone());
 
+        if let Request::Watch(Some(container_id)) = request {
+            watch.start(&docker, &out, container_id);
+            continue;
+        }
+
         // Each request runs as its own task so a slow `stop` (which waits
         // for the container to exit) doesn't block refreshes.
         let client = docker;
         let out = out.clone();
         tokio::spawn(async move {
             match request {
+                Request::Watch(_) => unreachable!("handled above"),
                 Request::Refresh(resource) => refresh(&client, &out, resource).await,
                 Request::Run(task) => {
                     match client.perform(task.action, &task.id).await {

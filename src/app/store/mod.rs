@@ -3,10 +3,13 @@
 //! The store is fed by worker responses and read by the pages. It holds no
 //! UI state of its own.
 
+mod live;
+
 use std::collections::HashSet;
 
 use crate::docker::{ContainerInfo, ImageInfo, NetworkInfo, VolumeInfo};
 use crate::worker::Response;
+pub use live::Live;
 
 pub enum Connection {
     Connecting,
@@ -28,6 +31,8 @@ pub struct Store {
     pub networks: Vec<NetworkInfo>,
     /// IDs (names, for volumes) of items with an action in flight.
     pub pending: HashSet<String>,
+    /// Logs and stats of the container being watched, if any.
+    pub live: Option<Live>,
 }
 
 impl Store {
@@ -39,6 +44,7 @@ impl Store {
             volumes: Vec::new(),
             networks: Vec::new(),
             pending: HashSet::new(),
+            live: None,
         }
     }
 
@@ -51,6 +57,19 @@ impl Store {
             Response::Images(list) => self.images = list,
             Response::Volumes(list) => self.volumes = list,
             Response::Networks(list) => self.networks = list,
+            Response::Logs { container_id, text } => {
+                if let Some(live) = self.live_for(&container_id) {
+                    live.logs.push(&text);
+                }
+            }
+            Response::Stats {
+                container_id,
+                sample,
+            } => {
+                if let Some(live) = self.live_for(&container_id) {
+                    live.push_stats(sample);
+                }
+            }
             Response::Disconnected(reason) => {
                 *self = Self::new();
                 self.connection = Connection::Disconnected { reason };
@@ -71,6 +90,14 @@ impl Store {
             }
         }
         None
+    }
+
+    /// The live data, if it belongs to `container_id`. Late messages from a
+    /// container that's no longer watched are dropped.
+    fn live_for(&mut self, container_id: &str) -> Option<&mut Live> {
+        self.live
+            .as_mut()
+            .filter(|live| live.container_id == container_id)
     }
 
     pub fn is_disconnected(&self) -> bool {

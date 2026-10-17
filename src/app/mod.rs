@@ -21,7 +21,7 @@ use crate::worker::{Request, Worker};
 use components::confirm::{self, Choice};
 use components::toast::Toast;
 use page::{Confirmation, Intent, Page, PageCtx};
-use store::{Connection, Store};
+use store::{Connection, Live, Store};
 
 const REFRESH_INTERVAL: Duration = Duration::from_secs(3);
 
@@ -35,6 +35,9 @@ pub struct IronStackApp {
     toast: Option<Toast>,
     /// A destructive action waiting for the user to confirm it.
     confirmation: Option<Confirmation>,
+    /// The container being streamed, and whether it was running when the
+    /// stream started (a restart needs a fresh stream).
+    watching: Option<(String, bool)>,
 }
 
 impl IronStackApp {
@@ -56,6 +59,7 @@ impl IronStackApp {
             last_refresh: Instant::now(),
             toast: None,
             confirmation: None,
+            watching: None,
         }
     }
 
@@ -85,6 +89,24 @@ impl IronStackApp {
                 self.toast = Some(Toast::new(notice.text, notice.is_error));
             }
         }
+    }
+
+    /// Starts, switches or stops the live logs/stats stream to match what
+    /// the open page wants to watch.
+    fn sync_watch(&mut self) {
+        let wanted = self.pages[self.active]
+            .watched_container(&self.store)
+            .map(|id| {
+                let running = self.store.container(&id).is_some_and(|c| c.is_running());
+                (id, running)
+            });
+        if wanted == self.watching {
+            return;
+        }
+        let id = wanted.as_ref().map(|(id, _)| id.clone());
+        self.store.live = id.clone().map(Live::new);
+        self.worker.send(Request::Watch(id));
+        self.watching = wanted;
     }
 
     fn handle_intent(&mut self, intent: Intent) {
@@ -193,6 +215,7 @@ impl eframe::App for IronStackApp {
         for intent in intents {
             self.handle_intent(intent);
         }
+        self.sync_watch();
         if refresh {
             self.refresh();
         }
