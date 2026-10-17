@@ -71,12 +71,17 @@ impl Page for VolumesPage {
             .filter(|v| ctx.matches_search(&[&v.name, &v.driver]))
             .collect();
         if visible.is_empty() {
-            let message = if store.volumes.is_empty() {
-                "No volumes yet. Create one with `docker volume create` and it will show up here."
-            } else {
-                "No volumes match."
-            };
-            widgets::empty_state(ui, p, message);
+            super::nothing_to_show(
+                ui,
+                ctx,
+                !store.volumes.is_empty(),
+                (
+                    Icon::Database,
+                    "No volumes",
+                    "Volumes appear when containers create them, or with `docker volume create`.",
+                ),
+                None,
+            );
             return;
         }
 

@@ -14,7 +14,7 @@ use eframe::egui;
 use super::{confirm_removal, remove_task};
 use crate::app::components::icons::Icon;
 use crate::app::components::widgets;
-use crate::app::page::{Command, Page, PageCtx};
+use crate::app::page::{Command, Intent, Page, PageCtx};
 use crate::app::store::Store;
 use crate::docker::{Action, ContainerInfo, Resource};
 use crate::theme::Palette;
@@ -124,12 +124,26 @@ impl Page for ContainersPage {
             .filter(|c| ctx.matches_search(&[&c.name, &c.image, c.short_id()]))
             .collect();
         if visible.is_empty() {
-            let message = if store.containers.is_empty() {
-                "No containers yet. Create one with `docker run` and it will show up here."
-            } else {
-                "No containers match."
-            };
-            widgets::empty_state(ui, p, message);
+            let exists = !store.containers.is_empty();
+            if exists && ctx.search_is_empty() {
+                // Only the Running/Stopped filter hides everything.
+                let hint = "Nothing matches this filter.";
+                if widgets::empty_state(ui, p, Icon::Search, "No matches", hint, Some("Show all")) {
+                    self.filter = StateFilter::All;
+                }
+                return;
+            }
+            super::nothing_to_show(
+                ui,
+                ctx,
+                exists,
+                (
+                    Icon::Container,
+                    "No containers yet",
+                    "Run an image to create one, or use `docker run` in a terminal.",
+                ),
+                Some(("Browse images", Intent::OpenPage("Images"))),
+            );
             return;
         }
         table::show(self, ui, ctx, &visible);

@@ -11,6 +11,7 @@ mod volumes;
 
 use eframe::egui;
 
+use super::components::icons::Icon;
 use super::components::{inspect, widgets};
 use super::page::{Confirmation, Intent, Page, PageCtx};
 use crate::docker::{Action, Resource, Task, plural};
@@ -26,6 +27,40 @@ pub fn all() -> Vec<Box<dyn Page>> {
         Box::new(networks::NetworksPage::default()),
         Box::new(disk::DiskPage::default()),
     ]
+}
+
+/// Shown instead of an empty list. When nothing exists yet it explains how
+/// things get here (with an optional action); when the search hides
+/// everything it offers to clear it.
+fn nothing_to_show(
+    ui: &mut egui::Ui,
+    ctx: &mut PageCtx,
+    exists: bool,
+    empty: (Icon, &str, &str),
+    action: Option<(&str, Intent)>,
+) {
+    let p = ctx.palette;
+    if exists {
+        let hint = "Nothing here matches your search.";
+        if widgets::empty_state(
+            ui,
+            p,
+            Icon::Search,
+            "No matches",
+            hint,
+            Some("Clear search"),
+        ) {
+            ctx.request(Intent::ClearSearch);
+        }
+        return;
+    }
+    let (icon, title, hint) = empty;
+    let label = action.as_ref().map(|(label, _)| *label);
+    if widgets::empty_state(ui, p, icon, title, hint, label)
+        && let Some((_, intent)) = action
+    {
+        ctx.request(intent);
+    }
 }
 
 /// Collapsible Inspect section at the end of a details pane. The inspect

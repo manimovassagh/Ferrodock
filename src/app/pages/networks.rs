@@ -63,7 +63,17 @@ impl Page for NetworksPage {
             .filter(|n| ctx.matches_search(&[&n.name, &n.driver, &n.subnets.join(" ")]))
             .collect();
         if visible.is_empty() {
-            widgets::empty_state(ui, p, "No networks match.");
+            super::nothing_to_show(
+                ui,
+                ctx,
+                !store.networks.is_empty(),
+                (
+                    Icon::Network,
+                    "No networks",
+                    "Docker's own networks appear here once it's running.",
+                ),
+                None,
+            );
             return;
         }
 

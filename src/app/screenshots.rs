@@ -144,3 +144,22 @@ fn screenshots() {
     click(&mut h, "Overview");
     save(&mut h, "dark-mode");
 }
+
+/// The states new users see: nothing found, and no Docker at all.
+#[test]
+#[ignore]
+fn screenshots_of_empty_states() {
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(3));
+    h.state_mut().search = "no-such-thing".into();
+    settle(&mut h, Duration::from_millis(500));
+    save(&mut h, "empty-search");
+
+    // SAFETY: tests that use DOCKER_HOST run one at a time (`--ignored`,
+    // single test); nothing else reads it concurrently here.
+    unsafe { std::env::set_var("DOCKER_HOST", "unix:///nonexistent/docker.sock") };
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(3));
+    save(&mut h, "no-docker");
+    unsafe { std::env::remove_var("DOCKER_HOST") };
+}

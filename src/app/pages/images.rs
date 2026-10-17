@@ -113,12 +113,17 @@ impl Page for ImagesPage {
             .filter(|i| ctx.matches_search(&[&i.tags.join(" "), i.short_id()]))
             .collect();
         if visible.is_empty() {
-            let message = if store.images.is_empty() {
-                "No images yet. Pull one with the box above, e.g. nginx:alpine."
-            } else {
-                "No images match."
-            };
-            widgets::empty_state(ui, p, message);
+            super::nothing_to_show(
+                ui,
+                ctx,
+                !store.images.is_empty(),
+                (
+                    Icon::Layers,
+                    "No images yet",
+                    "Pull one with the box above, for example nginx:alpine.",
+                ),
+                None,
+            );
             return;
         }
 

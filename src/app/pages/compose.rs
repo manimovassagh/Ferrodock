@@ -63,12 +63,17 @@ impl Page for ComposePage {
             .filter(|project| ctx.matches_search(&[&project.name, &project.services().join(" ")]))
             .collect();
         if visible.is_empty() {
-            let message = if store.projects.is_empty() {
-                "No Compose projects yet. Run `docker compose up` and they will show up here."
-            } else {
-                "No projects match."
-            };
-            widgets::empty_state(ui, p, message);
+            super::nothing_to_show(
+                ui,
+                ctx,
+                !store.projects.is_empty(),
+                (
+                    Icon::Stack,
+                    "No Compose projects",
+                    "Projects show up here when you run `docker compose up`.",
+                ),
+                None,
+            );
             return;
         }
 
