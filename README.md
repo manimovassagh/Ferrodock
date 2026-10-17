@@ -36,6 +36,15 @@ Grab the latest build from the
 Ferrodock needs a running Docker Engine: Docker Desktop, Colima, Rancher
 Desktop, or a native `dockerd`.
 
+Every release also has a `SHA256SUMS.txt`. To check that a download is
+intact, run this in the folder you downloaded to:
+
+```bash
+shasum -a 256 -c SHA256SUMS.txt --ignore-missing      # macOS
+sha256sum -c SHA256SUMS.txt --ignore-missing          # Linux
+Get-FileHash .\Ferrodock-*-windows-x64.zip            # Windows (compare with SHA256SUMS.txt)
+```
+
 ## Features
 
 - **Containers**: status, image, ID and ports at a glance. Start, stop,
@@ -127,6 +136,49 @@ it on to the worker.
 `src/app/pages/` and add one line to `pages::all()`. The sidebar, header,
 search and details pane work automatically.
 
+## Releases and release notes
+
+- **What's new:** every release on the
+  [Releases page](https://github.com/manimovassagh/Ferrodock/releases) has
+  release notes listing what was added, fixed and changed. The full history
+  is in [CHANGELOG.md](CHANGELOG.md).
+- **What a release contains:** ready-to-run builds for macOS (universal),
+  Windows and Linux, plus `SHA256SUMS.txt`.
+- **Version numbers** follow [Semantic Versioning](https://semver.org).
+  Before 1.0, a minor bump (0.3 → 0.4) means new features or breaking
+  changes, and a patch bump (0.3.0 → 0.3.1) means fixes only. Breaking
+  changes are marked **breaking** in the notes.
+- **Pre-releases** (e.g. `1.0.0-rc.1`) are marked as such on GitHub, and
+  are never shown as the latest release.
+
+### How a release is made
+
+Releases are fully automated with
+[release-plz](https://release-plz.dev) and GitHub Actions. Nobody edits
+version numbers or the changelog by hand.
+
+```mermaid
+flowchart LR
+    A["PR merged into main<br/>(feat: … / fix: …)"] --> B["Release PR updated<br/>version + changelog"]
+    B -->|merge| C["Tag vX.Y.Z +<br/>draft release"]
+    C --> D["Build macOS,<br/>Windows, Linux"]
+    D --> E["Attach binaries +<br/>SHA256SUMS.txt"]
+    E --> F["Release<br/>published"]
+```
+
+1. Pull requests are squash-merged with
+   [Conventional Commit](https://www.conventionalcommits.org) titles:
+   `feat: …` for features, `fix: …` for bug fixes. The title becomes the
+   changelog entry.
+2. release-plz keeps a **release PR** open with the next version number and
+   the changelog for it.
+3. Merging that PR tags the release and creates a **draft**. Builds for
+   every platform are attached together with checksums, and only then is it
+   published, so a release never appears without its downloads.
+
+The details, including pre-releases and rebuilding a release's downloads,
+are in [RELEASING.md](RELEASING.md).
+
 ## Roadmap
 
 Progress is tracked in [issues](https://github.com/manimovassagh/Ferrodock/issues).
@@ -142,8 +194,8 @@ Progress is tracked in [issues](https://github.com/manimovassagh/Ferrodock/issue
 
 Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for the
 development setup and guidelines, [CHANGELOG.md](CHANGELOG.md) for what's
-changed, and [RELEASING.md](RELEASING.md) for how releases are made. Please report security issues privately as described in
-[SECURITY.md](SECURITY.md).
+changed, and [RELEASING.md](RELEASING.md) for how releases are made. Please
+report security issues privately as described in [SECURITY.md](SECURITY.md).
 
 ## Author
 
