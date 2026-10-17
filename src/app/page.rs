@@ -8,7 +8,7 @@ use eframe::egui;
 
 use super::components::icons::Icon;
 use super::store::Store;
-use crate::docker::{Resource, RunSpec, Task};
+use crate::docker::{Change, Resource, RunSpec, Task};
 use crate::theme::Palette;
 
 /// Something a page wants done. The app decides how (today: by asking the
@@ -27,6 +27,8 @@ pub enum Intent {
     ClearSearch,
     /// Tell the user something, e.g. where a file was saved.
     Notify { text: String, is_error: bool },
+    /// Create a volume or network, or (dis)connect a container.
+    Change(Change),
     /// Load (or reload) the process table of a container.
     Processes(String),
     /// Load the layers of an image.

@@ -124,6 +124,22 @@ fn screenshots() {
     save(&mut h, "volumes");
     h.state_mut().pages[3].clear_selection();
 
+    let network = h
+        .state()
+        .store
+        .networks
+        .iter()
+        .find(|n| !n.is_builtin())
+        .map(|n| n.id.clone());
+    open(&mut h, 4, network);
+    save(&mut h, "network");
+    click(&mut h, "New network");
+    settle(&mut h, Duration::from_millis(500));
+    save(&mut h, "new-network");
+    h.key_press(egui::Key::Escape);
+    h.run_steps(3);
+    h.state_mut().pages[4].clear_selection();
+
     open(&mut h, 5, None);
     save(&mut h, "disk");
 

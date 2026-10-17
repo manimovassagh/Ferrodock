@@ -10,6 +10,7 @@
 mod actions;
 mod compose;
 mod containers;
+mod create;
 mod disk;
 mod events;
 mod format;
@@ -26,6 +27,7 @@ mod volumes;
 pub use actions::{Action, Task};
 pub use compose::{ComposeProject, group_projects};
 pub use containers::ContainerInfo;
+pub use create::Change;
 pub use disk::{DiskUsage, PruneKind, Usage};
 pub use events::EngineEvent;
 pub use format::{format_size, plural, time_ago};

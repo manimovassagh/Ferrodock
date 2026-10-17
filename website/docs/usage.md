@@ -128,6 +128,13 @@ the bottom.
 - **Labels**, including the ones Docker Compose adds.
 - **Raw JSON**: the full output, with a copy button.
 
+## Volumes and networks
+
+**New volume** and **New network** create them (a network can get its own
+subnet, or be *internal* with no internet access). In a network's details,
+**Disconnect** takes a container off it, and the picker below
+**Connect**s another one.
+
 ## Disk
 
 The **Disk** page shows how much space images, containers, volumes and the

@@ -216,7 +216,7 @@ pub fn button(ui: &mut egui::Ui, icon: Icon, label: &str) -> Response {
     let galley = ui
         .painter()
         .layout_no_wrap(label.to_owned(), FontId::proportional(13.0), p.text);
-    let size = vec2(galley.size().x + 44.0, 30.0);
+    let size = vec2(galley.size().x + 44.0, 28.0);
     let (rect, response) = ui.allocate_exact_size(size, Sense::click());
     let painter = ui.painter();
     let fill = if response.is_pointer_button_down_on() {

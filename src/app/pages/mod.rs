@@ -3,6 +3,7 @@
 
 mod compose;
 mod containers;
+mod create_dialog;
 mod disk;
 mod images;
 mod networks;
@@ -27,6 +28,25 @@ pub fn all() -> Vec<Box<dyn Page>> {
         Box::new(networks::NetworksPage::default()),
         Box::new(disk::DiskPage::default()),
     ]
+}
+
+/// Draws the New volume / New network dialog while it's open.
+fn create_dialog(
+    ui: &mut egui::Ui,
+    ctx: &mut PageCtx,
+    form: &mut Option<create_dialog::CreateForm>,
+) {
+    let Some(open) = form else {
+        return;
+    };
+    match create_dialog::show(ui, ctx.palette, open) {
+        Some(create_dialog::Outcome::Create(change)) => {
+            ctx.request(Intent::Change(change));
+            *form = None;
+        }
+        Some(create_dialog::Outcome::Cancel) => *form = None,
+        None => {}
+    }
 }
 
 /// Shown instead of an empty list. When nothing exists yet it explains how

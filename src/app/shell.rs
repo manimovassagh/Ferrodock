@@ -25,6 +25,10 @@ pub fn header(
     toolbar: impl FnOnce(&mut egui::Ui),
 ) -> bool {
     let mut refresh = false;
+    // With room to spare, the page's buttons sit next to the search box;
+    // otherwise they get their own row under the title.
+    let wide = ui.available_width() >= 900.0;
+    let mut toolbar = Some(toolbar);
     ui.horizontal(|ui| {
         ui.vertical(|ui| {
             ui.label(
@@ -37,9 +41,15 @@ pub fn header(
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             refresh = widgets::icon_button(ui, Icon::Refresh, "Refresh (F5)").clicked();
             search_box(ui, p, search_hint, search);
-            toolbar(ui);
+            if wide && let Some(toolbar) = toolbar.take() {
+                toolbar(ui);
+            }
         });
     });
+    if let Some(toolbar) = toolbar {
+        ui.add_space(6.0);
+        ui.horizontal(toolbar);
+    }
     refresh
 }
 

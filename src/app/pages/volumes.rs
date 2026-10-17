@@ -2,6 +2,7 @@
 
 use eframe::egui;
 
+use super::create_dialog::{CreateForm, Kind};
 use super::{
     confirm_removal, inspect_section, remove_button, remove_task, remove_unused_button, usage_pill,
 };
@@ -15,6 +16,8 @@ use crate::docker::{Resource, Task, VolumeInfo, plural, time_ago};
 pub struct VolumesPage {
     /// Volumes have no ID; their name is unique.
     selected: Option<String>,
+    /// The New volume dialog, while it's open.
+    create: Option<CreateForm>,
 }
 
 impl VolumesPage {
@@ -60,9 +63,17 @@ impl Page for VolumesPage {
     fn toolbar(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
         let unused = unused(ctx.store);
         remove_unused_button(ui, ctx, "volume", unused);
+        if widgets::button(ui, Icon::Database, "New volume").clicked() {
+            self.create = Some(CreateForm::new(Kind::Volume));
+        }
+    }
+
+    fn has_overlay(&self) -> bool {
+        self.create.is_some()
     }
 
     fn show(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
+        super::create_dialog(ui, ctx, &mut self.create);
         let p = ctx.palette;
         let store = ctx.store;
         let visible: Vec<&VolumeInfo> = store
