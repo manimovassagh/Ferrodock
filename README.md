@@ -1,86 +1,76 @@
 <div align="center">
 
+<img src="assets/icon-256.png" alt="IronStack icon" width="96">
+
 # IronStack
 
 **A fast, native desktop app for managing Docker, written entirely in Rust.**
 
-Windows-first · runs on macOS and Linux · MIT licensed
+[![CI](https://github.com/manimovassagh/IronStack/actions/workflows/ci.yml/badge.svg)](https://github.com/manimovassagh/IronStack/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/manimovassagh/IronStack?display_name=tag&sort=semver)](https://github.com/manimovassagh/IronStack/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Rust 1.95+](https://img.shields.io/badge/rust-1.95%2B-orange.svg)](https://www.rust-lang.org)
+
+Windows · macOS · Linux
 
 ![IronStack showing the container list](docs/screenshots/containers.png)
 
 </div>
 
----
-
-IronStack gives you a clean, responsive view of everything running in your
-Docker Engine: containers, images, volumes and networks. It's a single native
-executable with no Electron, no web view and no background services. It talks
+IronStack gives you a clean, responsive view of everything in your Docker
+Engine: containers, images, volumes and networks. It's a single native
+executable with no Electron, no web view and no background service. It talks
 straight to the Docker Engine API and stays out of your way.
+
+## Download
+
+Grab the latest build from the
+**[Releases page](https://github.com/manimovassagh/IronStack/releases/latest)**:
+
+| Platform | File | First launch |
+|---|---|---|
+| **macOS** 11+ (Apple Silicon and Intel) | `IronStack-…-macos-universal.zip` | Unzip, move **IronStack.app** to Applications, then **right-click → Open** once (the app isn't notarized yet). |
+| **Windows** 10/11 (x64) | `IronStack-…-windows-x64.zip` | Unzip and run **IronStack.exe**. If SmartScreen appears, choose **More info → Run anyway**. |
+| **Linux** (x64) | `IronStack-…-linux-x64.tar.gz` | Extract and run `./ironstack`. |
+
+IronStack needs a running Docker Engine: Docker Desktop, Colima, Rancher
+Desktop, or a native `dockerd`.
 
 ## Features
 
-- **Containers**: see every container with its status, image, ID and ports.
-  Start, stop and restart with one click. Filter by All / Running / Stopped.
-- **Images**: tags, size, age, and which containers use each image.
-- **Volumes**: driver, mountpoint, and which containers mount each volume.
-- **Networks**: subnet, gateway, driver, and the containers attached.
-- **Details pane**: click any row for everything about that item, with
-  one-click copy for IDs.
-- **Search** on every page, plus **live updates** every few seconds.
+- **Containers**: status, image, ID and ports at a glance. Start, stop,
+  restart and remove with one click. Filter by All / Running / Stopped.
+- **Logs**: the last 500 lines, then live output as it happens, with a
+  filter and copy.
+- **Stats**: live CPU and memory charts, plus network and disk totals.
+- **Images, Volumes, Networks**: size, mountpoints, subnets, and which
+  containers use each one.
+- **Clean up**: remove single items or everything unused, always with a
+  confirmation first.
+- **Search** on every page, and **live updates** every few seconds.
 - **Light and dark themes** that follow your system setting.
-- **Resilient**: start IronStack before Docker and it connects automatically
-  as soon as the engine is up.
-- **Fast**: all Docker calls run on a background thread, so the UI never
-  blocks. It uses almost no CPU while idle.
+- **Resilient**: start IronStack before Docker and it connects as soon as the
+  engine is up.
+- **Light on resources**: Docker calls run on a background thread so the UI
+  never blocks, and logs and stats only stream for the container you're
+  looking at.
 
 <table>
   <tr>
-    <td><img src="docs/screenshots/container-details.png" alt="Container details pane"></td>
-    <td><img src="docs/screenshots/light-mode.png" alt="Light mode"></td>
+    <td><img src="docs/screenshots/logs.png" alt="Live container logs"></td>
+    <td><img src="docs/screenshots/stats.png" alt="Live CPU and memory stats"></td>
   </tr>
   <tr>
     <td><img src="docs/screenshots/volumes.png" alt="Volumes page"></td>
-    <td><img src="docs/screenshots/networks.png" alt="Networks page"></td>
+    <td><img src="docs/screenshots/light-mode.png" alt="Light mode"></td>
   </tr>
 </table>
 
-## Getting started
+## Build from source
 
-### Requirements
-
-- A running Docker Engine: **Docker Desktop** on Windows or macOS, or any
-  other engine (Colima, Rancher Desktop, native `dockerd`, …).
-- **Rust 1.95 or newer** to build from source. Install it from
-  [rustup.rs](https://rustup.rs).
-
-### Windows
-
-1. Install [Rust](https://rustup.rs). When asked, let it install the Visual
-   Studio C++ Build Tools.
-2. Build and run:
-
-   ```powershell
-   git clone https://github.com/manimovassagh/IronStack.git
-   cd IronStack
-   cargo run --release
-   ```
-
-IronStack connects to Docker Desktop through the standard
-`\\.\pipe\docker_engine` named pipe. The release build is a GUI app with no
-console window. You'll find it at `target\release\ironstack.exe`.
-
-### macOS
-
-```bash
-xcode-select --install                                         # Apple build tools (once)
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh # Rust (once)
-
-git clone https://github.com/manimovassagh/IronStack.git
-cd IronStack
-cargo run --release
-```
-
-### Linux
+You need [Rust](https://rustup.rs) 1.95 or newer. On macOS, also run
+`xcode-select --install` once. On Windows, let the Rust installer set up the
+Visual Studio C++ Build Tools.
 
 ```bash
 git clone https://github.com/manimovassagh/IronStack.git
@@ -88,85 +78,77 @@ cd IronStack
 cargo run --release
 ```
 
-Your user needs access to the Docker socket (usually by being in the `docker`
-group).
+On macOS, `packaging/macos/bundle.sh` builds a universal `IronStack.app`.
 
 ### Connecting to a different engine
 
-IronStack uses the platform default (`/var/run/docker.sock`, or the named pipe
-on Windows) unless `DOCKER_HOST` is set:
+IronStack uses the platform default (`/var/run/docker.sock`, or the
+`\\.\pipe\docker_engine` named pipe on Windows) unless `DOCKER_HOST` is set:
 
 ```bash
 # Docker Desktop on macOS with the default socket turned off
-DOCKER_HOST=unix://$HOME/.docker/run/docker.sock cargo run --release
+DOCKER_HOST=unix://$HOME/.docker/run/docker.sock ironstack
 
 # Colima
-DOCKER_HOST=unix://$HOME/.colima/default/docker.sock cargo run --release
+DOCKER_HOST=unix://$HOME/.colima/default/docker.sock ironstack
 ```
 
 ## Architecture
 
-IronStack is 100% Rust, built on [egui/eframe](https://github.com/emilk/egui)
-for the native UI, [bollard](https://github.com/fussybeaver/bollard) for the
-Docker Engine API, and [tokio](https://tokio.rs) for async I/O.
+IronStack is 100% Rust: [egui/eframe](https://github.com/emilk/egui) for the
+native UI, [bollard](https://github.com/fussybeaver/bollard) for the Docker
+Engine API and [tokio](https://tokio.rs) for async I/O.
 
 ```
 src/
-├── main.rs              window setup
-├── theme.rs             colour palettes, spacing, fonts
-├── worker.rs            background thread: runs Docker calls off the UI thread
-├── docker/              Docker Engine API, one file per resource
-│   ├── containers.rs
-│   ├── images.rs
-│   ├── volumes.rs
-│   ├── networks.rs
-│   └── format.rs        sizes and "3 hours ago" style times
+├── main.rs            window setup
+├── docker/            Docker Engine API, one file per resource (no UI code)
+├── worker/            background thread: Docker calls, log and stats streams
+├── theme/             colour palettes, widget styling, fonts
 └── app/
-    ├── mod.rs           wires the store, the shell and the pages together
-    ├── store.rs         everything currently known about the engine
-    ├── page.rs          the Page trait every sidebar section implements
-    ├── pages/           containers · images · volumes · networks
-    ├── components/      reusable widgets, table, details pane, toast
-    ├── shell.rs         shared page header and "Docker isn't running" screen
+    ├── mod.rs         wires the store, the shell and the pages together
+    ├── store/         everything currently known about the engine
+    ├── page.rs        the Page trait every sidebar section implements
+    ├── pages/         containers · images · volumes · networks
+    ├── components/    table, details pane, dialogs, charts, toasts
+    ├── shell.rs       shared page header and "Docker isn't running" screen
     └── sidebar.rs
 ```
 
 **How data flows:** the UI sends requests to the worker over a channel. The
-worker calls the Docker Engine and sends results back, and they land in the
-`Store`. Pages read from the store and never talk to Docker directly. When a
-page wants something done (say, stop a container), it returns an *intent* and
-the app forwards it to the worker.
+worker calls the Docker Engine and sends the results back into the `Store`.
+Pages only read from the store. When a page wants something done, it returns
+an *intent* (run an action, or ask for confirmation first) and the app passes
+it on to the worker.
 
 **Adding a page:** implement the `Page` trait in a new file under
 `src/app/pages/` and add one line to `pages::all()`. The sidebar, header,
 search and details pane work automatically.
 
-## Development
-
-```bash
-cargo run                         # debug build
-cargo test                        # unit tests
-cargo test -- --include-ignored   # also run tests against a live Docker Engine
-cargo clippy --all-targets        # lints
-cargo fmt                         # formatting
-```
-
-Cross-compiling a Windows build from Linux:
-
-```bash
-rustup target add x86_64-pc-windows-gnu
-sudo apt install gcc-mingw-w64-x86-64
-cargo build --release --target x86_64-pc-windows-gnu
-```
-
 ## Roadmap
 
-- [ ] Remove containers, images, volumes and networks; clean up unused items
-- [ ] Container logs and live CPU / memory stats
-- [ ] Prebuilt downloads for Windows and macOS
-- [ ] Docker Compose projects
+Progress is tracked in [issues](https://github.com/manimovassagh/IronStack/issues).
+
+- [x] Remove containers, images, volumes and networks ([#5](https://github.com/manimovassagh/IronStack/issues/5))
+- [x] Container logs ([#6](https://github.com/manimovassagh/IronStack/issues/6)) and live stats ([#7](https://github.com/manimovassagh/IronStack/issues/7))
+- [x] App icon and smaller binaries ([#10](https://github.com/manimovassagh/IronStack/issues/10))
+- [ ] Prebuilt downloads for Windows and macOS ([#9](https://github.com/manimovassagh/IronStack/issues/9))
+- [ ] Docker Compose projects ([#8](https://github.com/manimovassagh/IronStack/issues/8))
+- [ ] Documentation website ([#11](https://github.com/manimovassagh/IronStack/issues/11))
+
+## Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for the
+development setup and guidelines, and [CHANGELOG.md](CHANGELOG.md) for what's
+changed. Please report security issues privately as described in
+[SECURITY.md](SECURITY.md).
+
+## Author
+
+Created and maintained by **Mani Movassagh**
+([@manimovassagh](https://github.com/manimovassagh)).
 
 ## License
 
-IronStack is released under the [MIT License](LICENSE). You're free to use it
-for personal, commercial and organisational projects.
+IronStack is released under the [MIT License](LICENSE). It's free to use for
+personal, commercial and organisational projects.
