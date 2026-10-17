@@ -6,6 +6,8 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-17
+
 ### Added
 - **Compose** page: containers grouped by Docker Compose project, with
   start, stop, restart and remove for the whole project.
@@ -31,5 +33,6 @@ uses [Semantic Versioning](https://semver.org/).
 - Automatic reconnection when Docker starts after IronStack.
 - App icon, and release builds for Windows, macOS (universal) and Linux.
 
-[Unreleased]: https://github.com/manimovassagh/IronStack/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/manimovassagh/IronStack/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/manimovassagh/IronStack/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/manimovassagh/IronStack/releases/tag/v0.1.0
