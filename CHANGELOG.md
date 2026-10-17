@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.4.0](https://github.com/manimovassagh/Ferrodock/compare/v1.3.0...v1.4.0) - 2026-10-17
+
+### Added
+
+- browse a container's files, preview them, and copy files in and out ([#98](https://github.com/manimovassagh/Ferrodock/pull/98))
+
 ## [1.3.0](https://github.com/manimovassagh/Ferrodock/compare/v1.2.0...v1.3.0) - 2026-10-17
 
 ### Added
