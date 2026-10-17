@@ -8,11 +8,20 @@ use std::thread;
 
 use tokio::sync::mpsc as tokio_mpsc;
 
-use crate::docker::{Action, ContainerInfo, DockerClient};
+use crate::docker::{Action, ContainerInfo, DockerClient, ImageInfo, NetworkInfo, VolumeInfo};
+
+/// Things the UI can ask to have (re)loaded.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Resource {
+    Containers,
+    Images,
+    Volumes,
+    Networks,
+}
 
 #[derive(Debug)]
 pub enum Request {
-    Refresh,
+    Refresh(Resource),
     Container {
         action: Action,
         id: String,
@@ -26,6 +35,9 @@ pub enum Response {
         version: String,
     },
     Containers(Vec<ContainerInfo>),
+    Images(Vec<ImageInfo>),
+    Volumes(Vec<VolumeInfo>),
+    Networks(Vec<NetworkInfo>),
     /// The daemon could not be reached or listing failed.
     Disconnected(String),
     ActionDone {
@@ -120,7 +132,7 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
         let out = out.clone();
         tokio::spawn(async move {
             match request {
-                Request::Refresh => refresh(&client, &out).await,
+                Request::Refresh(resource) => refresh(&client, &out, resource).await,
                 Request::Container { action, id, name } => {
                     match client.perform(action, &id).await {
                         Ok(()) => out.send(Response::ActionDone { id, action, name }),
@@ -129,20 +141,26 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
                             out.send(Response::ActionFailed { id, message })
                         }
                     }
-                    refresh(&client, &out).await;
+                    refresh(&client, &out, Resource::Containers).await;
                 }
             }
         });
     }
 }
 
-async fn refresh(client: &DockerClient, out: &Sender) {
-    match client.version().await {
-        Ok(version) => out.send(Response::Connected { version }),
-        Err(e) => return out.send(Response::Disconnected(e)),
-    }
-    match client.list_containers().await {
-        Ok(list) => out.send(Response::Containers(list)),
-        Err(e) => out.send(Response::Disconnected(e)),
-    }
+async fn refresh(client: &DockerClient, out: &Sender, resource: Resource) {
+    let result = match resource {
+        Resource::Containers => {
+            // The containers list doubles as the connection heartbeat.
+            match client.version().await {
+                Ok(version) => out.send(Response::Connected { version }),
+                Err(e) => return out.send(Response::Disconnected(e)),
+            }
+            client.list_containers().await.map(Response::Containers)
+        }
+        Resource::Images => client.list_images().await.map(Response::Images),
+        Resource::Volumes => client.list_volumes().await.map(Response::Volumes),
+        Resource::Networks => client.list_networks().await.map(Response::Networks),
+    };
+    out.send(result.unwrap_or_else(Response::Disconnected));
 }

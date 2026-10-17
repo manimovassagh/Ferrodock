@@ -6,7 +6,7 @@ license = "MIT"
 description = "A fast, native container manager for Docker, written in Rust."
 
 [dependencies]
-bollard = "0.21.1"
+bollard = { version = "0.21.1", features = ["time"] }
 eframe = "0.37.0"
 egui_extras = { version = "0.37", default-features = false }
 futures-util = "0.3.34"
