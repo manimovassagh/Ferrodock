@@ -21,6 +21,81 @@ function usePlatform() {
   return platform;
 }
 
+/** Every platform we build for, and how to recognise its download. */
+const PLATFORMS = [
+  { name: "macOS", detail: "Apple Silicon & Intel", suffix: "-macos-universal.dmg", kind: ".dmg" },
+  { name: "Windows", detail: "Windows 10 & 11 · x64", suffix: "-windows-x64.zip", kind: ".zip" },
+  { name: "Linux", detail: "x64", suffix: "-linux-x64.tar.gz", kind: ".tar.gz" },
+];
+
+/**
+ * Direct download links for the latest release, by platform name, and its
+ * version. Until GitHub answers (or if it can't), links go to the
+ * Releases page.
+ */
+function useDownloads() {
+  const [release, setRelease] = useState({ version: null, links: {} });
+  useEffect(() => {
+    fetch("https://api.github.com/repos/manimovassagh/Ferrodock/releases/latest")
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data) => {
+        const links = {};
+        for (const p of PLATFORMS) {
+          const asset = (data.assets || []).find((a) => a.name.endsWith(p.suffix));
+          if (asset) links[p.name] = asset.browser_download_url;
+        }
+        setRelease({ version: data.tag_name, links });
+      })
+      .catch(() => {});
+  }, []);
+  return {
+    version: release.version,
+    link: (name) => release.links[name] || RELEASES,
+  };
+}
+
+const OS_ICONS = {
+  macOS: (
+    <path d="M16.4 12.6c0-2.5 2-3.7 2.1-3.8-1.2-1.7-3-1.9-3.6-2-1.5-.2-3 .9-3.8.9-.8 0-2-.9-3.3-.9-1.7 0-3.3 1-4.2 2.5-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8 1.6 0 2 .8 3.3.8 1.4 0 2.3-1.3 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9 0 0-2.8-1-2.8-4.1zM13.9 5.1c.7-.9 1.2-2 1-3.2-1 0-2.3.7-3 1.6-.7.8-1.3 2-1.1 3.1 1.1.1 2.3-.6 3.1-1.5z" fill="currentColor" />
+  ),
+  Windows: <path d="M3 5.5 10.5 4.4v7.2H3V5.5zm0 13 7.5 1.1v-7.1H3v6zm8.4 1.2L21 21v-8.5h-9.6v7.2zm0-15.4v7.3H21V3l-9.6 1.3z" fill="currentColor" />,
+  Linux: (
+    <path d="M12 2c-2 0-3.3 1.7-3.3 4.2 0 1.4.4 2.3.1 3.4-.4 1.4-2.6 3.4-3.3 5.8-.4 1.3 0 2.2.6 2.6-.2.7.1 1.5 1 1.8 1.2.4 2.4-.2 3.4 0 .7.2 1 .7 1.5.7s.8-.5 1.5-.7c1-.2 2.2.4 3.4 0 .9-.3 1.2-1.1 1-1.8.6-.4 1-1.3.6-2.6-.7-2.4-2.9-4.4-3.3-5.8-.3-1.1.1-2-.1-3.4C15.3 3.7 14 2 12 2zm-1.3 4c.4 0 .6.4.6.9s-.2.9-.6.9-.6-.4-.6-.9.2-.9.6-.9zm2.6 0c.4 0 .6.4.6.9s-.2.9-.6.9-.6-.4-.6-.9.2-.9.6-.9zM12 8.6c.8 0 1.8.5 1.8.9 0 .3-1 .8-1.8.8s-1.8-.5-1.8-.8c0-.4 1-.9 1.8-.9z" fill="currentColor" />
+  ),
+};
+
+function OsIcon({ name }) {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden>
+      {OS_ICONS[name]}
+    </svg>
+  );
+}
+
+/** One card per platform, the visitor's own first and highlighted. */
+function DownloadCards({ downloads, platform, dark }) {
+  const ordered = [...PLATFORMS].sort((a, b) => (b.name === platform) - (a.name === platform));
+  return (
+    <div className={clsx(styles.downloads, dark && styles.downloadsDark)}>
+      {ordered.map((p) => (
+        <a
+          key={p.name}
+          className={clsx(styles.download, p.name === platform && styles.downloadMine)}
+          href={downloads.link(p.name)}
+        >
+          <OsIcon name={p.name} />
+          <span className={styles.downloadText}>
+            <strong>Download for {p.name}</strong>
+            <span>
+              {p.detail} · {p.kind}
+            </span>
+          </span>
+        </a>
+      ))}
+    </div>
+  );
+}
+
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
   return (
@@ -54,6 +129,7 @@ function Window({ src, alt, className }) {
 
 function Hero() {
   const platform = usePlatform();
+  const downloads = useDownloads();
   return (
     <header className={styles.hero}>
       <div className={styles.glow} aria-hidden />
@@ -67,16 +143,11 @@ function Hero() {
           Ferrodock is a fast, lightweight desktop app for your containers, images, volumes and
           networks. It's a single native app: no Electron, no web view, and no CPU used while idle.
         </p>
-        <div className={styles.ctas}>
-          <Link className={clsx(styles.button, styles.primary)} href={RELEASES}>
-            Download for {platform}
-          </Link>
-          <Link className={clsx(styles.button, styles.secondary)} to="/docs">
-            Read the docs
-          </Link>
-        </div>
+        <DownloadCards downloads={downloads} platform={platform} dark />
         <p className={styles.platforms}>
-          macOS 11+ (Apple Silicon &amp; Intel) · Windows 10/11 · Linux
+          {downloads.version ? `Latest: ${downloads.version} · ` : ""}
+          <Link href={RELEASES}>All downloads and checksums</Link> ·{" "}
+          <Link to="/docs/installation">Installation guide</Link>
         </p>
         <Window src="/img/containers.png" alt="Ferrodock showing a list of containers" className={styles.heroShot} />
       </div>
@@ -296,16 +367,16 @@ function Install() {
 }
 
 function FinalCta() {
+  const platform = usePlatform();
+  const downloads = useDownloads();
   return (
     <section className={styles.final}>
       <div className={styles.glow} aria-hidden />
       <div className="container">
         <h2>Free, open source, and fast.</h2>
-        <p>Download Ferrodock, or star it on GitHub to follow along.</p>
-        <div className={styles.ctas}>
-          <Link className={clsx(styles.button, styles.primary)} href={RELEASES}>
-            Download Ferrodock
-          </Link>
+        <p>Download Ferrodock for your computer, or star it on GitHub to follow along.</p>
+        <DownloadCards downloads={downloads} platform={platform} dark />
+        <div className={styles.ctas} style={{ marginTop: "1.5rem" }}>
           <Link className={clsx(styles.button, styles.secondary)} href={REPO}>
             ★ Star on GitHub
           </Link>
