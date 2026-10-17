@@ -115,6 +115,15 @@ fn screenshots() {
     open(&mut h, 5, None);
     save(&mut h, "disk");
 
+    let image = h.state().store.images.first().map(|i| i.id.clone());
+    open(&mut h, 2, image);
+    click(&mut h, "Run…");
+    settle(&mut h, Duration::from_secs(1));
+    save(&mut h, "run");
+    h.key_press(egui::Key::Escape);
+    h.run_steps(3);
+    h.state_mut().pages[2].clear_selection();
+
     set_theme(&mut h, Theme::Dark);
     open(&mut h, 0, busy);
     click(&mut h, "Overview");

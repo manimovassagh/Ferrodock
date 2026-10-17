@@ -132,6 +132,7 @@ impl FerrodockApp {
     /// Whether a dialog or overlay has the keyboard.
     fn overlay_open(&self) -> bool {
         self.palette.is_some()
+            || self.pages[self.active].has_overlay()
             || self.show_help
             || self.show_settings
             || self.confirmation.is_some()
@@ -207,6 +208,11 @@ impl FerrodockApp {
         match intent {
             Intent::Run(task) => self.run(task),
             Intent::Confirm(confirmation) => self.confirmation = Some(confirmation),
+            Intent::Pull(image) => {
+                self.store.pending.insert(image.clone());
+                self.worker.send(Request::Pull(image));
+            }
+            Intent::RunImage(spec) => self.worker.send(Request::RunImage(spec)),
             Intent::Inspect(resource, id) => {
                 self.store.inspection = None;
                 self.store.inspecting = Some(id.clone());

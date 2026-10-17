@@ -8,7 +8,7 @@ use eframe::egui;
 
 use super::components::icons::Icon;
 use super::store::Store;
-use crate::docker::{Resource, Task};
+use crate::docker::{Resource, RunSpec, Task};
 use crate::theme::Palette;
 
 /// Something a page wants done. The app decides how (today: by asking the
@@ -21,6 +21,10 @@ pub enum Intent {
     Confirm(Confirmation),
     /// Load the full inspect output of an item (by the ID the Engine uses).
     Inspect(Resource, String),
+    /// Pull an image by reference, e.g. `nginx:alpine`.
+    Pull(String),
+    /// Create and start a container.
+    RunImage(RunSpec),
 }
 
 /// A question for the user before something destructive happens.
@@ -144,6 +148,12 @@ pub trait Page {
     /// What this page offers in the command palette.
     fn commands(&self, _store: &Store) -> Vec<Command> {
         Vec::new()
+    }
+
+    /// Whether the page has a dialog open, so window-wide shortcuts should
+    /// leave the keyboard alone.
+    fn has_overlay(&self) -> bool {
+        false
     }
 
     /// A single-key shortcut pressed while this page is open and no text

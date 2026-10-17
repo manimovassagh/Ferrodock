@@ -13,8 +13,8 @@ use std::time::Duration;
 use tokio::sync::mpsc as tokio_mpsc;
 
 use crate::docker::{
-    Action, ContainerInfo, DiskUsage, DockerClient, ImageInfo, Inspection, NetworkInfo, Resource,
-    StatsSample, Task, VolumeInfo,
+    Action, ContainerInfo, DiskUsage, DockerClient, ImageInfo, Inspection, NetworkInfo,
+    PullProgress, Resource, RunSpec, StatsSample, Task, VolumeInfo,
 };
 
 /// How often the worker re-checks the engine on its own.
@@ -34,6 +34,10 @@ pub enum Request {
     Watch(Option<String>),
     /// Load the full inspect output of one item.
     Inspect(Resource, String),
+    /// Pull an image, reporting progress as it goes.
+    Pull(String),
+    /// Create and start a container.
+    RunImage(RunSpec),
 }
 
 #[derive(Debug)]
@@ -47,6 +51,11 @@ pub enum Response {
     Networks(Vec<NetworkInfo>),
     Disk(DiskUsage),
     Inspected(Inspection),
+    /// Progress of a pull started with [`Request::Pull`].
+    Pulling {
+        image: String,
+        progress: PullProgress,
+    },
     InspectFailed {
         id: String,
         message: String,
@@ -202,6 +211,12 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
             Request::Run(task) => {
                 tokio::spawn(async move { run_task(&docker, &shared, task).await });
             }
+            Request::Pull(image) => {
+                tokio::spawn(async move { pull(&docker, &shared, image).await });
+            }
+            Request::RunImage(spec) => {
+                tokio::spawn(async move { run_image(&docker, &shared, spec).await });
+            }
             Request::Inspect(resource, id) => {
                 tokio::spawn(async move {
                     let response = match docker.inspect(resource, &id).await {
@@ -228,6 +243,56 @@ impl Shared {
         self.dedup.reset();
         self.send(Response::Disconnected(reason));
     }
+}
+
+/// Pulls an image, sending progress at most ten times a second.
+async fn pull(client: &DockerClient, shared: &Shared, image: String) {
+    let task = Task {
+        action: Action::Pull,
+        id: image.clone(),
+        name: image.clone(),
+    };
+    let mut last = std::time::Instant::now() - Duration::from_secs(1);
+    let result = client
+        .pull(&image, |progress| {
+            if last.elapsed() >= Duration::from_millis(100) {
+                last = std::time::Instant::now();
+                shared.send(Response::Pulling {
+                    image: image.clone(),
+                    progress,
+                });
+            }
+        })
+        .await;
+    match result {
+        Ok(()) => shared.send(Response::Done { task, freed: None }),
+        Err(e) => {
+            let message = format!("Couldn't pull {image}: {e}");
+            shared.send(Response::Failed { task, message });
+        }
+    }
+    refresh(client, shared, Resource::Images).await;
+}
+
+async fn run_image(client: &DockerClient, shared: &Shared, spec: RunSpec) {
+    let label = if spec.name.trim().is_empty() {
+        spec.image.clone()
+    } else {
+        spec.name.trim().to_owned()
+    };
+    let task = Task {
+        action: Action::Run,
+        id: format!("run:{}", spec.image),
+        name: label,
+    };
+    match client.run(&spec).await {
+        Ok(_) => shared.send(Response::Done { task, freed: None }),
+        Err(e) => {
+            let message = format!("Couldn't start {}: {e}", task.name);
+            shared.send(Response::Failed { task, message });
+        }
+    }
+    refresh(client, shared, Resource::Containers).await;
 }
 
 async fn run_task(client: &DockerClient, shared: &Shared, task: Task) {
