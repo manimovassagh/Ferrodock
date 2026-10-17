@@ -59,16 +59,6 @@ pub fn palette(ui: &egui::Ui) -> &'static Palette {
     }
 }
 
-/// Colour for a container state such as `running` or `exited`.
-pub fn state_color(p: &Palette, state: &str) -> Color32 {
-    match state {
-        "running" => p.success,
-        "paused" | "restarting" => p.warning,
-        "dead" => p.danger,
-        _ => p.muted,
-    }
-}
-
 pub fn install(ctx: &egui::Context) {
     load_system_font(ctx);
     ctx.set_visuals_of(Theme::Dark, visuals(Visuals::dark(), &DARK));

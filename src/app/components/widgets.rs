@@ -1,11 +1,8 @@
-//! Small reusable pieces of IronStack's UI.
+//! Small, generic UI building blocks. Nothing in here knows about Docker.
 
-use eframe::egui::{
-    self, Align2, Color32, CornerRadius, FontId, Response, RichText, Sense, Stroke, vec2,
-};
+use eframe::egui::{self, Align2, Color32, CornerRadius, FontId, Response, RichText, Sense, vec2};
 
-use crate::docker::{Action, ContainerInfo};
-use crate::theme::{self, Palette};
+use crate::theme::Palette;
 
 /// The IronStack mark: three stacked slabs.
 pub fn logo(ui: &mut egui::Ui, p: &Palette, size: f32) {
@@ -33,12 +30,12 @@ pub fn dot(ui: &mut egui::Ui, color: Color32) {
     ui.painter().circle_filled(rect.center(), 4.0, color);
 }
 
-/// A full-width sidebar entry with an optional count on the right.
+/// A full-width sidebar entry with a count on the right.
 pub fn nav_item(
     ui: &mut egui::Ui,
     p: &Palette,
     label: &str,
-    count: Option<usize>,
+    count: usize,
     selected: bool,
 ) -> Response {
     let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), 30.0), Sense::click());
@@ -48,34 +45,31 @@ pub fn nav_item(
     } else if response.hovered() {
         painter.rect_filled(rect, CornerRadius::same(6), p.raised);
     }
-    let text_color = if selected { p.text } else { p.muted };
     painter.text(
         rect.left_center() + vec2(10.0, 0.0),
         Align2::LEFT_CENTER,
         label,
         FontId::proportional(14.0),
-        text_color,
+        if selected { p.text } else { p.muted },
     );
-    if let Some(count) = count {
-        painter.text(
-            rect.right_center() - vec2(10.0, 0.0),
-            Align2::RIGHT_CENTER,
-            count.to_string(),
-            FontId::proportional(12.0),
-            p.muted,
-        );
-    }
+    painter.text(
+        rect.right_center() - vec2(10.0, 0.0),
+        Align2::RIGHT_CENTER,
+        count.to_string(),
+        FontId::proportional(12.0),
+        p.muted,
+    );
     response
 }
 
-/// A tab with a count, used for All / Running / Stopped.
+/// A tab with a count, e.g. "Running 3".
 pub fn tab(ui: &mut egui::Ui, p: &Palette, label: &str, count: usize, selected: bool) -> Response {
-    let text = format!("{label}  {count}");
-    let galley = ui
-        .painter()
-        .layout_no_wrap(text, FontId::proportional(13.0), p.text);
-    let size = galley.size() + vec2(24.0, 12.0);
-    let (rect, response) = ui.allocate_exact_size(size, Sense::click());
+    let galley = ui.painter().layout_no_wrap(
+        format!("{label}  {count}"),
+        FontId::proportional(13.0),
+        p.text,
+    );
+    let (rect, response) = ui.allocate_exact_size(galley.size() + vec2(24.0, 12.0), Sense::click());
     let painter = ui.painter();
     if selected {
         painter.rect_filled(rect, CornerRadius::same(6), p.raised);
@@ -87,13 +81,11 @@ pub fn tab(ui: &mut egui::Ui, p: &Palette, label: &str, count: usize, selected: 
     response
 }
 
-/// Rounded "● Running" style badge for a container state.
-pub fn status_pill(ui: &mut egui::Ui, p: &Palette, state: &str) {
-    let color = theme::state_color(p, state);
-    let label = capitalize(state);
+/// Rounded "● Label" badge in the given colour.
+pub fn pill(ui: &mut egui::Ui, label: &str, color: Color32) {
     let galley = ui
         .painter()
-        .layout_no_wrap(label, FontId::proportional(12.0), color);
+        .layout_no_wrap(label.to_owned(), FontId::proportional(12.0), color);
     let padding = vec2(8.0, 3.0);
     let dot_space = 12.0;
     let size = galley.size() + padding * 2.0 + vec2(dot_space, 0.0);
@@ -114,74 +106,23 @@ pub fn icon_button(ui: &mut egui::Ui, icon: &str, tooltip: &str) -> Response {
         .on_hover_text(tooltip)
 }
 
-/// Start/Stop and Restart controls for a container. Shows a spinner while
-/// an action is in flight. Returns the clicked action, if any.
-pub fn container_actions(
-    ui: &mut egui::Ui,
-    c: &ContainerInfo,
-    busy: bool,
-    with_labels: bool,
-) -> Option<Action> {
-    if busy {
-        ui.spinner();
-        return None;
-    }
-    let toggle = if c.is_running() || c.is_paused() {
-        (Action::Stop, "■", "Stop")
+/// Centered hint shown when a list has nothing to show.
+pub fn empty_state(ui: &mut egui::Ui, p: &Palette, message: &str) {
+    ui.add_space(60.0);
+    ui.vertical_centered(|ui| {
+        ui.label(RichText::new(message).color(p.muted));
+    });
+}
+
+/// "Mounts" style label where an empty list reads as a dash.
+pub fn join_or_dash(items: &[impl AsRef<str>]) -> String {
+    if items.is_empty() {
+        "—".into()
     } else {
-        (Action::Start, "▶", "Start")
-    };
-    let mut clicked = None;
-    for (action, icon, label) in [toggle, (Action::Restart, "⟳", "Restart")] {
-        let response = if with_labels {
-            ui.button(format!("{icon}  {label}"))
-        } else {
-            icon_button(ui, icon, label)
-        };
-        if response.clicked() {
-            clicked = Some(action);
-        }
-    }
-    clicked
-}
-
-/// A titled card used in the details pane.
-pub fn section(
-    ui: &mut egui::Ui,
-    p: &Palette,
-    title: &str,
-    add_contents: impl FnOnce(&mut egui::Ui),
-) {
-    ui.label(
-        RichText::new(title.to_uppercase())
-            .size(11.0)
-            .color(p.muted),
-    );
-    ui.add_space(2.0);
-    egui::Frame::new()
-        .fill(p.bg)
-        .stroke(Stroke::new(1.0, p.border))
-        .corner_radius(CornerRadius::same(8))
-        .inner_margin(egui::Margin::same(12))
-        .show(ui, |ui| {
-            ui.set_width(ui.available_width());
-            add_contents(ui);
-        });
-    ui.add_space(14.0);
-}
-
-/// One label/value line inside a two-column details grid.
-pub fn field(ui: &mut egui::Ui, p: &Palette, label: &str, value: &str) {
-    ui.label(RichText::new(label).color(p.muted));
-    let value = if value.is_empty() { "—" } else { value };
-    ui.add(egui::Label::new(RichText::new(value).color(p.text)).wrap());
-    ui.end_row();
-}
-
-fn capitalize(s: &str) -> String {
-    let mut chars = s.chars();
-    match chars.next() {
-        Some(first) => first.to_uppercase().chain(chars).collect(),
-        None => String::new(),
+        items
+            .iter()
+            .map(AsRef::as_ref)
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 }

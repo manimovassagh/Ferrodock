@@ -1,40 +1,55 @@
-//! Left sidebar: brand, navigation and Docker engine status.
+//! Left sidebar: brand, page navigation and Docker engine status.
 
 use eframe::egui::{self, Align, Layout, RichText};
 
-use super::{Connection, IronStackApp, widgets};
-use crate::theme;
+use super::components::widgets;
+use super::page::Page;
+use super::store::{Connection, Store};
+use crate::theme::Palette;
 
-impl IronStackApp {
-    pub(super) fn sidebar(&mut self, ui: &mut egui::Ui) {
-        let p = theme::palette(ui);
+/// Draws the sidebar. Returns the index of a page the user clicked.
+pub fn show(
+    ui: &mut egui::Ui,
+    p: &Palette,
+    pages: &[Box<dyn Page>],
+    active: usize,
+    store: &Store,
+) -> Option<usize> {
+    ui.add_space(2.0);
+    ui.horizontal(|ui| {
+        widgets::logo(ui, p, 22.0);
+        ui.label(RichText::new("IronStack").size(17.0).strong().color(p.text));
+    });
 
-        ui.add_space(2.0);
-        ui.horizontal(|ui| {
-            widgets::logo(ui, p, 22.0);
-            ui.label(RichText::new("IronStack").size(17.0).strong().color(p.text));
-        });
+    ui.add_space(22.0);
+    ui.label(RichText::new("DOCKER").size(11.0).color(p.muted));
+    ui.add_space(2.0);
+    let mut clicked = None;
+    for (i, page) in pages.iter().enumerate() {
+        if widgets::nav_item(ui, p, page.title(), page.count(store), i == active).clicked() {
+            clicked = Some(i);
+        }
+    }
 
-        ui.add_space(22.0);
-        ui.label(RichText::new("DOCKER").size(11.0).color(p.muted));
-        ui.add_space(2.0);
-        widgets::nav_item(ui, p, "Containers", Some(self.containers.len()), true);
+    ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
+        ui.horizontal(|ui| engine_status(ui, p, &store.connection));
+    });
+    clicked
+}
 
-        ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
-            ui.horizontal(|ui| match &self.connection {
-                Connection::Connecting => {
-                    ui.spinner();
-                    ui.label(RichText::new("Connecting…").color(p.muted));
-                }
-                Connection::Connected { version } => {
-                    widgets::dot(ui, p.success);
-                    ui.label(RichText::new(format!("Docker {version}")).color(p.muted));
-                }
-                Connection::Disconnected { .. } => {
-                    widgets::dot(ui, p.danger);
-                    ui.label(RichText::new("Docker not running").color(p.muted));
-                }
-            });
-        });
+fn engine_status(ui: &mut egui::Ui, p: &Palette, connection: &Connection) {
+    match connection {
+        Connection::Connecting => {
+            ui.spinner();
+            ui.label(RichText::new("Connecting…").color(p.muted));
+        }
+        Connection::Connected { version } => {
+            widgets::dot(ui, p.success);
+            ui.label(RichText::new(format!("Docker {version}")).color(p.muted));
+        }
+        Connection::Disconnected { .. } => {
+            widgets::dot(ui, p.danger);
+            ui.label(RichText::new("Docker not running").color(p.muted));
+        }
     }
 }
