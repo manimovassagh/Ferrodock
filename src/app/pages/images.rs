@@ -257,17 +257,7 @@ impl ImagesPage {
     /// Draws the Run dialog while it's open, and runs the container when
     /// the user confirms.
     fn run_dialog(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
-        let Some(form) = &mut self.run_form else {
-            return;
-        };
-        match run_dialog::show(ui, ctx.palette, form, ctx.store) {
-            Some(run_dialog::Outcome::Run(spec)) => {
-                ctx.request(Intent::RunImage(spec));
-                self.run_form = None;
-            }
-            Some(run_dialog::Outcome::Cancel) => self.run_form = None,
-            None => {}
-        }
+        run_dialog::show_open(ui, ctx, &mut self.run_form);
     }
 }
 

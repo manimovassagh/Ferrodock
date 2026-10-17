@@ -35,6 +35,10 @@ pub struct RunSettings {
     pub network: String,
     /// The command, when it was set explicitly.
     pub command: String,
+    /// CPU limit in nano-CPUs; 0 for none.
+    pub nano_cpus: i64,
+    /// Memory limit in bytes; 0 for none.
+    pub memory: i64,
 }
 
 fn run_settings(value: &Value) -> RunSettings {
@@ -83,6 +87,8 @@ fn run_settings(value: &Value) -> RunSettings {
         volumes,
         network,
         command,
+        nano_cpus: host["NanoCpus"].as_i64().unwrap_or_default(),
+        memory: host["Memory"].as_i64().unwrap_or_default(),
     }
 }
 

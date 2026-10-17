@@ -10,7 +10,7 @@ use bollard::query_parameters::{
 };
 use futures_util::StreamExt;
 
-use super::{DockerClient, describe};
+use super::{DockerClient, describe, limits};
 
 /// Everything the Run dialog asks for: a small subset of `docker run`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -28,6 +28,10 @@ pub struct RunSpec {
     pub restart: Restart,
     /// Overrides the image's command when not empty.
     pub command: String,
+    /// CPU limit in nano-CPUs; 0 for none.
+    pub nano_cpus: i64,
+    /// Memory limit in bytes; 0 for none.
+    pub memory: i64,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -117,6 +121,12 @@ impl RunSpec {
         if self.restart != Restart::No {
             parts.push(format!("--restart {}", self.restart.as_str()));
         }
+        if self.nano_cpus > 0 {
+            parts.push(format!("--cpus {}", limits::cpus_text(self.nano_cpus)));
+        }
+        if self.memory > 0 {
+            parts.push(format!("--memory {}", limits::memory_text(self.memory)));
+        }
         parts.push(shell_word(&self.image));
         if !self.command.trim().is_empty() {
             parts.push(self.command.trim().to_owned());
@@ -166,6 +176,8 @@ impl RunSpec {
                     name: Some(restart),
                     maximum_retry_count: None,
                 }),
+                nano_cpus: (self.nano_cpus > 0).then_some(self.nano_cpus),
+                memory: (self.memory > 0).then_some(self.memory),
                 ..Default::default()
             }),
             ..Default::default()
@@ -274,11 +286,14 @@ mod tests {
             network: String::new(),
             restart: Restart::UnlessStopped,
             command: String::new(),
+            nano_cpus: 500_000_000,
+            memory: 256 * 1024 * 1024,
         };
         assert_eq!(
             spec.docker_command(),
             "docker run -d --name web -p 8080:80 -e 'GREETING=hello world' \
-             -v site:/usr/share/nginx/html --restart unless-stopped nginx:alpine"
+             -v site:/usr/share/nginx/html --restart unless-stopped --cpus 0.5 \
+             --memory 256m nginx:alpine"
         );
     }
 
