@@ -77,7 +77,8 @@ Get-FileHash .\Ferrodock-*-windows-x64.zip            # Windows (compare with SH
 - **Command palette** (⌘K / Ctrl+K) and keyboard shortcuts for every
   action: jump to any container, image or volume, or run an action, without
   touching the mouse.
-- **Search** on every page, and **live updates** every few seconds.
+- **Search** on every page, and **instant updates** from Docker's event
+  stream, with an alert when a container crashes or runs out of memory.
 - **In-app updates**: one click downloads, verifies and installs a new
   version, then restarts.
 - **Settings** for theme (light, dark or follow the system), compact rows and

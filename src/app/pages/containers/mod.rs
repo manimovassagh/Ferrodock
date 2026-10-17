@@ -180,7 +180,7 @@ impl Page for ContainersPage {
         let Some(c) = self.selected(ctx.store) else {
             return;
         };
-        if ctx.store.pending.contains(&c.id) {
+        if ctx.store.pending.contains_key(&c.id) {
             return;
         }
         let available = actions::available(c);

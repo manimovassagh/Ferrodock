@@ -24,6 +24,14 @@ published ports. Use **All / Running / Stopped** to filter.
 - **Remove** (in the details pane) is available once the container is
   stopped, and always asks for confirmation.
 
+Changes show up the moment they happen, whether you make them in
+Ferrodock, in a terminal or with Docker Compose. Ferrodock follows the
+Engine's event stream. While an action runs, the status says what's
+happening ("Stopping…", "Restarting…").
+
+If a container **crashes** (exits with an error you didn't ask for) or is
+killed for **running out of memory**, a notification tells you.
+
 ### Logs
 
 The **Logs** tab shows the last 500 lines, then follows new output live. Use

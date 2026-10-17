@@ -331,7 +331,7 @@ impl DiskPage {
                 let kinds: Vec<PruneKind> = self.chosen.iter().map(|&c| self.kind(c)).collect();
                 let busy = kinds
                     .iter()
-                    .any(|&k| store.pending.contains(&prune_task(k).id));
+                    .any(|&k| store.pending.contains_key(&prune_task(k).id));
                 ui.horizontal(|ui| {
                     if busy {
                         ui.spinner();

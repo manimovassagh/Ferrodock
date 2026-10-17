@@ -13,12 +13,16 @@ use std::time::Duration;
 use tokio::sync::mpsc as tokio_mpsc;
 
 use crate::docker::{
-    Action, ContainerInfo, DiskUsage, DockerClient, ImageInfo, Inspection, NetworkInfo,
-    PullProgress, Resource, RunSpec, StatsSample, Task, VolumeInfo,
+    Action, ContainerInfo, DiskUsage, DockerClient, EngineEvent, ImageInfo, Inspection,
+    NetworkInfo, PullProgress, Resource, RunSpec, StatsSample, Task, VolumeInfo,
 };
 
-/// How often the worker re-checks the engine on its own.
-const POLL_INTERVAL: Duration = Duration::from_secs(3);
+/// How often the worker re-checks the engine on its own. Changes normally
+/// arrive at once through the event stream; this is the safety net.
+const POLL_INTERVAL: Duration = Duration::from_secs(5);
+
+/// Events arriving this close together are handled as one batch.
+const EVENT_BATCH: Duration = Duration::from_millis(200);
 
 #[derive(Debug)]
 pub enum Request {
@@ -50,6 +54,9 @@ pub enum Response {
     Volumes(Vec<VolumeInfo>),
     Networks(Vec<NetworkInfo>),
     Disk(DiskUsage),
+    /// Something the user should know about even though they didn't ask,
+    /// e.g. a container crashed.
+    Alert(String),
     Inspected(Inspection),
     /// Progress of a pull started with [`Request::Pull`].
     Pulling {
@@ -155,6 +162,7 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
     });
     let mut client: Option<DockerClient> = None;
     let mut watch = live::Watch::default();
+    let mut events: Option<tokio::task::JoinHandle<()>> = None;
     let mut polled = Resource::Containers;
     let mut ticker = tokio::time::interval(POLL_INTERVAL);
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -195,6 +203,11 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
             }
         };
         client = Some(docker.clone());
+        // (Re)start following the event stream; it ends when the
+        // connection drops.
+        if events.as_ref().is_none_or(|task| task.is_finished()) {
+            events = Some(tokio::spawn(follow_events(docker.clone(), shared.clone())));
+        }
 
         let shared = shared.clone();
         match request {
@@ -230,6 +243,59 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
         }
     }
     watch.stop();
+    if let Some(task) = events {
+        task.abort();
+    }
+}
+
+/// Refreshes whatever the Engine reports changing, in batches, and warns
+/// about containers that crash or run out of memory.
+async fn follow_events(client: DockerClient, shared: Arc<Shared>) {
+    use futures_util::StreamExt;
+    use std::collections::{HashMap, HashSet};
+    use tokio::time::Instant;
+
+    let mut stream = Box::pin(client.events());
+    // Containers being stopped on purpose (by anyone), so their exit isn't
+    // reported as a crash.
+    let mut stopping: HashMap<String, Instant> = HashMap::new();
+    while let Some(Ok(first)) = stream.next().await {
+        let mut changed = HashSet::new();
+        let mut note = |event: EngineEvent, changed: &mut HashSet<Resource>| {
+            changed.insert(event.resource);
+            if event.resource != Resource::Containers {
+                return;
+            }
+            match event.action.as_str() {
+                "kill" | "stop" | "pause" => {
+                    stopping.insert(event.id, Instant::now());
+                }
+                "oom" => shared.send(Response::Alert(format!("{} ran out of memory", event.name))),
+                "die" => {
+                    let on_purpose = stopping
+                        .remove(&event.id)
+                        .is_some_and(|at| at.elapsed() < Duration::from_secs(30));
+                    if let Some(code) = event.exit_code.filter(|c| *c != 0 && !on_purpose) {
+                        shared.send(Response::Alert(format!(
+                            "{} stopped unexpectedly (exit code {code})",
+                            event.name
+                        )));
+                    }
+                }
+                _ => {}
+            }
+        };
+        note(first, &mut changed);
+        let deadline = Instant::now() + EVENT_BATCH;
+        while let Ok(Some(Ok(event))) = tokio::time::timeout_at(deadline, stream.next()).await {
+            note(event, &mut changed);
+        }
+        // Containers carry the "in use" info every page shows.
+        changed.insert(Resource::Containers);
+        for resource in changed {
+            refresh(&client, &shared, resource).await;
+        }
+    }
 }
 
 impl Shared {

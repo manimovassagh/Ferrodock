@@ -135,7 +135,7 @@ impl Page for VolumesPage {
         ui.add_space(10.0);
         let blocked = (!users.is_empty()).then_some("Mounted by a container");
         let task = remove_task(Resource::Volumes, &volume.name, &volume.name);
-        if !ctx.store.pending.contains(&volume.name) {
+        if !ctx.store.pending.contains_key(&volume.name) {
             remove_button(ui, ctx, "volume", task, blocked);
         } else {
             ui.spinner();

@@ -36,7 +36,7 @@ impl ImagesPage {
 
     /// The Pull box and button.
     fn pull_box(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
-        let busy = ctx.store.pending.contains(self.pull_input.trim());
+        let busy = ctx.store.pending.contains_key(self.pull_input.trim());
         let field = ui.add(
             egui::TextEdit::singleline(&mut self.pull_input)
                 .hint_text("Pull an image, e.g. nginx:alpine")
@@ -185,7 +185,7 @@ impl Page for ImagesPage {
         let mut run = false;
         ui.horizontal(|ui| {
             run = widgets::primary_button(ui, "Run…").clicked();
-            if !ctx.store.pending.contains(&image.id) {
+            if !ctx.store.pending.contains_key(&image.id) {
                 remove_button(ui, ctx, "image", task, blocked);
             } else {
                 ui.spinner();

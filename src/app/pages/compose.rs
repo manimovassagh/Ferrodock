@@ -218,7 +218,7 @@ fn is_busy(store: &Store, project: &ComposeProject) -> bool {
     project
         .containers
         .iter()
-        .any(|c| store.pending.contains(&c.id))
+        .any(|c| store.pending.contains_key(&c.id))
 }
 
 /// Start-all / Stop-all and Restart-all. Returns the tasks to run when one
