@@ -4,7 +4,7 @@ use eframe::egui::{self, RichText};
 
 use crate::app::components::{terminal, widgets};
 use crate::app::page::{Intent, PageCtx};
-use crate::docker::{ContainerInfo, TermOp, next_session};
+use crate::docker::{ContainerInfo, TARGET_ROOT, TermOp, debug_image, next_session};
 
 /// The shell to run; empty picks bash, then sh.
 #[derive(Default)]
@@ -12,8 +12,8 @@ pub(super) struct TerminalTab {
     shell: String,
     /// The size last sent to the shell.
     size: (u16, u16),
-    /// Focus the terminal on the next frame (after opening it).
-    focus: bool,
+    /// The session last shown; a new one takes the keyboard focus.
+    shown_session: u64,
 }
 
 pub(super) fn show(ui: &mut egui::Ui, ctx: &mut PageCtx, tab: &mut TerminalTab, c: &ContainerInfo) {
@@ -28,21 +28,23 @@ pub(super) fn show(ui: &mut egui::Ui, ctx: &mut PageCtx, tab: &mut TerminalTab, 
         .terminal
         .as_ref()
         .filter(|t| t.container_id == c.id);
-    let mut open = term.is_none();
+    // Some(debug) when a session should be opened.
+    let mut open = term.is_none().then_some(false);
 
     ui.horizontal(|ui| {
-        ui.label(RichText::new("Shell").color(p.muted));
+        let label = ui.label(RichText::new("Shell").color(p.muted));
         ui.add(
             egui::TextEdit::singleline(&mut tab.shell)
                 .hint_text("bash or sh")
                 .desired_width(110.0),
-        );
+        )
+        .labelled_by(label.id);
         if ui
             .button("New session")
             .on_hover_text("Close this shell and start another")
             .clicked()
         {
-            open = true;
+            open = Some(term.is_some_and(|t| t.debug));
         }
         if let Some(t) = term {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -60,18 +62,18 @@ pub(super) fn show(ui: &mut egui::Ui, ctx: &mut PageCtx, tab: &mut TerminalTab, 
     });
     ui.add_space(8.0);
 
-    if open {
+    if let Some(debug) = open {
         // Open at the size the screen had last; the first frame corrects it.
         let (cols, rows) = if tab.size.0 > 0 { tab.size } else { (100, 30) };
         ctx.request(Intent::Terminal(TermOp::Open {
             session: next_session(),
             container: c.id.clone(),
             shell: tab.shell.trim().to_owned(),
+            debug,
             cols,
             rows,
         }));
         tab.size = (cols, rows);
-        tab.focus = true;
         return;
     }
     let Some(term) = term else { return };
@@ -85,9 +87,47 @@ pub(super) fn show(ui: &mut egui::Ui, ctx: &mut PageCtx, tab: &mut TerminalTab, 
             ),
         };
         ui.label(RichText::new(text).color(color));
+        if term.no_shell && !term.debug {
+            ui.add_space(6.0);
+            ui.horizontal(|ui| {
+                if widgets::primary_button(ui, "Open a debug shell").clicked() {
+                    let (cols, rows) = tab.size;
+                    ctx.request(Intent::Terminal(TermOp::Open {
+                        session: next_session(),
+                        container: c.id.clone(),
+                        shell: String::new(),
+                        debug: true,
+                        cols: cols.max(20),
+                        rows: rows.max(4),
+                    }));
+                }
+                ui.label(
+                    RichText::new(format!(
+                        "Runs {} next to the container, sharing its processes and network.",
+                        debug_image()
+                    ))
+                    .size(12.0)
+                    .color(p.muted),
+                );
+            });
+        }
+        ui.add_space(6.0);
+    } else if term.debug {
+        ui.label(
+            RichText::new(format!(
+                "Debug shell: {} next to {}, sharing its processes and network. \
+                 Its files are in {TARGET_ROOT}.",
+                debug_image(),
+                c.name
+            ))
+            .size(12.0)
+            .color(p.muted),
+        );
         ui.add_space(6.0);
     }
-    let out = terminal::show(ui, p, term.parser.screen(), std::mem::take(&mut tab.focus));
+    let focus = tab.shown_session != term.session;
+    tab.shown_session = term.session;
+    let out = terminal::show(ui, p, term.parser.screen(), focus);
     if term.ended.is_none() {
         if !out.input.is_empty() {
             ctx.request(Intent::Terminal(TermOp::Input {

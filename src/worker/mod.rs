@@ -103,6 +103,8 @@ pub enum Response {
     TermExit {
         session: u64,
         message: Option<String>,
+        /// The container has no shell; a debug shell would work.
+        no_shell: bool,
     },
     /// A download or upload finished. `changed_dir` is the folder an upload
     /// changed, to list again.
@@ -263,7 +265,10 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
         if client.is_none() {
             // Helpers left from browsing volumes in an earlier run.
             let docker = docker.clone();
-            tokio::spawn(async move { docker.remove_helpers(None).await });
+            tokio::spawn(async move {
+                let _ = docker.remove_helpers(None).await;
+                let _ = docker.remove_debug_helpers().await;
+            });
         }
         client = Some(docker.clone());
         // (Re)start following the event stream; it ends when the

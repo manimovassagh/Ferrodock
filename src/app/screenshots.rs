@@ -292,3 +292,57 @@ fn screenshots_of_terminal() {
         &id,
     ));
 }
+
+/// A container without the asked-for shell, then the debug shell next to
+/// it. Set `FERRODOCK_DEBUG_IMAGE` to a local image if Docker Hub can't be
+/// reached.
+#[test]
+#[ignore]
+fn screenshots_of_debug_shell() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let client = crate::docker::DockerClient::connect().unwrap();
+    let image = runtime
+        .block_on(client.list_images())
+        .unwrap()
+        .into_iter()
+        .next()
+        .expect("an image to run");
+    let spec = crate::docker::RunSpec {
+        image: image.id,
+        name: "ferrodock-debug-demo".into(),
+        command: "sleep 600".into(),
+        ..Default::default()
+    };
+    let remove = |id: &str| {
+        let _ = runtime.block_on(client.perform(crate::docker::Action::Stop, id));
+        let _ = runtime.block_on(client.perform(
+            crate::docker::Action::Remove(crate::docker::Resource::Containers),
+            id,
+        ));
+    };
+    remove(&spec.name);
+    let id = runtime.block_on(client.run(&spec)).unwrap();
+
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(3));
+    set_theme(&mut h, Theme::Light);
+    open(&mut h, 0, Some(id.clone()));
+    click(&mut h, "Terminal");
+    settle(&mut h, Duration::from_secs(1));
+    // Ask for a shell the container doesn't have.
+    h.get_by_label("Shell").click();
+    h.run_steps(2);
+    h.event(egui::Event::Text("/bin/no-such-shell".into()));
+    click(&mut h, "New session");
+    settle(&mut h, Duration::from_secs(3));
+    save(&mut h, "no-shell");
+    click(&mut h, "Open a debug shell");
+    settle(&mut h, Duration::from_secs(4));
+    for line in ["ps", "ls /target/"] {
+        h.event(egui::Event::Text(line.into()));
+        h.key_press(egui::Key::Enter);
+        settle(&mut h, Duration::from_secs(1));
+    }
+    save(&mut h, "debug-shell");
+    remove(&id);
+}

@@ -128,7 +128,15 @@ session** to use that instead.
 It's a real terminal: full-screen programs such as `top`, `vi` and `less`
 work, along with arrow keys, tab completion and colours. The size follows
 the pane. **Ctrl+C** interrupts (on macOS, **⌘C** copies the screen and
-**⌘V** pastes). Images with no shell at all, like distroless ones, say so.
+**⌘V** pastes).
+
+Images with no shell at all, like distroless ones, offer **Open a debug
+shell** instead. It starts a small helper container (`busybox`) next to
+yours that shares its processes and network, so `ps`, `netstat` and
+`wget localhost:8080` see your container, and its files are in `/target`.
+The helper is hidden from the list and removed when the session ends. To
+use another image for the helper (say, a mirror when Docker Hub can't be
+reached), set the `FERRODOCK_DEBUG_IMAGE` environment variable.
 
 ### Files
 

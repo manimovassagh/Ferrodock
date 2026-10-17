@@ -9,7 +9,7 @@ use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc;
 
 use super::{Response, Shared};
-use crate::docker::{DockerClient, TermOp, exit_message};
+use crate::docker::{DockerClient, TermOp, debug_image, exit_message};
 
 enum Msg {
     Input(Vec<u8>),
@@ -29,22 +29,21 @@ impl Sessions {
                 session,
                 container,
                 shell,
+                debug,
                 cols,
                 rows,
             } => {
                 let (tx, rx) = mpsc::unbounded_channel();
                 let (client, shared) = (client.clone(), shared.clone());
                 let task = tokio::spawn(async move {
-                    run(
-                        &client,
-                        &shared,
+                    let open = Opening {
                         session,
-                        &container,
-                        &shell,
-                        (cols, rows),
-                        rx,
-                    )
-                    .await;
+                        container: &container,
+                        shell: &shell,
+                        debug,
+                        size: (cols, rows),
+                    };
+                    run(&client, &shared, open, rx).await;
                 });
                 self.open.insert(session, (tx, task));
             }
@@ -70,22 +69,68 @@ impl Sessions {
     }
 }
 
+/// Removes a debug helper when the session ends, however it ends (the
+/// task is aborted when the user closes it).
+struct HelperGuard {
+    client: DockerClient,
+    id: String,
+}
+
+impl Drop for HelperGuard {
+    fn drop(&mut self) {
+        let (client, id) = (self.client.clone(), std::mem::take(&mut self.id));
+        tokio::spawn(async move { client.remove_debug_helper(&id).await });
+    }
+}
+
+struct Opening<'a> {
+    session: u64,
+    container: &'a str,
+    shell: &'a str,
+    debug: bool,
+    size: (u16, u16),
+}
+
 async fn run(
     client: &DockerClient,
     shared: &Shared,
-    session: u64,
-    container: &str,
-    shell: &str,
-    (cols, rows): (u16, u16),
+    open: Opening<'_>,
     mut keys: mpsc::UnboundedReceiver<Msg>,
 ) {
-    let mut sh = match client.open_shell(container, shell, cols, rows).await {
+    let Opening {
+        session,
+        container,
+        shell,
+        debug,
+        size: (cols, rows),
+    } = open;
+    let failed = |message: String| Response::TermExit {
+        session,
+        message: Some(message),
+        no_shell: false,
+    };
+    let mut _helper = None;
+    let container = if debug {
+        match client.start_debug_helper(container, &debug_image()).await {
+            Ok(id) => {
+                _helper = Some(HelperGuard {
+                    client: client.clone(),
+                    id: id.clone(),
+                });
+                id
+            }
+            Err(e) => {
+                shared.send(failed(format!("Couldn't start a debug shell: {e}")));
+                return;
+            }
+        }
+    } else {
+        container.to_owned()
+    };
+    let mut sh = match client.open_shell(&container, shell, cols, rows).await {
         Ok(sh) => sh,
         Err(e) => {
-            shared.send(Response::TermExit {
-                session,
-                message: Some(format!("Couldn't open a shell: {e}")),
-            });
+            shared.send(failed(format!("Couldn't open a shell: {e}")));
             return;
         }
     };
@@ -116,5 +161,6 @@ async fn run(
     shared.send(Response::TermExit {
         session,
         message: exit_message(code),
+        no_shell: matches!(code, Some(126 | 127)),
     });
 }

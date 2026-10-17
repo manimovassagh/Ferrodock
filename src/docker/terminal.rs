@@ -17,11 +17,14 @@ const AUTO_SHELL: &str = "command -v bash >/dev/null 2>&1 && exec bash || exec s
 /// [`next_session`] so answers can be matched to the session that asked.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TermOp {
-    /// Start a shell. An empty `shell` picks bash, then sh.
+    /// Start a shell. An empty `shell` picks bash, then sh. With `debug`,
+    /// the shell runs in a helper next to the container instead (for
+    /// containers without a shell).
     Open {
         session: u64,
         container: String,
         shell: String,
+        debug: bool,
         cols: u16,
         rows: u16,
     },

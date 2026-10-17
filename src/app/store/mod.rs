@@ -171,8 +171,12 @@ impl Store {
             Response::TermOutput { session, bytes } => {
                 terminal::output(&mut self.terminal, session, &bytes);
             }
-            Response::TermExit { session, message } => {
-                terminal::exited(&mut self.terminal, session, message);
+            Response::TermExit {
+                session,
+                message,
+                no_shell,
+            } => {
+                terminal::exited(&mut self.terminal, session, message, no_shell);
             }
             Response::Files(result) => files::listed(&mut self.files, result),
             Response::FilePreview {

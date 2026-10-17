@@ -12,6 +12,7 @@ mod browse;
 mod compose;
 mod containers;
 mod create;
+mod debug;
 mod disk;
 mod events;
 mod files;
@@ -33,6 +34,7 @@ pub use browse::VOLUME_ROOT;
 pub use compose::{ComposeProject, group_projects};
 pub use containers::ContainerInfo;
 pub use create::Change;
+pub use debug::{TARGET_ROOT, debug_image};
 pub use disk::{DiskUsage, PruneKind, Usage};
 pub use events::EngineEvent;
 pub use files::{
