@@ -11,11 +11,9 @@ mod shell;
 mod sidebar;
 mod store;
 
-use std::time::{Duration, Instant};
-
 use eframe::egui::{self, Frame, Margin};
 
-use crate::docker::{Resource, Task};
+use crate::docker::Task;
 use crate::theme;
 use crate::worker::{Request, Worker};
 use components::confirm::{self, Choice};
@@ -23,15 +21,12 @@ use components::toast::Toast;
 use page::{Confirmation, Intent, Page, PageCtx};
 use store::{Connection, Live, Store};
 
-const REFRESH_INTERVAL: Duration = Duration::from_secs(3);
-
 pub struct IronStackApp {
     worker: Worker,
     store: Store,
     pages: Vec<Box<dyn Page>>,
     active: usize,
     search: String,
-    last_refresh: Instant,
     toast: Option<Toast>,
     /// A destructive action waiting for the user to confirm it.
     confirmation: Option<Confirmation>,
@@ -50,28 +45,25 @@ impl IronStackApp {
         for page in &pages {
             worker.send(Request::Refresh(page.resource()));
         }
+        // From now on the worker keeps the first page's data fresh by itself,
+        // and the UI only wakes up when something changes.
+        worker.send(Request::Poll(pages[0].resource()));
         Self {
             worker,
             store: Store::new(),
             pages,
             active: 0,
             search: String::new(),
-            last_refresh: Instant::now(),
             toast: None,
             confirmation: None,
             watching: None,
         }
     }
 
-    /// Reloads the containers (they drive the connection status and the
-    /// "in use" info on every page) plus the open page's data.
+    /// Reloads the open page's data (plus the containers) right away.
     fn refresh(&mut self) {
-        self.last_refresh = Instant::now();
-        self.worker.send(Request::Refresh(Resource::Containers));
         let resource = self.pages[self.active].resource();
-        if resource != Resource::Containers {
-            self.worker.send(Request::Refresh(resource));
-        }
+        self.worker.send(Request::Refresh(resource));
     }
 
     fn open_page(&mut self, index: usize) {
@@ -79,7 +71,9 @@ impl IronStackApp {
             self.pages[self.active].clear_selection();
             self.active = index;
             self.search.clear();
-            self.refresh();
+            // Loads the page's data now and keeps it fresh.
+            self.worker
+                .send(Request::Poll(self.pages[index].resource()));
         }
     }
 
@@ -143,12 +137,9 @@ impl IronStackApp {
 impl eframe::App for IronStackApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.handle_responses();
-        if ui.input(|i| i.key_pressed(egui::Key::F5))
-            || self.last_refresh.elapsed() >= REFRESH_INTERVAL
-        {
+        if ui.input(|i| i.key_pressed(egui::Key::F5)) {
             self.refresh();
         }
-        ui.ctx().request_repaint_after(REFRESH_INTERVAL);
 
         let p = theme::palette(ui);
         let clicked_page = egui::Panel::left("sidebar")

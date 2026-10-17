@@ -6,8 +6,15 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-17
+
 ### Added
 - Documentation website (Docusaurus), published to GitHub Pages.
+
+### Changed
+- IronStack now uses no CPU while idle. The background worker checks
+  Docker on its own timer and only wakes the UI when something actually
+  changed, instead of the UI redrawing every few seconds.
 
 ## [0.2.0] - 2026-10-17
 
@@ -36,6 +43,7 @@ uses [Semantic Versioning](https://semver.org/).
 - Automatic reconnection when Docker starts after IronStack.
 - App icon, and release builds for Windows, macOS (universal) and Linux.
 
-[Unreleased]: https://github.com/manimovassagh/IronStack/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/manimovassagh/IronStack/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/manimovassagh/IronStack/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/manimovassagh/IronStack/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/manimovassagh/IronStack/releases/tag/v0.1.0

@@ -5,7 +5,7 @@ use bollard::query_parameters::ListImagesOptions;
 
 use super::{DockerClient, describe, short_id};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ImageInfo {
     pub id: String,
     /// `repo:tag` names, without the `<none>:<none>` placeholder.

@@ -5,7 +5,7 @@ use bollard::query_parameters::ListNetworksOptions;
 
 use super::{DockerClient, describe, short_id};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct NetworkInfo {
     pub id: String,
     pub name: String,
