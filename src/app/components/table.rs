@@ -6,7 +6,22 @@ use egui_extras::{Column, TableBuilder, TableRow};
 
 use crate::theme::Palette;
 
-pub const ROW_HEIGHT: f32 = 48.0;
+const ROW_HEIGHT: f32 = 48.0;
+const COMPACT_ROW_HEIGHT: f32 = 30.0;
+
+/// Switches every table between two-line and one-line rows.
+pub fn set_compact(ctx: &egui::Context, compact: bool) {
+    ctx.data_mut(|d| d.insert_temp(compact_id(), compact));
+}
+
+/// Whether tables use one-line rows (the Compact density setting).
+pub fn is_compact(ui: &egui::Ui) -> bool {
+    ui.data(|d| d.get_temp(compact_id()).unwrap_or(false))
+}
+
+fn compact_id() -> egui::Id {
+    egui::Id::unique("ferrodock-compact")
+}
 
 /// A column: header title and sizing.
 pub struct Col {
@@ -70,6 +85,11 @@ pub fn show(
     is_selected: impl Fn(usize) -> bool,
     mut add_row: impl FnMut(usize, &mut TableRow<'_, '_>),
 ) -> Option<usize> {
+    let row_height = if is_compact(ui) {
+        COMPACT_ROW_HEIGHT
+    } else {
+        ROW_HEIGHT
+    };
     let requested = ui.ctx().data_mut(|d| d.remove_temp::<i32>(step_id()));
     let current = requested.and_then(|_| (0..rows).find(|&i| is_selected(i)));
     let stepped = requested.and_then(|delta| step(current, delta, rows));
@@ -94,7 +114,7 @@ pub fn show(
             }
         })
         .body(|body| {
-            body.rows(ROW_HEIGHT, rows, |mut row| {
+            body.rows(row_height, rows, |mut row| {
                 let index = row.index();
                 row.set_selected(is_selected(index));
                 add_row(index, &mut row);
@@ -106,8 +126,14 @@ pub fn show(
     clicked
 }
 
-/// Bold primary text with a muted second line, e.g. name over image.
+/// Bold primary text with a muted second line, e.g. name over image. In
+/// compact mode both go on one line.
 pub fn two_line(ui: &mut egui::Ui, p: &Palette, primary: &str, secondary: &str) {
+    if is_compact(ui) {
+        label(ui, RichText::new(primary).strong().color(p.text));
+        label(ui, RichText::new(secondary).size(12.0).color(p.muted));
+        return;
+    }
     ui.vertical(|ui| {
         ui.add_space(6.0);
         label(ui, RichText::new(primary).strong().color(p.text));

@@ -75,7 +75,8 @@ Get-FileHash .\Ferrodock-*-windows-x64.zip            # Windows (compare with SH
   action: jump to any container, image or volume, or run an action, without
   touching the mouse.
 - **Search** on every page, and **live updates** every few seconds.
-- **Light and dark themes** that follow your system setting.
+- **Settings** for theme (light, dark or follow the system), compact rows and
+  interface size, remembered between runs.
 - **Resilient**: start Ferrodock before Docker and it connects as soon as the
   engine is up.
 - **Light on resources**: Docker calls run on a background thread so the UI

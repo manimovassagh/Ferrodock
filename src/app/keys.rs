@@ -10,6 +10,7 @@ use super::components::shortcuts::Section;
 pub enum Shortcut {
     Palette,
     Help,
+    Settings,
     /// Switch to the page with this index.
     Page(usize),
     /// Move the selection in the list up (-1) or down (+1).
@@ -39,6 +40,9 @@ pub fn read(ctx: &egui::Context) -> Vec<Shortcut> {
         let mut found = Vec::new();
         if i.consume_key(Modifiers::COMMAND, Key::K) {
             found.push(Shortcut::Palette);
+        }
+        if i.consume_key(Modifiers::COMMAND, Key::Comma) {
+            found.push(Shortcut::Settings);
         }
         let digits = [
             Key::Num1,
@@ -101,6 +105,7 @@ pub fn help(page_titles: &[&'static str]) -> Vec<Section> {
             "Anywhere",
             vec![
                 (format!("{COMMAND}K"), "Command palette"),
+                (format!("{COMMAND},"), "Settings"),
                 ("/".into(), "Search this page"),
                 ("F5".into(), "Refresh"),
                 ("?".into(), "This list"),

@@ -2,17 +2,27 @@
 
 use eframe::egui::{self, Color32, RichText};
 
-use crate::app::components::widgets;
+use crate::app::components::table;
+use crate::app::components::widgets::{self, Mark};
 use crate::docker::ContainerInfo;
 use crate::theme::Palette;
 
 /// "● Running" style pill for the container's state.
 pub(super) fn pill(ui: &mut egui::Ui, p: &Palette, c: &ContainerInfo) {
-    widgets::pill(ui, &capitalize(&c.state), color(p, &c.state));
+    widgets::pill_with(
+        ui,
+        &capitalize(&c.state),
+        color(p, &c.state),
+        mark(&c.state),
+    );
 }
 
 /// Table cell: the pill with Docker's status text ("Up 5 minutes") below.
 pub(super) fn cell(ui: &mut egui::Ui, p: &Palette, c: &ContainerInfo) {
+    if table::is_compact(ui) {
+        pill(ui, p, c);
+        return;
+    }
     ui.vertical(|ui| {
         ui.add_space(6.0);
         pill(ui, p, c);
@@ -26,6 +36,17 @@ pub(super) fn cell(ui: &mut egui::Ui, p: &Palette, c: &ContainerInfo) {
             );
         }
     });
+}
+
+/// Running is filled, stopped is hollow, paused is a square, dead a
+/// triangle, so states can be told apart without colour.
+fn mark(state: &str) -> Mark {
+    match state {
+        "running" | "restarting" => Mark::Dot,
+        "paused" => Mark::Square,
+        "dead" => Mark::Triangle,
+        _ => Mark::Ring,
+    }
 }
 
 fn color(p: &Palette, state: &str) -> Color32 {
