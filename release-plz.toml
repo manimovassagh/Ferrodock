@@ -29,7 +29,7 @@ git_release_body = """
 | **Windows** 10/11 (x64) | `Ferrodock-{{ version }}-windows-x64.zip` |
 | **Linux** (x64) | `Ferrodock-{{ version }}-linux-x64.tar.gz` |
 
-**macOS:** `brew tap manimovassagh/ferrodock https://github.com/manimovassagh/Ferrodock && brew install --cask ferrodock`, or open the DMG and drag `Ferrodock.app` to Applications. **Right-click → Open** the first time (the app isn't notarized yet).
+**macOS:** `brew tap manimovassagh/ferrodock https://github.com/manimovassagh/Ferrodock && brew install --cask ferrodock`, or open the DMG and drag `Ferrodock.app` to Applications. The app isn't notarized yet, so allow it once: `xattr -dr com.apple.quarantine /Applications/Ferrodock.app`, or **Open Anyway** in System Settings → Privacy & Security.
 **Windows:** unzip and run `Ferrodock.exe`. If SmartScreen appears, choose **More info → Run anyway**.
 Verify downloads with `SHA256SUMS.txt`.
 
