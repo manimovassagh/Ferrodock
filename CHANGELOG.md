@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.3.0](https://github.com/manimovassagh/Ferrodock/compare/v1.2.0...v1.3.0) - 2026-10-17
+
+### Added
+
+- copy values with a click, read charts on hover, and a more actions menu ([#95](https://github.com/manimovassagh/Ferrodock/pull/95))
+
 ## [1.2.0](https://github.com/manimovassagh/Ferrodock/compare/v1.1.1...v1.2.0) - 2026-10-17
 
 ### Added
