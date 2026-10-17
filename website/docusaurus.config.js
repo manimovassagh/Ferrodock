@@ -13,6 +13,8 @@ const config = {
   trailingSlash: false,
   onBrokenLinks: "throw",
   i18n: { defaultLocale: "en", locales: ["en"] },
+  markdown: { mermaid: true },
+  themes: ["@docusaurus/theme-mermaid"],
 
   presets: [
     [
