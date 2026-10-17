@@ -5,8 +5,10 @@
 
 mod files;
 mod live;
+mod terminal;
 
 pub use files::FileView;
+pub use terminal::Terminal;
 
 use std::collections::{HashMap, VecDeque};
 use std::time::Instant;
@@ -57,6 +59,8 @@ pub struct Store {
     pub history: Option<(String, Option<Vec<Layer>>)>,
     /// The Files tab of the container it was last opened for.
     pub files: Option<FileView>,
+    /// The open shell, if any.
+    pub terminal: Option<Terminal>,
     /// Recent CPU and memory of each running container (oldest first),
     /// while the Containers page is open.
     pub usage: HashMap<String, VecDeque<StatsSample>>,
@@ -86,6 +90,7 @@ impl Store {
             processes: None,
             history: None,
             files: None,
+            terminal: None,
             pending: HashMap::new(),
             live: None,
         }
@@ -95,6 +100,12 @@ impl Store {
     /// it loading.
     pub fn files_requested(&mut self, op: &crate::docker::FileOp) {
         files::requested(&mut self.files, op);
+    }
+
+    /// Records a terminal request. Returns a session that's now replaced
+    /// and should be closed.
+    pub fn terminal_requested(&mut self, op: &crate::docker::TermOp) -> Option<u64> {
+        terminal::requested(&mut self.terminal, op)
     }
 
     /// Applies a worker response. Returns a notice when the user should be
@@ -133,6 +144,12 @@ impl Store {
                     Some(entry) => entry.1 = progress,
                     None => self.pulls.push((image, progress)),
                 }
+            }
+            Response::TermOutput { session, bytes } => {
+                terminal::output(&mut self.terminal, session, &bytes);
+            }
+            Response::TermExit { session, message } => {
+                terminal::exited(&mut self.terminal, session, message);
             }
             Response::Files(result) => files::listed(&mut self.files, result),
             Response::FilePreview {

@@ -118,6 +118,18 @@ system, in [Settings](#settings).
 The **Top** tab lists what's running inside the container (process ID,
 user, CPU time and command), refreshed every two seconds while it's open.
 
+### Terminal
+
+The **Terminal** tab opens a shell inside a running container, like
+`docker exec -it`. It picks `bash` when the container has it and `sh`
+otherwise; type another shell (say `zsh`) in **Shell** and click **New
+session** to use that instead.
+
+It's a real terminal: full-screen programs such as `top`, `vi` and `less`
+work, along with arrow keys, tab completion and colours. The size follows
+the pane. **Ctrl+C** interrupts (on macOS, **⌘C** copies the screen and
+**⌘V** pastes). Images with no shell at all, like distroless ones, say so.
+
 ### Files
 
 The **Files** tab browses the container's filesystem, no `docker cp`

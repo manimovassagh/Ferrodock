@@ -234,3 +234,52 @@ fn screenshots_of_files() {
     settle(&mut h, Duration::from_secs(3));
     save(&mut h, "files-link");
 }
+
+/// The Terminal tab with a live shell, in a throwaway container.
+#[test]
+#[ignore]
+fn screenshots_of_terminal() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let client = crate::docker::DockerClient::connect().unwrap();
+    let image = runtime
+        .block_on(client.list_images())
+        .unwrap()
+        .into_iter()
+        .next()
+        .expect("an image to run");
+    let spec = crate::docker::RunSpec {
+        image: image.id,
+        name: "ferrodock-shell-demo".into(),
+        command: "sleep 600".into(),
+        ..Default::default()
+    };
+    let _ = runtime.block_on(client.perform(
+        crate::docker::Action::Remove(crate::docker::Resource::Containers),
+        &spec.name,
+    ));
+    let id = runtime.block_on(client.run(&spec)).unwrap();
+
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(3));
+    set_theme(&mut h, Theme::Light);
+    open(&mut h, 0, Some(id.clone()));
+    click(&mut h, "Terminal");
+    settle(&mut h, Duration::from_secs(2));
+    for line in ["ls -l /", "echo \"Hello from $(hostname)\""] {
+        h.event(egui::Event::Text(line.into()));
+        h.key_press(egui::Key::Enter);
+        settle(&mut h, Duration::from_secs(1));
+    }
+    save(&mut h, "terminal");
+    h.event(egui::Event::Text("top".into()));
+    h.key_press(egui::Key::Enter);
+    settle(&mut h, Duration::from_secs(2));
+    set_theme(&mut h, Theme::Dark);
+    save(&mut h, "terminal-top");
+
+    let _ = runtime.block_on(client.perform(crate::docker::Action::Stop, &id));
+    let _ = runtime.block_on(client.perform(
+        crate::docker::Action::Remove(crate::docker::Resource::Containers),
+        &id,
+    ));
+}

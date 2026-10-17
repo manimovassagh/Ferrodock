@@ -24,6 +24,7 @@ mod ports;
 mod processes;
 mod run;
 mod stats;
+mod terminal;
 mod volumes;
 
 pub use actions::{Action, Task};
@@ -44,6 +45,7 @@ pub use ports::{PortMapping, engine_host};
 pub use processes::{Layer, Processes};
 pub use run::{PullProgress, Restart, RunSpec};
 pub use stats::StatsSample;
+pub use terminal::{TermOp, exit_message, next_session};
 pub use volumes::VolumeInfo;
 
 use bollard::Docker;

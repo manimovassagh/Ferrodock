@@ -11,6 +11,7 @@ mod processes;
 mod stats;
 mod status;
 mod table;
+mod terminal;
 
 use eframe::egui;
 
@@ -46,6 +47,7 @@ enum DetailsTab {
     Logs,
     Stats,
     Processes,
+    Terminal,
     Files,
     Inspect,
 }
@@ -63,6 +65,7 @@ pub struct ContainersPage {
     run_form: Option<RunForm>,
     /// Where the Files tab is.
     files: files::FilesTab,
+    terminal: terminal::TerminalTab,
     /// The Limits dialog, while it's open.
     limits: Option<limits::LimitsForm>,
     /// The new name being typed in the Rename dialog, while it's open.
@@ -80,6 +83,7 @@ impl ContainersPage {
             anchor: None,
             run_form: None,
             files: Default::default(),
+            terminal: Default::default(),
             limits: None,
             rename: None,
         }
