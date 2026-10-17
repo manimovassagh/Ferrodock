@@ -6,6 +6,9 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Documentation website (Docusaurus), published to GitHub Pages.
+
 ## [0.2.0] - 2026-10-17
 
 ### Added

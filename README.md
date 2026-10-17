@@ -11,7 +11,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Rust 1.95+](https://img.shields.io/badge/rust-1.95%2B-orange.svg)](https://www.rust-lang.org)
 
-Windows · macOS · Linux
+Windows · macOS · Linux · **[Documentation](https://manimovassagh.github.io/IronStack/)**
 
 ![IronStack showing the container list](docs/screenshots/containers.png)
 
@@ -136,7 +136,7 @@ Progress is tracked in [issues](https://github.com/manimovassagh/IronStack/issue
 - [x] App icon and smaller binaries ([#10](https://github.com/manimovassagh/IronStack/issues/10))
 - [x] Prebuilt downloads for Windows, macOS and Linux ([#9](https://github.com/manimovassagh/IronStack/issues/9))
 - [x] Docker Compose projects ([#8](https://github.com/manimovassagh/IronStack/issues/8))
-- [ ] Documentation website ([#11](https://github.com/manimovassagh/IronStack/issues/11))
+- [x] Documentation website ([#11](https://github.com/manimovassagh/IronStack/issues/11))
 
 ## Contributing
 

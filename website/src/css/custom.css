@@ -1,0 +1,29 @@
+/* IronStack brand colours, matching the app's palette. */
+:root {
+  --ifm-color-primary: #2f6bff;
+  --ifm-color-primary-dark: #1a5cff;
+  --ifm-color-primary-darker: #0f54ff;
+  --ifm-color-primary-darkest: #0044e6;
+  --ifm-color-primary-light: #447aff;
+  --ifm-color-primary-lighter: #4f82ff;
+  --ifm-color-primary-lightest: #7099ff;
+  --ifm-code-font-size: 92%;
+}
+
+[data-theme="dark"] {
+  --ifm-color-primary: #5b8cff;
+  --ifm-color-primary-dark: #3d77ff;
+  --ifm-color-primary-darker: #2e6cff;
+  --ifm-color-primary-darkest: #0050ff;
+  --ifm-color-primary-light: #79a1ff;
+  --ifm-color-primary-lighter: #88acff;
+  --ifm-color-primary-lightest: #b4caff;
+  --ifm-background-color: #16181d;
+  --ifm-navbar-background-color: #1c1f26;
+  --ifm-footer-background-color: #1c1f26;
+}
+
+.markdown img {
+  border-radius: 8px;
+  box-shadow: 0 4px 24px rgb(0 0 0 / 20%);
+}
