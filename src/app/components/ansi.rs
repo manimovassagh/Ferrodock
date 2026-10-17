@@ -88,7 +88,7 @@ pub fn strip(line: &str) -> String {
 }
 
 /// Terminal colours, tuned to stay readable on both themes.
-fn ansi_color(p: &Palette, index: u8) -> Color32 {
+pub fn ansi_color(p: &Palette, index: u8) -> Color32 {
     let dark = p.bg.r() < 128;
     match index % 8 {
         0 => p.muted,

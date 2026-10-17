@@ -227,6 +227,15 @@ impl FerrodockApp {
                 self.worker.send(Request::Pull(image));
             }
             Intent::RunImage(spec) => self.worker.send(Request::RunImage(spec)),
+            Intent::Terminal(op) => {
+                if let Some(old) = self.store.terminal_requested(&op) {
+                    self.worker
+                        .send(Request::Terminal(crate::docker::TermOp::Close {
+                            session: old,
+                        }));
+                }
+                self.worker.send(Request::Terminal(op));
+            }
             Intent::Files(op) => {
                 self.store.files_requested(&op);
                 self.worker.send(Request::Files(op));

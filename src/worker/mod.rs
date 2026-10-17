@@ -6,6 +6,7 @@
 mod dedup;
 mod files;
 mod live;
+mod terminal;
 
 use std::sync::{Arc, mpsc};
 use std::thread;
@@ -16,7 +17,7 @@ use tokio::sync::mpsc as tokio_mpsc;
 use crate::docker::{
     Action, Change, ContainerInfo, DiskUsage, DockerClient, EngineEvent, FileOp, ImageInfo,
     Inspection, Layer, Listing, NetworkInfo, Preview, Processes, PullProgress, Resource, RunSpec,
-    StatsSample, Task, VolumeInfo,
+    StatsSample, Task, TermOp, VolumeInfo,
 };
 
 /// How often the worker re-checks the engine on its own. Changes normally
@@ -56,6 +57,8 @@ pub enum Request {
     RunImage(RunSpec),
     /// List, preview or copy files of a container.
     Files(FileOp),
+    /// Open, type into, resize or close a shell.
+    Terminal(TermOp),
 }
 
 #[derive(Debug)]
@@ -85,6 +88,16 @@ pub enum Response {
         container: String,
         path: String,
         preview: Result<Preview, String>,
+    },
+    /// What a shell printed.
+    TermOutput {
+        session: u64,
+        bytes: Vec<u8>,
+    },
+    /// A shell ended; `message` says why when it wasn't a normal exit.
+    TermExit {
+        session: u64,
+        message: Option<String>,
     },
     /// A download or upload finished. `changed_dir` is the folder an upload
     /// changed, to list again.
@@ -201,6 +214,7 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
     });
     let mut client: Option<DockerClient> = None;
     let mut watch = live::Watch::default();
+    let mut terminals = terminal::Sessions::default();
     let mut events: Option<tokio::task::JoinHandle<()>> = None;
     let mut polled = Resource::Containers;
     let mut ticker = tokio::time::interval(POLL_INTERVAL);
@@ -299,6 +313,7 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
             Request::Pull(image) => {
                 tokio::spawn(async move { pull(&docker, &shared, image).await });
             }
+            Request::Terminal(op) => terminals.handle(&docker, &shared, op),
             Request::Files(op) => {
                 tokio::spawn(async move { files::handle(&docker, &shared, op).await });
             }

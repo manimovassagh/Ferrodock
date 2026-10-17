@@ -4,6 +4,7 @@ use eframe::egui::{self, RichText};
 
 use super::{
     ContainersPage, DetailsTab, actions, files, limits, logs, ports, processes, stats, status,
+    terminal,
 };
 use crate::app::components::icons::Icon;
 use crate::app::components::{details, inspect, widgets};
@@ -55,6 +56,7 @@ pub(super) fn show(page: &mut ContainersPage, ui: &mut egui::Ui, ctx: &mut PageC
             (DetailsTab::Logs, "Logs"),
             (DetailsTab::Stats, "Stats"),
             (DetailsTab::Processes, "Top"),
+            (DetailsTab::Terminal, "Terminal"),
             (DetailsTab::Files, "Files"),
             (DetailsTab::Inspect, "Inspect"),
         ] {
@@ -80,6 +82,7 @@ pub(super) fn show(page: &mut ContainersPage, ui: &mut egui::Ui, ctx: &mut PageC
         DetailsTab::Stats => stats::show(ui, p, live, c.is_running()),
         DetailsTab::Processes => processes::show(ui, ctx, c),
         DetailsTab::Files => files::show(ui, ctx, &mut page.files, c),
+        DetailsTab::Terminal => terminal::show(ui, ctx, &mut page.terminal, c),
         DetailsTab::Inspect => {
             if inspect::needs_loading(ctx.store, &c.id) {
                 ctx.request(Intent::Inspect(Resource::Containers, c.id.clone()));

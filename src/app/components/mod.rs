@@ -9,5 +9,6 @@ pub mod palette;
 pub mod shortcuts;
 pub mod sparkline;
 pub mod table;
+pub mod terminal;
 pub mod toast;
 pub mod widgets;

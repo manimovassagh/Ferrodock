@@ -25,6 +25,7 @@ self_update = { version = "1.3.1", default-features = false, features = ["github
 self-replace = "1.5.0"
 sha2 = "0.10.9"
 tar = "0.4.46"
+vt100 = "0.16.2"
 tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros", "time"] }
 
 [build-dependencies]
