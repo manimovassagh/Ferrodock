@@ -5,6 +5,10 @@ const { themes } = require("prism-react-renderer");
 const config = {
   title: "Ferrodock",
   tagline: "A fast, native desktop app for managing Docker, written entirely in Rust.",
+  headTags: [
+    { tagName: "meta", attributes: { property: "og:image", content: "https://manimovassagh.github.io/Ferrodock/img/social-card.png" } },
+    { tagName: "meta", attributes: { name: "twitter:card", content: "summary_large_image" } },
+  ],
   favicon: "img/logo.png",
   url: "https://manimovassagh.github.io",
   baseUrl: "/Ferrodock/",
@@ -22,7 +26,7 @@ const config = {
       /** @type {import('@docusaurus/preset-classic').Options} */
       ({
         docs: {
-          routeBasePath: "/",
+          routeBasePath: "docs",
           sidebarPath: require.resolve("./sidebars.js"),
           editUrl: "https://github.com/manimovassagh/Ferrodock/edit/main/website/",
         },
@@ -41,6 +45,7 @@ const config = {
         logo: { alt: "Ferrodock", src: "img/logo.png" },
         items: [
           { type: "docSidebar", sidebarId: "docs", position: "left", label: "Docs" },
+          { to: "/docs/releases", label: "Releases", position: "left" },
           {
             href: "https://github.com/manimovassagh/Ferrodock/releases/latest",
             label: "Download",
@@ -55,9 +60,9 @@ const config = {
           {
             title: "Docs",
             items: [
-              { label: "Installation", to: "/installation" },
-              { label: "Using Ferrodock", to: "/usage" },
-              { label: "Architecture", to: "/architecture" },
+              { label: "Installation", to: "/docs/installation" },
+              { label: "Using Ferrodock", to: "/docs/usage" },
+              { label: "Architecture", to: "/docs/architecture" },
             ],
           },
           {

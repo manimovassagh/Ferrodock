@@ -1,0 +1,515 @@
+/* Landing page. The hero and the closing call to action are always dark;
+   the sections in between follow the site's light or dark theme. */
+
+.page {
+  --rust: #e2583a;
+  --rust-deep: #b8401f;
+  --amber: #f3a14b;
+  --night: #0d0f14;
+  --night-2: #161a22;
+  --line: rgb(127 127 127 / 18%);
+  overflow-x: hidden;
+}
+
+/* ---------- Hero ---------- */
+
+.hero {
+  position: relative;
+  background: var(--night);
+  color: #f3f1ee;
+  padding: 5.5rem 0 0;
+  overflow: hidden;
+  text-align: center;
+}
+
+.glow {
+  position: absolute;
+  inset: -20% -10% auto;
+  height: 900px;
+  background:
+    radial-gradient(40% 45% at 50% 30%, rgb(226 88 58 / 38%), transparent 70%),
+    radial-gradient(30% 30% at 25% 15%, rgb(243 161 75 / 18%), transparent 70%),
+    radial-gradient(30% 35% at 78% 20%, rgb(184 64 31 / 22%), transparent 70%);
+  filter: blur(10px);
+  pointer-events: none;
+}
+
+.hero::after {
+  /* Faint grid behind the headline. */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgb(255 255 255 / 4%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 4%) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(60% 50% at 50% 25%, black, transparent);
+  pointer-events: none;
+}
+
+.heroInner {
+  position: relative;
+  z-index: 1;
+}
+
+.heroLogo {
+  width: 84px;
+  height: 84px;
+  border-radius: 20px;
+  box-shadow: 0 12px 40px rgb(226 88 58 / 45%);
+  animation: rise 0.7s ease-out both;
+}
+
+.eyebrow {
+  margin: 1.4rem 0 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+
+.title {
+  font-size: clamp(2.6rem, 7vw, 5rem);
+  font-weight: 800;
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  margin: 0 auto 1.2rem;
+  max-width: 14ch;
+  color: #fff;
+  animation: rise 0.7s 0.05s ease-out both;
+}
+
+.accent {
+  background: linear-gradient(100deg, var(--amber), var(--rust) 55%, #ff7a59);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.subtitle {
+  font-size: clamp(1.05rem, 2vw, 1.3rem);
+  line-height: 1.6;
+  color: rgb(243 241 238 / 72%);
+  max-width: 40rem;
+  margin: 0 auto 2.2rem;
+  animation: rise 0.7s 0.1s ease-out both;
+}
+
+.ctas {
+  display: flex;
+  gap: 0.8rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  animation: rise 0.7s 0.15s ease-out both;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.85rem 1.6rem;
+  border-radius: 999px;
+  font-weight: 650;
+  font-size: 1.02rem;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.button:hover {
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+
+.primary {
+  background: linear-gradient(180deg, #f06a4a, var(--rust-deep));
+  color: #fff;
+  box-shadow: 0 8px 30px rgb(226 88 58 / 45%), inset 0 1px 0 rgb(255 255 255 / 25%);
+}
+
+.primary:hover {
+  color: #fff;
+  box-shadow: 0 10px 38px rgb(226 88 58 / 60%), inset 0 1px 0 rgb(255 255 255 / 25%);
+}
+
+.secondary {
+  background: rgb(255 255 255 / 7%);
+  color: #f3f1ee;
+  border: 1px solid rgb(255 255 255 / 16%);
+}
+
+.secondary:hover {
+  color: #fff;
+  background: rgb(255 255 255 / 12%);
+}
+
+.platforms {
+  margin: 1rem 0 3.5rem;
+  font-size: 0.85rem;
+  color: rgb(243 241 238 / 50%);
+}
+
+/* ---------- App windows ---------- */
+
+.window {
+  border-radius: 12px;
+  overflow: hidden;
+  background: #1c1f26;
+  border: 1px solid rgb(255 255 255 / 10%);
+  box-shadow:
+    0 30px 80px rgb(0 0 0 / 45%),
+    0 0 0 1px rgb(0 0 0 / 30%);
+}
+
+.window img {
+  display: block;
+  width: 100%;
+}
+
+.windowBar {
+  display: flex;
+  gap: 7px;
+  padding: 10px 12px;
+  background: #22262e;
+}
+
+.windowBar span {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #ff5f57;
+}
+
+.windowBar span:nth-child(2) {
+  background: #febc2e;
+}
+
+.windowBar span:nth-child(3) {
+  background: #28c840;
+}
+
+.heroShot {
+  max-width: 1040px;
+  margin: 0 auto -1px;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  box-shadow:
+    0 -10px 120px rgb(226 88 58 / 25%),
+    0 30px 80px rgb(0 0 0 / 50%);
+  animation: rise 0.9s 0.25s ease-out both;
+}
+
+/* ---------- Stats strip ---------- */
+
+.stats {
+  background: var(--night-2);
+  color: #f3f1ee;
+  border-top: 1px solid rgb(255 255 255 / 8%);
+  padding: 2.2rem 0;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  text-align: center;
+}
+
+.statValue {
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(100deg, var(--amber), var(--rust));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.statLabel {
+  font-size: 0.9rem;
+  color: rgb(243 241 238 / 60%);
+}
+
+/* ---------- Sections ---------- */
+
+.section {
+  padding: 6rem 0;
+}
+
+.sectionTitle {
+  text-align: center;
+  font-size: clamp(1.9rem, 4vw, 2.8rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin-bottom: 0.8rem;
+}
+
+.sectionLead {
+  text-align: center;
+  font-size: 1.15rem;
+  color: var(--ifm-color-emphasis-700);
+  max-width: 36rem;
+  margin: 0 auto 3rem;
+}
+
+.featureGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.2rem;
+}
+
+.card {
+  padding: 1.6rem;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--ifm-background-surface-color);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  border-color: rgb(226 88 58 / 45%);
+  box-shadow: 0 14px 40px rgb(226 88 58 / 12%);
+}
+
+.card h3 {
+  margin: 1rem 0 0.4rem;
+  font-size: 1.15rem;
+}
+
+.card p {
+  margin: 0;
+  color: var(--ifm-color-emphasis-700);
+  line-height: 1.6;
+}
+
+.cardIcon {
+  display: inline-flex;
+  padding: 10px;
+  border-radius: 12px;
+  color: var(--rust);
+  background: rgb(226 88 58 / 12%);
+}
+
+/* ---------- Showcase ---------- */
+
+.showcase {
+  background: var(--ifm-color-emphasis-100);
+}
+
+.showRow {
+  display: grid;
+  grid-template-columns: 5fr 7fr;
+  gap: 3.5rem;
+  align-items: center;
+}
+
+.showRow + .showRow {
+  margin-top: 6rem;
+}
+
+.showRowFlip .showText {
+  order: 2;
+}
+
+.showText h2 {
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+.showText p {
+  font-size: 1.1rem;
+  line-height: 1.7;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.showShot {
+  transition: transform 0.4s ease;
+}
+
+.showShot:hover {
+  transform: scale(1.015);
+}
+
+/* ---------- Why ---------- */
+
+.whyGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2.5rem;
+  margin-top: 3rem;
+}
+
+.whyGrid h3 {
+  font-size: 1.2rem;
+  padding-left: 0.9rem;
+  border-left: 3px solid var(--rust);
+}
+
+.whyGrid p {
+  color: var(--ifm-color-emphasis-700);
+  line-height: 1.7;
+}
+
+/* ---------- Install ---------- */
+
+.install {
+  max-width: 760px;
+}
+
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 2rem 0 1rem;
+}
+
+.tab {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ifm-font-color-base);
+  padding: 0.45rem 1.1rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.tabActive {
+  background: var(--rust);
+  border-color: var(--rust);
+  color: #fff;
+}
+
+.terminal {
+  position: relative;
+  background: var(--night);
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 25%);
+}
+
+.terminal pre {
+  margin: 0;
+  background: transparent;
+  color: #e9e6e1;
+  padding: 1.4rem 1.6rem;
+  font-size: 0.92rem;
+  overflow-x: auto;
+}
+
+.prompt {
+  color: var(--rust);
+  user-select: none;
+}
+
+.copy {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.7rem;
+  border: 1px solid rgb(255 255 255 / 15%);
+  background: rgb(255 255 255 / 6%);
+  color: #e9e6e1;
+  border-radius: 8px;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.copy:hover {
+  background: rgb(255 255 255 / 12%);
+}
+
+.installNote {
+  text-align: center;
+  margin-top: 1rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+/* ---------- Final call to action ---------- */
+
+.final {
+  position: relative;
+  overflow: hidden;
+  background: var(--night);
+  color: #f3f1ee;
+  text-align: center;
+  padding: 6rem 0;
+}
+
+.final h2 {
+  position: relative;
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #fff;
+}
+
+.final p {
+  position: relative;
+  color: rgb(243 241 238 / 70%);
+  font-size: 1.15rem;
+  margin-bottom: 2rem;
+}
+
+.final .glow {
+  inset: 10% -10% auto;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heroLogo,
+  .title,
+  .subtitle,
+  .ctas,
+  .heroShot {
+    animation: none;
+  }
+  .card,
+  .showShot,
+  .button {
+    transition: none;
+  }
+}
+
+/* ---------- Small screens ---------- */
+
+@media (max-width: 996px) {
+  .featureGrid,
+  .whyGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .showRow {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  .showRowFlip .showText {
+    order: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero {
+    padding-top: 3.5rem;
+  }
+  .featureGrid,
+  .whyGrid {
+    grid-template-columns: 1fr;
+  }
+  .statsGrid {
+    grid-template-columns: 1fr 1fr;
+    row-gap: 1.6rem;
+  }
+  .section {
+    padding: 4rem 0;
+  }
+}
