@@ -1,4 +1,4 @@
-//! The IronStack window.
+//! The Ferrodock window.
 //!
 //! This module only wires things together: it feeds worker responses into
 //! the [`Store`], lays out the shell, lets the active [`Page`] draw itself
@@ -21,7 +21,7 @@ use components::toast::Toast;
 use page::{Confirmation, Intent, Page, PageCtx};
 use store::{Connection, Live, Store};
 
-pub struct IronStackApp {
+pub struct FerrodockApp {
     worker: Worker,
     store: Store,
     pages: Vec<Box<dyn Page>>,
@@ -35,7 +35,7 @@ pub struct IronStackApp {
     watching: Option<(String, bool)>,
 }
 
-impl IronStackApp {
+impl FerrodockApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         theme::install(&cc.egui_ctx);
         let ctx = cc.egui_ctx.clone();
@@ -134,7 +134,7 @@ impl IronStackApp {
     }
 }
 
-impl eframe::App for IronStackApp {
+impl eframe::App for FerrodockApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.handle_responses();
         if ui.input(|i| i.key_pressed(egui::Key::F5)) {

@@ -5,7 +5,7 @@ title: Architecture
 
 # Architecture
 
-IronStack is 100% Rust:
+Ferrodock is 100% Rust:
 
 - [egui / eframe](https://github.com/emilk/egui) for the native UI
 - [bollard](https://github.com/fussybeaver/bollard) for the Docker Engine API

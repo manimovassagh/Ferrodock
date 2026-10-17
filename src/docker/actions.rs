@@ -1,4 +1,4 @@
-//! Things IronStack can do to a single item: container lifecycle and
+//! Things Ferrodock can do to a single item: container lifecycle and
 //! removing any resource.
 
 use bollard::query_parameters::{

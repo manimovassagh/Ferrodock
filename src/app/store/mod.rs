@@ -1,4 +1,4 @@
-//! Everything IronStack currently knows about the Docker Engine.
+//! Everything Ferrodock currently knows about the Docker Engine.
 //!
 //! The store is fed by worker responses and read by the pages. It holds no
 //! UI state of its own.

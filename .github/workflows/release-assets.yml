@@ -1,6 +1,6 @@
 name: Release assets
 
-# Builds IronStack for every platform from a release tag, attaches the
+# Builds Ferrodock for every platform from a release tag, attaches the
 # binaries and SHA256SUMS.txt to that tag's GitHub Release, and publishes
 # the release if it's still a draft.
 #
@@ -37,8 +37,8 @@ jobs:
         shell: bash
         run: |
           mkdir dist
-          cp target/release/ironstack.exe dist/IronStack.exe
-          cd dist && 7z a "IronStack-${TAG#v}-windows-x64.zip" IronStack.exe
+          cp target/release/ferrodock.exe dist/Ferrodock.exe
+          cd dist && 7z a "Ferrodock-${TAG#v}-windows-x64.zip" Ferrodock.exe
       - uses: actions/upload-artifact@v7
         with:
           name: windows
@@ -68,7 +68,7 @@ jobs:
       - name: Package
         run: |
           mkdir dist
-          tar -czf "dist/IronStack-${TAG#v}-linux-x64.tar.gz" -C target/release ironstack
+          tar -czf "dist/Ferrodock-${TAG#v}-linux-x64.tar.gz" -C target/release ferrodock
       - uses: actions/upload-artifact@v7
         with:
           name: linux
@@ -89,7 +89,7 @@ jobs:
           merge-multiple: true
       - name: Checksums
         working-directory: dist
-        run: sha256sum IronStack-* | tee SHA256SUMS.txt
+        run: sha256sum Ferrodock-* | tee SHA256SUMS.txt
       - name: Attach to the release
         run: gh release upload "$TAG" dist/* --clobber
       - name: Publish the release

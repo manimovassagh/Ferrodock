@@ -8,8 +8,8 @@
 
 [workspace]
 # Used for the compare links in the changelog.
-repo_url = "https://github.com/manimovassagh/IronStack"
-# Versions come from git tags; IronStack isn't published to crates.io (yet).
+repo_url = "https://github.com/manimovassagh/Ferrodock"
+# Versions come from git tags; Ferrodock isn't published to crates.io (yet).
 git_only = true
 # A binary, not a library: there's no public API for cargo-semver-checks.
 semver_check = false
@@ -25,12 +25,12 @@ git_release_body = """
 
 | Platform | File |
 |---|---|
-| **macOS** 11+ (Apple Silicon and Intel) | `IronStack-{{ version }}-macos-universal.zip` |
-| **Windows** 10/11 (x64) | `IronStack-{{ version }}-windows-x64.zip` |
-| **Linux** (x64) | `IronStack-{{ version }}-linux-x64.tar.gz` |
+| **macOS** 11+ (Apple Silicon and Intel) | `Ferrodock-{{ version }}-macos-universal.zip` |
+| **Windows** 10/11 (x64) | `Ferrodock-{{ version }}-windows-x64.zip` |
+| **Linux** (x64) | `Ferrodock-{{ version }}-linux-x64.tar.gz` |
 
-**macOS:** unzip, move `IronStack.app` to Applications, then **right-click → Open** the first time (the app isn't notarized yet).
-**Windows:** unzip and run `IronStack.exe`. If SmartScreen appears, choose **More info → Run anyway**.
+**macOS:** unzip, move `Ferrodock.app` to Applications, then **right-click → Open** the first time (the app isn't notarized yet).
+**Windows:** unzip and run `Ferrodock.exe`. If SmartScreen appears, choose **More info → Run anyway**.
 Verify downloads with `SHA256SUMS.txt`.
 
 ## What's changed

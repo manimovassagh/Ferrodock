@@ -54,7 +54,7 @@ pub fn disconnected(ui: &mut egui::Ui, p: &Palette, reason: &str) -> bool {
         ui.label(
             RichText::new(
                 "Start Docker Desktop (or another Docker Engine). \
-                 IronStack connects automatically once it's up.",
+                 Ferrodock connects automatically once it's up.",
             )
             .color(p.muted),
         );

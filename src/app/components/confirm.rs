@@ -15,7 +15,7 @@ pub enum Choice {
 /// they make one; Escape or clicking outside counts as cancel.
 pub fn show(ui: &mut egui::Ui, p: &Palette, c: &Confirmation) -> Option<Choice> {
     let mut choice = None;
-    let modal = egui::Modal::new(egui::Id::unique("ironstack-confirm"))
+    let modal = egui::Modal::new(egui::Id::unique("ferrodock-confirm"))
         .frame(
             Frame::new()
                 .fill(p.sidebar)

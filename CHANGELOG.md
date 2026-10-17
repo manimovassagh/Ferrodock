@@ -1,6 +1,7 @@
 # Changelog
 
-All notable changes to IronStack are documented here. The format follows
+All notable changes to Ferrodock (called IronStack before 0.3.0) are documented
+here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 uses [Semantic Versioning](https://semver.org/).
 
@@ -12,7 +13,7 @@ uses [Semantic Versioning](https://semver.org/).
 - Documentation website (Docusaurus), published to GitHub Pages.
 
 ### Changed
-- IronStack now uses no CPU while idle. The background worker checks
+- Ferrodock now uses no CPU while idle. The background worker checks
   Docker on its own timer and only wakes the UI when something actually
   changed, instead of the UI redrawing every few seconds.
 
@@ -40,10 +41,10 @@ uses [Semantic Versioning](https://semver.org/).
 - Details pane for every item, with copyable IDs.
 - Confirmation dialog before anything is deleted.
 - Light and dark themes that follow the system setting.
-- Automatic reconnection when Docker starts after IronStack.
+- Automatic reconnection when Docker starts after Ferrodock.
 - App icon, and release builds for Windows, macOS (universal) and Linux.
 
-[Unreleased]: https://github.com/manimovassagh/IronStack/compare/v0.2.1...HEAD
-[0.2.1]: https://github.com/manimovassagh/IronStack/compare/v0.2.0...v0.2.1
-[0.2.0]: https://github.com/manimovassagh/IronStack/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/manimovassagh/IronStack/releases/tag/v0.1.0
+[Unreleased]: https://github.com/manimovassagh/Ferrodock/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/manimovassagh/Ferrodock/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/manimovassagh/Ferrodock/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/manimovassagh/Ferrodock/releases/tag/v0.1.0

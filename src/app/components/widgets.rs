@@ -4,7 +4,7 @@ use eframe::egui::{self, Align2, Color32, CornerRadius, FontId, Response, RichTe
 
 use crate::theme::Palette;
 
-/// The IronStack mark: three stacked slabs.
+/// The Ferrodock mark: three stacked slabs.
 pub fn logo(ui: &mut egui::Ui, p: &Palette, size: f32) {
     let (rect, _) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
     let painter = ui.painter();

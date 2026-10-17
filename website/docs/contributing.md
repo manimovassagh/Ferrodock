@@ -6,7 +6,7 @@ title: Contributing
 # Contributing
 
 Bug reports, ideas and pull requests are welcome. Open an issue on
-[GitHub](https://github.com/manimovassagh/IronStack/issues/new/choose).
+[GitHub](https://github.com/manimovassagh/Ferrodock/issues/new/choose).
 
 ## Checks
 
@@ -35,9 +35,9 @@ Docker Engine.
 Releases are automated. release-plz keeps a release PR open with the next
 version and changelog. Merging it tags the release, builds every platform,
 attaches the binaries and checksums, and publishes it. See
-[RELEASING.md](https://github.com/manimovassagh/IronStack/blob/main/RELEASING.md).
+[RELEASING.md](https://github.com/manimovassagh/Ferrodock/blob/main/RELEASING.md).
 
-See [CONTRIBUTING.md](https://github.com/manimovassagh/IronStack/blob/main/CONTRIBUTING.md)
+See [CONTRIBUTING.md](https://github.com/manimovassagh/Ferrodock/blob/main/CONTRIBUTING.md)
 for the full guide.
 
 ## Building these docs
@@ -45,6 +45,6 @@ for the full guide.
 ```bash
 cd website
 npm ci
-npm start        # live preview at http://localhost:3000/IronStack/
+npm start        # live preview at http://localhost:3000/Ferrodock/
 npm run build    # static site in website/build
 ```

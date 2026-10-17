@@ -1,5 +1,5 @@
 name: Feature request
-description: Suggest an idea for IronStack
+description: Suggest an idea for Ferrodock
 labels: [enhancement]
 body:
   - type: textarea
@@ -11,6 +11,6 @@ body:
   - type: textarea
     id: idea
     attributes:
-      label: What would you like IronStack to do?
+      label: What would you like Ferrodock to do?
     validations:
       required: true

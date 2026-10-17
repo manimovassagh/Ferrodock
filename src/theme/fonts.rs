@@ -5,7 +5,7 @@ use eframe::egui::{
     epaint::text::{FontInsert, FontPriority, InsertFontFamily},
 };
 
-/// Uses the platform UI font when it's available, so IronStack looks at
+/// Uses the platform UI font when it's available, so Ferrodock looks at
 /// home next to other native apps. egui's bundled fonts stay as fallback
 /// (they also provide the icon glyphs).
 pub fn load_system_font(ctx: &egui::Context) {
