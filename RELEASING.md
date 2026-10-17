@@ -1,4 +1,4 @@
-# Releasing IronStack
+# Releasing Ferrodock
 
 Releases are automated with [release-plz](https://release-plz.dev) and
 GitHub Actions. Nobody edits version numbers or the changelog by hand.

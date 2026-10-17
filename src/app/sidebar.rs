@@ -18,7 +18,7 @@ pub fn show(
     ui.add_space(2.0);
     ui.horizontal(|ui| {
         widgets::logo(ui, p, 22.0);
-        ui.label(RichText::new("IronStack").size(17.0).strong().color(p.text));
+        ui.label(RichText::new("Ferrodock").size(17.0).strong().color(p.text));
     });
 
     ui.add_space(22.0);

@@ -1,4 +1,4 @@
-//! IronStack's colours, in a dark and a light variant.
+//! Ferrodock's colours, in a dark and a light variant.
 
 use eframe::egui::{self, Color32};
 

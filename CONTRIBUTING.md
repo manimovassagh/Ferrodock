@@ -1,21 +1,21 @@
-# Contributing to IronStack
+# Contributing to Ferrodock
 
 Thanks for taking the time to contribute! Bug reports, ideas and pull
 requests are all welcome.
 
 ## Reporting bugs and asking for features
 
-Use the [issue templates](https://github.com/manimovassagh/IronStack/issues/new/choose).
+Use the [issue templates](https://github.com/manimovassagh/Ferrodock/issues/new/choose).
 For bugs, include your OS, your Docker engine (Docker Desktop, Colima, …) and
-the IronStack version.
+the Ferrodock version.
 
 ## Development setup
 
 You need [Rust](https://rustup.rs) 1.95 or newer and a running Docker Engine.
 
 ```bash
-git clone https://github.com/manimovassagh/IronStack.git
-cd IronStack
+git clone https://github.com/manimovassagh/Ferrodock.git
+cd Ferrodock
 cargo run
 ```
 

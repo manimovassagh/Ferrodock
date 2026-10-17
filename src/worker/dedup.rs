@@ -2,7 +2,7 @@
 //!
 //! Lists are refreshed every few seconds, but usually nothing changed.
 //! Each message wakes the UI for a redraw, so dropping repeats keeps
-//! IronStack idle while Docker is idle.
+//! Ferrodock idle while Docker is idle.
 
 use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;

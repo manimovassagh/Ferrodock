@@ -4,16 +4,16 @@ sidebar_position: 1
 title: Introduction
 ---
 
-# IronStack
+# Ferrodock
 
 **A fast, native desktop app for managing Docker, written entirely in Rust.**
 
-IronStack gives you a clean, responsive view of everything in your Docker
+Ferrodock gives you a clean, responsive view of everything in your Docker
 Engine: containers, Compose projects, images, volumes and networks. It's a
 single native executable with no Electron, no web view and no background
 service. It talks straight to the Docker Engine API.
 
-![The IronStack containers page](/img/containers.png)
+![The Ferrodock containers page](/img/containers.png)
 
 ## Highlights
 
@@ -29,5 +29,5 @@ service. It talks straight to the Docker Engine API.
 
 ## Next steps
 
-- [Install IronStack](./installation.md)
+- [Install Ferrodock](./installation.md)
 - [Learn your way around](./usage.md)

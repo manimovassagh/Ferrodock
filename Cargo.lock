@@ -1152,6 +1152,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b97b65636e5b9ef369943878ac74335ba1c55c1cb6adbf1e2c293c624248d693"
 
 [[package]]
+name = "ferrodock"
+version = "0.2.1"
+dependencies = [
+ "bollard",
+ "eframe",
+ "egui_extras",
+ "futures-util",
+ "tokio",
+ "winresource",
+]
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1791,18 +1803,6 @@ checksum = "cc4e190f5d26ca7051642629da2c52fc03bde85a03197c99408dcd291734c855"
 dependencies = [
  "equivalent",
  "hashbrown 0.17.1",
-]
-
-[[package]]
-name = "ironstack"
-version = "0.2.1"
-dependencies = [
- "bollard",
- "eframe",
- "egui_extras",
- "futures-util",
- "tokio",
- "winresource",
 ]
 
 [[package]]

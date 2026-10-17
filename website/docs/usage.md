@@ -1,9 +1,9 @@
 ---
 sidebar_position: 3
-title: Using IronStack
+title: Using Ferrodock
 ---
 
-# Using IronStack
+# Using Ferrodock
 
 The sidebar lists every section with a count, and the Docker Engine status
 at the bottom. Each page has a search box, and lists refresh every few
@@ -37,7 +37,7 @@ CPU core.
 ![Live stats](/img/stats.png)
 
 Logs and stats stream only for the container whose details are open, so
-IronStack stays light.
+Ferrodock stays light.
 
 ## Compose
 
@@ -62,6 +62,6 @@ Each page shows what's in use and by which containers.
 
 ## Themes
 
-IronStack follows your system's light or dark setting.
+Ferrodock follows your system's light or dark setting.
 
 ![Light mode](/img/light-mode.png)

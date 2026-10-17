@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>IronStack</string>
+    <string>Ferrodock</string>
     <key>CFBundleDisplayName</key>
-    <string>IronStack</string>
+    <string>Ferrodock</string>
     <key>CFBundleIdentifier</key>
-    <string>io.github.manimovassagh.ironstack</string>
+    <string>io.github.manimovassagh.ferrodock</string>
     <key>CFBundleExecutable</key>
-    <string>ironstack</string>
+    <string>ferrodock</string>
     <key>CFBundleIconFile</key>
     <string>icon</string>
     <key>CFBundlePackageType</key>

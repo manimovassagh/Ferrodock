@@ -1,23 +1,23 @@
 <div align="center">
 
-<img src="assets/icon-256.png" alt="IronStack icon" width="96">
+<img src="assets/icon-256.png" alt="Ferrodock icon" width="96">
 
-# IronStack
+# Ferrodock
 
 **A fast, native desktop app for managing Docker, written entirely in Rust.**
 
-[![CI](https://github.com/manimovassagh/IronStack/actions/workflows/ci.yml/badge.svg)](https://github.com/manimovassagh/IronStack/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/manimovassagh/IronStack?display_name=tag&sort=semver)](https://github.com/manimovassagh/IronStack/releases/latest)
+[![CI](https://github.com/manimovassagh/Ferrodock/actions/workflows/ci.yml/badge.svg)](https://github.com/manimovassagh/Ferrodock/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/manimovassagh/Ferrodock?display_name=tag&sort=semver)](https://github.com/manimovassagh/Ferrodock/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Rust 1.95+](https://img.shields.io/badge/rust-1.95%2B-orange.svg)](https://www.rust-lang.org)
 
-Windows · macOS · Linux · **[Documentation](https://manimovassagh.github.io/IronStack/)**
+Windows · macOS · Linux · **[Documentation](https://manimovassagh.github.io/Ferrodock/)**
 
-![IronStack showing the container list](docs/screenshots/containers.png)
+![Ferrodock showing the container list](docs/screenshots/containers.png)
 
 </div>
 
-IronStack gives you a clean, responsive view of everything in your Docker
+Ferrodock gives you a clean, responsive view of everything in your Docker
 Engine: containers, images, volumes and networks. It's a single native
 executable with no Electron, no web view and no background service. It talks
 straight to the Docker Engine API and stays out of your way.
@@ -25,15 +25,15 @@ straight to the Docker Engine API and stays out of your way.
 ## Download
 
 Grab the latest build from the
-**[Releases page](https://github.com/manimovassagh/IronStack/releases/latest)**:
+**[Releases page](https://github.com/manimovassagh/Ferrodock/releases/latest)**:
 
 | Platform | File | First launch |
 |---|---|---|
-| **macOS** 11+ (Apple Silicon and Intel) | `IronStack-…-macos-universal.zip` | Unzip, move **IronStack.app** to Applications, then **right-click → Open** once (the app isn't notarized yet). |
-| **Windows** 10/11 (x64) | `IronStack-…-windows-x64.zip` | Unzip and run **IronStack.exe**. If SmartScreen appears, choose **More info → Run anyway**. |
-| **Linux** (x64) | `IronStack-…-linux-x64.tar.gz` | Extract and run `./ironstack`. |
+| **macOS** 11+ (Apple Silicon and Intel) | `Ferrodock-…-macos-universal.zip` | Unzip, move **Ferrodock.app** to Applications, then **right-click → Open** once (the app isn't notarized yet). |
+| **Windows** 10/11 (x64) | `Ferrodock-…-windows-x64.zip` | Unzip and run **Ferrodock.exe**. If SmartScreen appears, choose **More info → Run anyway**. |
+| **Linux** (x64) | `Ferrodock-…-linux-x64.tar.gz` | Extract and run `./ferrodock`. |
 
-IronStack needs a running Docker Engine: Docker Desktop, Colima, Rancher
+Ferrodock needs a running Docker Engine: Docker Desktop, Colima, Rancher
 Desktop, or a native `dockerd`.
 
 ## Features
@@ -51,7 +51,7 @@ Desktop, or a native `dockerd`.
   confirmation first.
 - **Search** on every page, and **live updates** every few seconds.
 - **Light and dark themes** that follow your system setting.
-- **Resilient**: start IronStack before Docker and it connects as soon as the
+- **Resilient**: start Ferrodock before Docker and it connects as soon as the
   engine is up.
 - **Light on resources**: Docker calls run on a background thread so the UI
   never blocks, and logs and stats only stream for the container you're
@@ -75,29 +75,29 @@ You need [Rust](https://rustup.rs) 1.95 or newer. On macOS, also run
 Visual Studio C++ Build Tools.
 
 ```bash
-git clone https://github.com/manimovassagh/IronStack.git
-cd IronStack
+git clone https://github.com/manimovassagh/Ferrodock.git
+cd Ferrodock
 cargo run --release
 ```
 
-On macOS, `packaging/macos/bundle.sh` builds a universal `IronStack.app`.
+On macOS, `packaging/macos/bundle.sh` builds a universal `Ferrodock.app`.
 
 ### Connecting to a different engine
 
-IronStack uses the platform default (`/var/run/docker.sock`, or the
+Ferrodock uses the platform default (`/var/run/docker.sock`, or the
 `\\.\pipe\docker_engine` named pipe on Windows) unless `DOCKER_HOST` is set:
 
 ```bash
 # Docker Desktop on macOS with the default socket turned off
-DOCKER_HOST=unix://$HOME/.docker/run/docker.sock ironstack
+DOCKER_HOST=unix://$HOME/.docker/run/docker.sock ferrodock
 
 # Colima
-DOCKER_HOST=unix://$HOME/.colima/default/docker.sock ironstack
+DOCKER_HOST=unix://$HOME/.colima/default/docker.sock ferrodock
 ```
 
 ## Architecture
 
-IronStack is 100% Rust: [egui/eframe](https://github.com/emilk/egui) for the
+Ferrodock is 100% Rust: [egui/eframe](https://github.com/emilk/egui) for the
 native UI, [bollard](https://github.com/fussybeaver/bollard) for the Docker
 Engine API and [tokio](https://tokio.rs) for async I/O.
 
@@ -129,14 +129,14 @@ search and details pane work automatically.
 
 ## Roadmap
 
-Progress is tracked in [issues](https://github.com/manimovassagh/IronStack/issues).
+Progress is tracked in [issues](https://github.com/manimovassagh/Ferrodock/issues).
 
-- [x] Remove containers, images, volumes and networks ([#5](https://github.com/manimovassagh/IronStack/issues/5))
-- [x] Container logs ([#6](https://github.com/manimovassagh/IronStack/issues/6)) and live stats ([#7](https://github.com/manimovassagh/IronStack/issues/7))
-- [x] App icon and smaller binaries ([#10](https://github.com/manimovassagh/IronStack/issues/10))
-- [x] Prebuilt downloads for Windows, macOS and Linux ([#9](https://github.com/manimovassagh/IronStack/issues/9))
-- [x] Docker Compose projects ([#8](https://github.com/manimovassagh/IronStack/issues/8))
-- [x] Documentation website ([#11](https://github.com/manimovassagh/IronStack/issues/11))
+- [x] Remove containers, images, volumes and networks ([#5](https://github.com/manimovassagh/Ferrodock/issues/5))
+- [x] Container logs ([#6](https://github.com/manimovassagh/Ferrodock/issues/6)) and live stats ([#7](https://github.com/manimovassagh/Ferrodock/issues/7))
+- [x] App icon and smaller binaries ([#10](https://github.com/manimovassagh/Ferrodock/issues/10))
+- [x] Prebuilt downloads for Windows, macOS and Linux ([#9](https://github.com/manimovassagh/Ferrodock/issues/9))
+- [x] Docker Compose projects ([#8](https://github.com/manimovassagh/Ferrodock/issues/8))
+- [x] Documentation website ([#11](https://github.com/manimovassagh/Ferrodock/issues/11))
 
 ## Contributing
 
@@ -152,5 +152,5 @@ Created and maintained by **Mani Movassagh**
 
 ## License
 
-IronStack is released under the [MIT License](LICENSE). It's free to use for
+Ferrodock is released under the [MIT License](LICENSE). It's free to use for
 personal, commercial and organisational projects.

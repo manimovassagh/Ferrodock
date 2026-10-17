@@ -1,4 +1,4 @@
-//! IronStack's look: colour palettes, widget styling and fonts.
+//! Ferrodock's look: colour palettes, widget styling and fonts.
 //!
 //! Both a dark and a light palette are installed; egui picks one based on
 //! the operating system's theme.
@@ -11,7 +11,7 @@ use eframe::egui::{self, Theme, Visuals};
 
 pub use palette::{DARK, LIGHT, Palette, palette};
 
-/// Applies IronStack's fonts, colours and spacing to the egui context.
+/// Applies Ferrodock's fonts, colours and spacing to the egui context.
 pub fn install(ctx: &egui::Context) {
     fonts::load_system_font(ctx);
     ctx.set_visuals_of(Theme::Dark, visuals::visuals(Visuals::dark(), &DARK));

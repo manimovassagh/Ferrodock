@@ -38,7 +38,7 @@ impl Toast {
 
         let color = if self.is_error { p.danger } else { p.success };
         let mut dismissed = false;
-        egui::Area::new(egui::Id::unique("ironstack-toast"))
+        egui::Area::new(egui::Id::unique("ferrodock-toast"))
             .anchor(egui::Align2::RIGHT_BOTTOM, egui::vec2(-18.0, -18.0))
             .show(ui.ctx(), |ui| {
                 Frame::new()

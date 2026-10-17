@@ -11,7 +11,7 @@ use eframe::egui;
 fn main() -> eframe::Result {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("IronStack")
+            .with_title("Ferrodock")
             .with_inner_size([1240.0, 740.0])
             .with_min_inner_size([820.0, 480.0])
             .with_icon(
@@ -21,8 +21,8 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
     eframe::run_native(
-        "IronStack",
+        "Ferrodock",
         options,
-        Box::new(|cc| Ok(Box::new(app::IronStackApp::new(cc)))),
+        Box::new(|cc| Ok(Box::new(app::FerrodockApp::new(cc)))),
     )
 }

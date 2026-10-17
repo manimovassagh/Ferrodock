@@ -1,10 +1,10 @@
 [package]
-name = "ironstack"
+name = "ferrodock"
 version = "0.2.1"
 edition = "2024"
 rust-version = "1.95"
 authors = ["Mani Movassagh"]
-repository = "https://github.com/manimovassagh/IronStack"
+repository = "https://github.com/manimovassagh/Ferrodock"
 license = "MIT"
 description = "A fast, native container manager for Docker, written in Rust."
 
@@ -26,6 +26,6 @@ strip = true
 
 # Shown in the Windows file properties (embedded by build.rs).
 [package.metadata.winresource]
-ProductName = "IronStack"
-FileDescription = "IronStack"
+ProductName = "Ferrodock"
+FileDescription = "Ferrodock"
 LegalCopyright = "Copyright (c) 2026 Mani Movassagh. MIT License."
