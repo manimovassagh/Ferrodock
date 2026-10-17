@@ -22,8 +22,8 @@ published ports. Use **All / Running / Stopped** to filter.
   and **⟳** restarts it.
 - Published ports are links: click **8080 ↗** to open the app in your
   browser, or right-click to copy its address.
-- **Remove** (in the details pane) is available once the container is
-  stopped, and always asks for confirmation.
+- **Remove…** (in the details pane's **⋯** menu) is available once the
+  container is stopped, and always asks for confirmation.
 
 Changes show up the moment they happen, whether you make them in
 Ferrodock, in a terminal or with Docker Compose. Ferrodock follows the
@@ -33,7 +33,7 @@ happening ("Stopping…", "Restarting…").
 If a container **crashes** (exits with an error you didn't ask for) or is
 killed for **running out of memory**, a notification tells you.
 
-In a container's details:
+In a container's details, the **⋯** menu next to the actions has:
 
 - **Rename…** gives it a new name.
 - **Edit…** opens the Run dialog filled in with its current setup. Change
@@ -45,6 +45,10 @@ In a container's details:
   one so they don't clash.
 - **Restart** (in Overview) changes its restart policy on the spot, without
   recreating it.
+- IDs, the IP address and the command can be copied: click the value, or
+  **Copy** next to it.
+- Hover over the CPU or memory chart (in Stats) to read the value at any
+  moment of the last minute.
 - **Limits** (in Overview) shows its CPU and memory limits; **Change…** sets
   them on the spot. Removing a limit needs **Edit…**.
 

@@ -26,7 +26,10 @@ pub(super) fn show(ui: &mut egui::Ui, p: &Palette, live: Option<&Live>, running:
             let cpu: Vec<f64> = live.stats.iter().map(|s| s.cpu_percent).collect();
             let cpu_max = chart_ceiling(&cpu, 1.0);
             metric(ui, p, "CPU", &format!("{:.1}%", latest.cpu_percent));
-            sparkline::show(ui, p, &cpu, cpu_max, p.accent, &format!("{cpu_max:.0}%"));
+            let cpu_scale = format!("{cpu_max:.0}%");
+            sparkline::show(ui, p, &cpu, cpu_max, p.accent, &cpu_scale, |v| {
+                format!("{v:.1}%")
+            });
             ui.add_space(14.0);
 
             let memory: Vec<f64> = live.stats.iter().map(|s| s.memory_used as f64).collect();
@@ -43,7 +46,9 @@ pub(super) fn show(ui: &mut egui::Ui, p: &Palette, live: Option<&Live>, running:
             };
             metric(ui, p, "Memory", &memory_text);
             let memory_scale = format_size(memory_max as i64);
-            sparkline::show(ui, p, &memory, memory_max, p.success, &memory_scale);
+            sparkline::show(ui, p, &memory, memory_max, p.success, &memory_scale, |v| {
+                format_size(v as i64)
+            });
             ui.add_space(14.0);
 
             details::section(ui, p, "Totals", |ui| {

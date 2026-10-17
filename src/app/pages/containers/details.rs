@@ -3,10 +3,11 @@
 use eframe::egui::{self, RichText};
 
 use super::{ContainersPage, DetailsTab, actions, limits, logs, ports, processes, stats, status};
+use crate::app::components::icons::Icon;
 use crate::app::components::{details, inspect, widgets};
 use crate::app::page::{Intent, PageCtx};
 use crate::app::pages::run_dialog::{self, RunForm};
-use crate::app::pages::{remove_button, remove_task};
+use crate::app::pages::{confirm_removal, remove_task};
 use crate::docker::{Change, ContainerInfo, Inspection, Resource, Restart, time_ago};
 
 pub(super) fn show(page: &mut ContainersPage, ui: &mut egui::Ui, ctx: &mut PageCtx) {
@@ -34,43 +35,15 @@ pub(super) fn show(page: &mut ContainersPage, ui: &mut egui::Ui, ctx: &mut PageC
         ui.label(RichText::new(&c.status).color(p.muted));
     });
     ui.add_space(10.0);
+    let busy = ctx.store.pending.contains_key(&c.id);
     ui.horizontal(|ui| {
-        let busy = ctx.store.pending.contains_key(&c.id);
         if let Some(action) = actions::buttons(ui, c, busy, true) {
             ctx.request(actions::intent(action, c));
         }
-        if !busy {
-            let blocked = c.is_active().then_some("Stop the container first");
-            let task = remove_task(Resource::Containers, &c.id, &c.name);
-            remove_button(ui, ctx, "container", task, blocked);
-        }
-    });
-    ui.horizontal(|ui| {
-        if ui.small_button("Rename…").clicked() {
-            page.rename = Some(c.name.clone());
-        }
-        let busy = ctx.store.pending.contains_key(&c.id);
-        let mut needs_settings = |label: &str, hint: &str| {
-            ui.add_enabled(
-                inspection.is_some() && !busy,
-                egui::Button::new(label).small(),
-            )
-            .on_hover_text(hint)
-            .on_disabled_hover_text("Loading its settings…")
-            .clicked()
-        };
-        let edit = needs_settings(
-            "Edit…",
-            "Change ports, environment, volumes and more, then recreate it",
-        );
-        let duplicate = needs_settings("Duplicate…", "Run another container set up like this one");
-        if let Some(i) = inspection {
-            if edit {
-                page.run_form = Some(RunForm::edit(c, i));
-            } else if duplicate {
-                page.run_form = Some(RunForm::duplicate(c, i));
-            }
-        }
+        let more = widgets::icon_button(ui, Icon::More, "More actions");
+        egui::Popup::menu(&more).show(|ui| {
+            more_menu(page, ui, ctx, c, inspection, busy);
+        });
     });
     ui.add_space(12.0);
 
@@ -111,6 +84,52 @@ pub(super) fn show(page: &mut ContainersPage, ui: &mut egui::Ui, ctx: &mut PageC
                 .auto_shrink(false)
                 .show(ui, |ui| inspect::show(ui, p, ctx.store, &c.id));
         }
+    }
+}
+
+/// The ⋯ menu: rename, edit, duplicate and, set apart, remove.
+fn more_menu(
+    page: &mut ContainersPage,
+    ui: &mut egui::Ui,
+    ctx: &mut PageCtx,
+    c: &ContainerInfo,
+    inspection: Option<&Inspection>,
+    busy: bool,
+) {
+    let p = ctx.palette;
+    ui.set_min_width(160.0);
+    if ui
+        .add_enabled(!busy, egui::Button::new("Rename…"))
+        .clicked()
+    {
+        page.rename = Some(c.name.clone());
+    }
+    let ready = inspection.is_some() && !busy;
+    let edit = ui
+        .add_enabled(ready, egui::Button::new("Edit…"))
+        .on_hover_text("Change ports, environment, volumes and more, then recreate it")
+        .on_disabled_hover_text("Loading its settings…");
+    let duplicate = ui
+        .add_enabled(ready, egui::Button::new("Duplicate…"))
+        .on_hover_text("Run another container set up like this one")
+        .on_disabled_hover_text("Loading its settings…");
+    if let Some(i) = inspection {
+        if edit.clicked() {
+            page.run_form = Some(RunForm::edit(c, i));
+        } else if duplicate.clicked() {
+            page.run_form = Some(RunForm::duplicate(c, i));
+        }
+    }
+    ui.separator();
+    let remove = ui
+        .add_enabled(
+            !busy && !c.is_active(),
+            egui::Button::new(RichText::new("Remove…").color(p.danger)),
+        )
+        .on_disabled_hover_text("Stop the container first");
+    if remove.clicked() {
+        let task = remove_task(Resource::Containers, &c.id, &c.name);
+        ctx.request(confirm_removal("container", vec![task]));
     }
 }
 
@@ -211,7 +230,11 @@ fn overview(
                 }
                 details::copy_field(ui, p, "ID", c.short_id(), &c.id);
                 details::field(ui, p, "Created", &time_ago(c.created));
-                details::field(ui, p, "Command", &c.command);
+                if c.command.is_empty() {
+                    details::field(ui, p, "Command", "");
+                } else {
+                    details::copy_field(ui, p, "Command", &c.command, &c.command);
+                }
                 if let Some(current) = restart {
                     let current = Restart::from_name(current.as_deref().unwrap_or("no"));
                     ui.label(RichText::new("Restart").color(p.muted));
@@ -245,7 +268,13 @@ fn overview(
             });
             details::section(ui, p, "Network", |ui| {
                 ports::field(ui, p, &c.ports);
-                details::field(ui, p, "IP", &widgets::join_or_dash(&c.ip_addresses));
+                match c.ip_addresses.as_slice() {
+                    [] => details::field(ui, p, "IP", ""),
+                    ips => {
+                        let ips = ips.join(", ");
+                        details::copy_field(ui, p, "IP", &ips, &ips);
+                    }
+                }
                 let networks: Vec<&str> = c.networks.iter().map(String::as_str).collect();
                 if let Some(i) = details::link_field(ui, p, "Networks", &networks)
                     && let Some(net) = store.networks.iter().find(|n| n.name == networks[i])

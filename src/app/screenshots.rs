@@ -168,11 +168,13 @@ fn screenshots() {
     open(&mut h, 0, busy);
     click(&mut h, "Overview");
     save(&mut h, "dark-mode");
+    click(&mut h, "More actions");
     click(&mut h, "Duplicate…");
     settle(&mut h, Duration::from_millis(500));
     save(&mut h, "duplicate");
     h.key_press(egui::Key::Escape);
     h.run_steps(3);
+    click(&mut h, "More actions");
     click(&mut h, "Edit…");
     settle(&mut h, Duration::from_millis(500));
     save(&mut h, "edit");
