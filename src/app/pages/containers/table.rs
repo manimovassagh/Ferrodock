@@ -1,12 +1,11 @@
 //! The container list.
 
-use eframe::egui::{self, RichText};
+use eframe::egui;
 
-use super::{ContainersPage, actions, status};
+use super::{ContainersPage, actions, ports, status};
 use crate::app::components::table;
 use crate::app::page::{PageCtx, toggle_selection};
 use crate::docker::ContainerInfo;
-use crate::theme::Palette;
 
 pub(super) fn show(
     page: &mut ContainersPage,
@@ -29,7 +28,7 @@ pub(super) fn show(
     if show_ports {
         columns.push(table::Col::fixed("PORTS", 140.0));
     }
-    columns.push(table::Col::fixed("", 68.0));
+    columns.push(table::Col::fixed("", 100.0));
 
     let selected = page.selected.clone();
     let clicked = table::show(
@@ -47,7 +46,7 @@ pub(super) fn show(
                 row.col(|ui| table::mono(ui, p, c.short_id()));
             }
             if show_ports {
-                row.col(|ui| ports_cell(ui, p, &c.ports));
+                row.col(|ui| ports::cell(ui, p, &c.ports));
             }
             row.col(|ui| {
                 ui.spacing_mut().item_spacing.x = 4.0;
@@ -61,21 +60,4 @@ pub(super) fn show(
     if let Some(i) = clicked {
         toggle_selection(&mut page.selected, visible[i].id.clone());
     }
-}
-
-fn ports_cell(ui: &mut egui::Ui, p: &Palette, ports: &[String]) {
-    let Some(first) = ports.first() else {
-        table::muted(ui, p, "—");
-        return;
-    };
-    let short = first.replace("0.0.0.0:", "").replace(" -> ", " → ");
-    let response = ui.add(egui::Label::new(RichText::new(short).color(p.text)).selectable(false));
-    if ports.len() > 1 {
-        ui.label(
-            RichText::new(format!("+{}", ports.len() - 1))
-                .size(12.0)
-                .color(p.muted),
-        );
-    }
-    response.on_hover_text(ports.join("\n"));
 }

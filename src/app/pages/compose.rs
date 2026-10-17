@@ -132,6 +132,7 @@ impl Page for ComposePage {
                         ui.horizontal(|ui| {
                             widgets::dot(ui, if c.is_active() { p.success } else { p.muted });
                             ui.label(RichText::new(&c.name).color(p.text));
+                            super::containers::ports::links(ui, p, &c.ports);
                         });
                         ui.end_row();
                     }

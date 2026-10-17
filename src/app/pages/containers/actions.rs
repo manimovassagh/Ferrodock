@@ -1,4 +1,4 @@
-//! Start / Stop / Restart controls.
+//! Start / Stop / Pause / Restart controls.
 
 use eframe::egui;
 
@@ -14,7 +14,7 @@ pub(super) fn intent(action: Action, c: &ContainerInfo) -> Intent {
     })
 }
 
-/// Start/Stop and Restart buttons, as icons or with labels. Shows a spinner
+/// Start/Stop, Pause/Resume and Restart buttons, as icons or with labels. Shows a spinner
 /// while an action is in flight. Returns the clicked action, if any.
 pub(super) fn buttons(
     ui: &mut egui::Ui,
@@ -31,8 +31,16 @@ pub(super) fn buttons(
     } else {
         (Action::Start, "▶", "Start")
     };
+    let pause = if c.is_paused() {
+        Some((Action::Unpause, "⏵", "Resume"))
+    } else if c.can_pause() {
+        Some((Action::Pause, "⏸", "Pause"))
+    } else {
+        None
+    };
     let mut clicked = None;
-    for (action, icon, label) in [toggle, (Action::Restart, "⟳", "Restart")] {
+    let restart = (Action::Restart, "⟳", "Restart");
+    for (action, icon, label) in std::iter::once(toggle).chain(pause).chain([restart]) {
         let response = if with_labels {
             ui.button(format!("{icon}  {label}"))
         } else {

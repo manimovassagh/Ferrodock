@@ -13,6 +13,8 @@ pub enum Action {
     Start,
     Stop,
     Restart,
+    Pause,
+    Unpause,
     Remove(Resource),
 }
 
@@ -23,6 +25,8 @@ impl Action {
             Action::Start => "start",
             Action::Stop => "stop",
             Action::Restart => "restart",
+            Action::Pause => "pause",
+            Action::Unpause => "resume",
             Action::Remove(_) => "remove",
         }
     }
@@ -33,6 +37,8 @@ impl Action {
             Action::Start => "Started",
             Action::Stop => "Stopped",
             Action::Restart => "Restarted",
+            Action::Pause => "Paused",
+            Action::Unpause => "Resumed",
             Action::Remove(_) => "Removed",
         }
     }
@@ -74,6 +80,8 @@ impl DockerClient {
                     .restart_container(id, None::<RestartContainerOptions>)
                     .await
             }
+            Action::Pause => docker.pause_container(id).await,
+            Action::Unpause => docker.unpause_container(id).await,
             Action::Remove(Resource::Containers) => {
                 docker
                     .remove_container(id, None::<RemoveContainerOptions>)

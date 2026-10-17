@@ -4,6 +4,7 @@
 mod actions;
 mod details;
 mod logs;
+pub(super) mod ports;
 mod stats;
 mod status;
 mod table;

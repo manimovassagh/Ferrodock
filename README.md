@@ -56,7 +56,8 @@ Get-FileHash .\Ferrodock-*-windows-x64.zip            # Windows (compare with SH
 ## Features
 
 - **Containers**: status, image, ID and ports at a glance. Start, stop,
-  restart and remove with one click. Filter by All / Running / Stopped.
+  pause, restart and remove with one click, and open published ports in
+  your browser. Filter by All / Running / Stopped.
 - **Logs**: the last 500 lines, then live output as it happens, with a
   filter and copy.
 - **Stats**: live CPU and memory charts, plus network and disk totals.
