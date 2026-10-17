@@ -10,4 +10,4 @@
 
 - [ ] `cargo fmt`, `cargo clippy --all-targets -- -D warnings` and `cargo test` pass
 - [ ] Screenshots for visible UI changes
-- [ ] `CHANGELOG.md` updated under "Unreleased"
+- [ ] The PR title follows Conventional Commits (`feat: …`, `fix: …`); it becomes the changelog entry

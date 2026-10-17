@@ -26,7 +26,16 @@ Docker Engine.
 - Keep modules focused on one job. Pages never talk to Docker directly.
 - Anything that deletes data must ask for confirmation first.
 - Add unit tests for logic that isn't pure drawing.
-- Note user-visible changes in `CHANGELOG.md` under "Unreleased".
+- Title pull requests with [Conventional Commits](https://www.conventionalcommits.org)
+  (`feat: …`, `fix: …`). PRs are squash-merged, and the title becomes the
+  changelog entry.
+
+## Releases
+
+Releases are automated. release-plz keeps a release PR open with the next
+version and changelog. Merging it tags the release, builds every platform,
+attaches the binaries and checksums, and publishes it. See
+[RELEASING.md](https://github.com/manimovassagh/IronStack/blob/main/RELEASING.md).
 
 See [CONTRIBUTING.md](https://github.com/manimovassagh/IronStack/blob/main/CONTRIBUTING.md)
 for the full guide.
