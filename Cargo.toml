@@ -8,5 +8,6 @@ description = "A fast, native container manager for Docker, written in Rust."
 [dependencies]
 bollard = "0.21.1"
 eframe = "0.37.0"
+egui_extras = { version = "0.37", default-features = false }
 futures-util = "0.3.34"
 tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros"] }
