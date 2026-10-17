@@ -3,6 +3,7 @@
 
 mod actions;
 mod details;
+mod limits;
 mod logs;
 pub(super) mod ports;
 mod processes;
@@ -56,8 +57,10 @@ pub struct ContainersPage {
     marked: std::collections::BTreeSet<String>,
     /// The row Shift-click extends from.
     anchor: Option<String>,
-    /// The Duplicate dialog, while it's open.
+    /// The Edit or Duplicate dialog, while it's open.
     run_form: Option<RunForm>,
+    /// The Limits dialog, while it's open.
+    limits: Option<limits::LimitsForm>,
     /// The new name being typed in the Rename dialog, while it's open.
     rename: Option<String>,
 }
@@ -72,6 +75,7 @@ impl ContainersPage {
             marked: Default::default(),
             anchor: None,
             run_form: None,
+            limits: None,
             rename: None,
         }
     }

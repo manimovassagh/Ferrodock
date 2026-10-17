@@ -2,12 +2,12 @@
 
 use eframe::egui::{self, RichText};
 
-use super::{ContainersPage, DetailsTab, actions, logs, ports, processes, stats, status};
+use super::{ContainersPage, DetailsTab, actions, limits, logs, ports, processes, stats, status};
 use crate::app::components::{details, inspect, widgets};
 use crate::app::page::{Intent, PageCtx};
 use crate::app::pages::run_dialog::{self, RunForm};
 use crate::app::pages::{remove_button, remove_task};
-use crate::docker::{Change, ContainerInfo, Resource, Restart, time_ago};
+use crate::docker::{Change, ContainerInfo, Inspection, Resource, Restart, time_ago};
 
 pub(super) fn show(page: &mut ContainersPage, ui: &mut egui::Ui, ctx: &mut PageCtx) {
     let p = ctx.palette;
@@ -49,17 +49,27 @@ pub(super) fn show(page: &mut ContainersPage, ui: &mut egui::Ui, ctx: &mut PageC
         if ui.small_button("Rename…").clicked() {
             page.rename = Some(c.name.clone());
         }
-        let duplicate = ui
-            .add_enabled(
-                inspection.is_some(),
-                egui::Button::new("Duplicate…").small(),
+        let busy = ctx.store.pending.contains_key(&c.id);
+        let mut needs_settings = |label: &str, hint: &str| {
+            ui.add_enabled(
+                inspection.is_some() && !busy,
+                egui::Button::new(label).small(),
             )
-            .on_hover_text("Run another container set up like this one")
-            .on_disabled_hover_text("Loading its settings…");
-        if duplicate.clicked()
-            && let Some(i) = inspection
-        {
-            page.run_form = Some(RunForm::duplicate(c, i));
+            .on_hover_text(hint)
+            .on_disabled_hover_text("Loading its settings…")
+            .clicked()
+        };
+        let edit = needs_settings(
+            "Edit…",
+            "Change ports, environment, volumes and more, then recreate it",
+        );
+        let duplicate = needs_settings("Duplicate…", "Run another container set up like this one");
+        if let Some(i) = inspection {
+            if edit {
+                page.run_form = Some(RunForm::edit(c, i));
+            } else if duplicate {
+                page.run_form = Some(RunForm::duplicate(c, i));
+            }
         }
     });
     ui.add_space(12.0);
@@ -81,7 +91,11 @@ pub(super) fn show(page: &mut ContainersPage, ui: &mut egui::Ui, ctx: &mut PageC
 
     let live = ctx.store.live.as_ref();
     match page.tab {
-        DetailsTab::Overview => overview(ui, ctx, c, inspection.map(|i| i.restart_policy.clone())),
+        DetailsTab::Overview => {
+            if let Some(form) = overview(ui, ctx, c, inspection) {
+                page.limits = Some(form);
+            }
+        }
         DetailsTab::Logs => {
             if let Some(intent) = logs::show(ui, p, live, &mut page.log_view, &c.name) {
                 ctx.request(intent);
@@ -100,18 +114,10 @@ pub(super) fn show(page: &mut ContainersPage, ui: &mut egui::Ui, ctx: &mut PageC
     }
 }
 
-/// The Rename and Duplicate dialogs, while open.
+/// The Rename, Edit, Duplicate and Limits dialogs, while open.
 fn dialogs(page: &mut ContainersPage, ui: &mut egui::Ui, ctx: &mut PageCtx, c: &ContainerInfo) {
-    if let Some(form) = &mut page.run_form {
-        match run_dialog::show(ui, ctx.palette, form, ctx.store) {
-            Some(run_dialog::Outcome::Run(spec)) => {
-                ctx.request(Intent::RunImage(spec));
-                page.run_form = None;
-            }
-            Some(run_dialog::Outcome::Cancel) => page.run_form = None,
-            None => {}
-        }
-    }
+    run_dialog::show_open(ui, ctx, &mut page.run_form);
+    limits::show_open(ui, ctx, &mut page.limits);
     if let Some(name) = &mut page.rename {
         match rename_dialog(ui, ctx.palette, &c.name, name) {
             Some(true) => {
@@ -181,15 +187,18 @@ fn rename_dialog(
 }
 
 /// Overview tab. The image, networks and volumes link to their pages, and
-/// the restart policy can be changed in place once it's known.
+/// the restart policy and limits can be changed in place once known.
+/// Returns the Limits dialog when the user asks to change them.
 fn overview(
     ui: &mut egui::Ui,
     ctx: &mut PageCtx,
     c: &ContainerInfo,
-    restart: Option<Option<String>>,
-) {
+    inspection: Option<&Inspection>,
+) -> Option<limits::LimitsForm> {
     let p = ctx.palette;
     let store = ctx.store;
+    let restart = inspection.map(|i| i.restart_policy.clone());
+    let mut open_limits = None;
     egui::ScrollArea::vertical()
         .auto_shrink(false)
         .show(ui, |ui| {
@@ -223,6 +232,16 @@ fn overview(
                         }));
                     }
                 }
+                if let Some(i) = inspection {
+                    ui.label(RichText::new("Limits").color(p.muted));
+                    ui.horizontal(|ui| {
+                        ui.label(limits::describe(i.run.nano_cpus, i.run.memory));
+                        if ui.small_button("Change…").clicked() {
+                            open_limits = Some(limits::LimitsForm::new(c, &i.run));
+                        }
+                    });
+                    ui.end_row();
+                }
             });
             details::section(ui, p, "Network", |ui| {
                 ports::field(ui, p, &c.ports);
@@ -250,4 +269,5 @@ fn overview(
                 details::field(ui, p, "Mounts", &widgets::join_or_dash(&c.mounts));
             });
         });
+    open_limits
 }

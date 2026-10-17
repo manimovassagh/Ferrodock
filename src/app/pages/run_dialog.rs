@@ -4,8 +4,12 @@
 use eframe::egui::{self, CornerRadius, Frame, Margin, RichText, Stroke};
 
 use crate::app::components::{inspect, widgets};
+use crate::app::page::{Intent, PageCtx};
 use crate::app::store::Store;
-use crate::docker::{ContainerInfo, ImageInfo, Inspection, Restart, RunSpec};
+use crate::docker::{
+    Change, ContainerInfo, ImageInfo, Inspection, Restart, RunSpec, cpus_text, memory_text,
+    parse_cpus, parse_memory,
+};
 use crate::theme::Palette;
 
 /// The form's state while the dialog is open. Numbers are kept as text so
@@ -22,12 +26,26 @@ pub struct RunForm {
     network: String,
     restart: Restart,
     command: String,
+    cpus: String,
+    memory: String,
     /// Whether the image's exposed ports were filled in yet.
     prefilled: bool,
+    /// When editing, the container the new one replaces.
+    replaces: Option<Replaced>,
 }
 
-pub enum Outcome {
+/// The container an edit replaces.
+#[derive(Clone)]
+pub struct Replaced {
+    pub id: String,
+    pub name: String,
+    pub running: bool,
+}
+
+enum Outcome {
     Run(RunSpec),
+    /// Replace this container with one made from the spec.
+    Recreate(Replaced, Box<RunSpec>),
     Cancel,
 }
 
@@ -58,8 +76,30 @@ impl RunForm {
             network: run.network.clone(),
             restart: Restart::from_name(i.restart_policy.as_deref().unwrap_or("no")),
             command: run.command.clone(),
+            cpus: cpus_text(run.nano_cpus),
+            memory: memory_text(run.memory),
             prefilled: true,
+            replaces: None,
         }
+    }
+
+    /// The container's own setup, to change and recreate it in place.
+    pub fn edit(c: &ContainerInfo, i: &Inspection) -> Self {
+        let mut form = Self::duplicate(c, i);
+        form.title = format!("Edit {}", c.name);
+        form.name = c.name.clone();
+        form.ports = i
+            .run
+            .ports
+            .iter()
+            .map(|(host, container)| (host.to_string(), container.to_string()))
+            .collect();
+        form.replaces = Some(Replaced {
+            id: c.id.clone(),
+            name: c.name.clone(),
+            running: c.is_running(),
+        });
+        form
     }
 
     pub fn new(image: &ImageInfo) -> Self {
@@ -85,7 +125,10 @@ impl RunForm {
             network: String::new(),
             restart: Restart::No,
             command: String::new(),
+            cpus: String::new(),
+            memory: String::new(),
             prefilled: false,
+            replaces: None,
         }
     }
 
@@ -115,6 +158,14 @@ impl RunForm {
         {
             return Err("Names can only use letters, digits, _ . and -".into());
         }
+        let nano_cpus = match self.cpus.trim() {
+            "" => 0,
+            text => parse_cpus(text).ok_or("Write CPUs as a number, like 1.5")?,
+        };
+        let memory = match self.memory.trim() {
+            "" => 0,
+            text => parse_memory(text).ok_or("Write memory like 512m or 2g")?,
+        };
         Ok(RunSpec {
             image: self.image.clone(),
             name: name.to_owned(),
@@ -124,6 +175,8 @@ impl RunForm {
             network: self.network.clone(),
             restart: self.restart,
             command: self.command.clone(),
+            nano_cpus,
+            memory,
         })
     }
 
@@ -148,8 +201,28 @@ impl RunForm {
     }
 }
 
+/// Draws the dialog in `slot` while it's open, and runs (or recreates)
+/// the container once the user confirms.
+pub fn show_open(ui: &mut egui::Ui, ctx: &mut PageCtx, slot: &mut Option<RunForm>) {
+    let Some(form) = slot else {
+        return;
+    };
+    match show(ui, ctx.palette, form, ctx.store) {
+        Some(Outcome::Run(spec)) => ctx.request(Intent::RunImage(spec)),
+        Some(Outcome::Recreate(old, spec)) => ctx.request(Intent::Change(Change::Recreate {
+            id: old.id,
+            name: old.name,
+            running: old.running,
+            spec,
+        })),
+        Some(Outcome::Cancel) => {}
+        None => return,
+    }
+    *slot = None;
+}
+
 /// Draws the dialog. Returns what the user chose, once they choose.
-pub fn show(ui: &mut egui::Ui, p: &Palette, form: &mut RunForm, store: &Store) -> Option<Outcome> {
+fn show(ui: &mut egui::Ui, p: &Palette, form: &mut RunForm, store: &Store) -> Option<Outcome> {
     form.prefill(store);
     let mut outcome = None;
     let modal = egui::Modal::new(egui::Id::unique("ferrodock-run"))
@@ -167,10 +240,13 @@ pub fn show(ui: &mut egui::Ui, p: &Palette, form: &mut RunForm, store: &Store) -
                     .font(egui::FontId::new(18.0, crate::theme::semibold()))
                     .color(p.text),
             );
-            ui.label(
-                RichText::new("Creates a new container from this image and starts it.")
-                    .color(p.muted),
-            );
+            let about = if form.replaces.is_some() {
+                "Replaces the container with a new one set up like this. Named volumes \
+                 and bind mounts are kept; changes inside the container itself are lost."
+            } else {
+                "Creates a new container from this image and starts it."
+            };
+            ui.label(RichText::new(about).color(p.muted));
             ui.add_space(12.0);
 
             egui::ScrollArea::vertical()
@@ -260,6 +336,21 @@ pub fn show(ui: &mut egui::Ui, p: &Palette, form: &mut RunForm, store: &Store) -
                                 });
                             ui.end_row();
 
+                            label(ui, p, "Limits");
+                            ui.horizontal(|ui| {
+                                ui.add(
+                                    egui::TextEdit::singleline(&mut form.cpus)
+                                        .hint_text("CPUs, e.g. 1.5")
+                                        .desired_width(150.0),
+                                );
+                                ui.add(
+                                    egui::TextEdit::singleline(&mut form.memory)
+                                        .hint_text("Memory, e.g. 512m")
+                                        .desired_width(150.0),
+                                );
+                            });
+                            ui.end_row();
+
                             label(ui, p, "Command");
                             ui.add(
                                 egui::TextEdit::singleline(&mut form.command)
@@ -285,12 +376,20 @@ pub fn show(ui: &mut egui::Ui, p: &Palette, form: &mut RunForm, store: &Store) -
                     ui.spinner();
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let label = if form.replaces.is_some() {
+                        "Recreate"
+                    } else {
+                        "Run"
+                    };
                     let run =
-                        ui.add_enabled_ui(spec.is_ok(), |ui| widgets::primary_button(ui, "Run"));
+                        ui.add_enabled_ui(spec.is_ok(), |ui| widgets::primary_button(ui, label));
                     if run.inner.clicked()
                         && let Ok(spec) = spec
                     {
-                        outcome = Some(Outcome::Run(spec));
+                        outcome = Some(match form.replaces.clone() {
+                            Some(old) => Outcome::Recreate(old, Box::new(spec)),
+                            None => Outcome::Run(spec),
+                        });
                     }
                     if ui.button("Cancel").clicked() {
                         outcome = Some(Outcome::Cancel);
@@ -411,5 +510,16 @@ mod tests {
         assert!(f.spec().is_err());
         f.name = "my-web_1".into();
         assert_eq!(f.spec().unwrap().name, "my-web_1");
+    }
+
+    #[test]
+    fn reads_limits() {
+        let mut f = form();
+        f.cpus = "0.5".into();
+        f.memory = "256m".into();
+        let spec = f.spec().unwrap();
+        assert_eq!((spec.nano_cpus, spec.memory), (500_000_000, 256 << 20));
+        f.memory = "lots".into();
+        assert!(f.spec().is_err());
     }
 }

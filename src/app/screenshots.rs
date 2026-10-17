@@ -171,6 +171,16 @@ fn screenshots() {
     click(&mut h, "Duplicate…");
     settle(&mut h, Duration::from_millis(500));
     save(&mut h, "duplicate");
+    h.key_press(egui::Key::Escape);
+    h.run_steps(3);
+    click(&mut h, "Edit…");
+    settle(&mut h, Duration::from_millis(500));
+    save(&mut h, "edit");
+    h.key_press(egui::Key::Escape);
+    h.run_steps(3);
+    click(&mut h, "Change…");
+    settle(&mut h, Duration::from_millis(500));
+    save(&mut h, "limits");
 }
 
 /// The states new users see: nothing found, and no Docker at all.

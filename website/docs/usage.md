@@ -36,11 +36,17 @@ killed for **running out of memory**, a notification tells you.
 In a container's details:
 
 - **Rename…** gives it a new name.
-- **Duplicate…** opens the Run dialog filled in with its image, ports (the
-  host side moved up by one so they don't clash), environment, volumes,
-  network, restart policy and command.
+- **Edit…** opens the Run dialog filled in with its current setup. Change
+  ports, environment, volumes, network, limits or the command, then
+  **Recreate** replaces the container with the new one. Named volumes and
+  bind mounts are kept; changes made inside the container itself are not.
+  If the new container can't start, the old one is put back as it was.
+- **Duplicate…** opens the same dialog for a copy: the host ports move up by
+  one so they don't clash.
 - **Restart** (in Overview) changes its restart policy on the spot, without
   recreating it.
+- **Limits** (in Overview) shows its CPU and memory limits; **Change…** sets
+  them on the spot. Removing a limit needs **Edit…**.
 
 To act on several containers at once, **⌘-click** (Ctrl-click) rows to
 select them, **Shift-click** to select a range, or press **⌘A** (Ctrl+A)
