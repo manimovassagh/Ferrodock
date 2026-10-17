@@ -24,7 +24,7 @@ jobs:
           mkdir dist
           cp target/release/ironstack.exe dist/IronStack.exe
           cd dist && 7z a "IronStack-$version-windows-x64.zip" IronStack.exe
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows
           path: dist/*.zip
@@ -35,7 +35,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - run: packaging/macos/bundle.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: macos
           path: dist/*.zip
@@ -51,7 +51,7 @@ jobs:
           version=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
           mkdir dist
           tar -czf "dist/IronStack-$version-linux-x64.tar.gz" -C target/release ironstack
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: linux
           path: dist/*.tar.gz
