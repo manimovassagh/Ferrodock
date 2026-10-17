@@ -30,9 +30,16 @@ Grab the latest build from the
 
 | Platform | File | First launch |
 |---|---|---|
-| **macOS** 11+ (Apple Silicon and Intel) | `Ferrodock-…-macos-universal.zip` | Unzip, move **Ferrodock.app** to Applications, then **right-click → Open** once (the app isn't notarized yet). |
+| **macOS** 11+ (Apple Silicon and Intel) | `Ferrodock-…-macos-universal.dmg` (or `.zip`) | Open the DMG, drag **Ferrodock.app** to Applications, then **right-click → Open** once (the app isn't notarized yet). |
 | **Windows** 10/11 (x64) | `Ferrodock-…-windows-x64.zip` | Unzip and run **Ferrodock.exe**. If SmartScreen appears, choose **More info → Run anyway**. |
 | **Linux** (x64) | `Ferrodock-…-linux-x64.tar.gz` | Extract and run `./ferrodock`. |
+
+On macOS you can also install with [Homebrew](https://brew.sh):
+
+```bash
+brew tap manimovassagh/ferrodock https://github.com/manimovassagh/Ferrodock
+brew install --cask ferrodock
+```
 
 Ferrodock needs a running Docker Engine: Docker Desktop, Colima, Rancher
 Desktop, or a native `dockerd`.

@@ -15,9 +15,20 @@ Get the latest build from the
 
 ### macOS
 
-1. Download `Ferrodock-<version>-macos-universal.zip`. It runs natively on
-   both Apple Silicon and Intel Macs, macOS 11 or newer.
-2. Unzip it and move **Ferrodock.app** to **Applications**.
+The quickest way is [Homebrew](https://brew.sh):
+
+```bash
+brew tap manimovassagh/ferrodock https://github.com/manimovassagh/Ferrodock
+brew install --cask ferrodock
+```
+
+`brew upgrade --cask ferrodock` picks up new releases. To install by hand
+instead:
+
+1. Download `Ferrodock-<version>-macos-universal.dmg` (a `.zip` is also
+   available). It runs natively on both Apple Silicon and Intel Macs,
+   macOS 11 or newer.
+2. Open the DMG and drag **Ferrodock.app** to **Applications**.
 3. The first time, **right-click the app → Open**, then confirm. Ferrodock
    isn't notarized by Apple yet, so a plain double-click is blocked once.
 
