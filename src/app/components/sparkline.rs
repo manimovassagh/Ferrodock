@@ -6,10 +6,21 @@ use crate::theme::Palette;
 
 const HEIGHT: f32 = 56.0;
 
-/// Draws `values` (oldest first) scaled to `0..=max`, full width, with
-/// `scale` (what the top of the chart stands for) in the corner.
-pub fn show(ui: &mut egui::Ui, p: &Palette, values: &[f64], max: f64, color: Color32, scale: &str) {
-    let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), HEIGHT), Sense::hover());
+/// Draws `values` (oldest first, one a second) scaled to `0..=max`, full
+/// width, with `scale` (what the top of the chart stands for) in the
+/// corner. Hovering shows a crosshair and the value under it, written by
+/// `format`.
+pub fn show(
+    ui: &mut egui::Ui,
+    p: &Palette,
+    values: &[f64],
+    max: f64,
+    color: Color32,
+    scale: &str,
+    format: impl Fn(f64) -> String,
+) {
+    let (rect, response) =
+        ui.allocate_exact_size(vec2(ui.available_width(), HEIGHT), Sense::hover());
     let painter = ui.painter_at(rect);
     painter.rect(
         rect,
@@ -54,7 +65,26 @@ pub fn show(ui: &mut egui::Ui, p: &Palette, values: &[f64], max: f64, color: Col
             Stroke::NONE,
         ));
     }
-    painter.add(Shape::line(points, Stroke::new(1.5, color)));
+    let hovered = response
+        .hover_pos()
+        .map(|pos| (((pos.x - inner.left()) / step).round() as usize).min(values.len() - 1));
+    painter.add(Shape::line(points.clone(), Stroke::new(1.5, color)));
+
+    if let Some(i) = hovered {
+        let point = points[i];
+        painter.line_segment(
+            [pos2(point.x, inner.top()), pos2(point.x, inner.bottom())],
+            Stroke::new(1.0, p.muted.gamma_multiply(0.6)),
+        );
+        painter.circle(point, 3.5, p.bg, Stroke::new(1.5, color));
+        let ago = values.len() - 1 - i;
+        let when = if ago == 0 {
+            "now".to_owned()
+        } else {
+            format!("{ago}s ago")
+        };
+        response.on_hover_text_at_pointer(format!("{} · {when}", format(values[i])));
+    }
 }
 
 /// An inline trend line of `size`, without a frame, for table cells.

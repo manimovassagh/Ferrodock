@@ -15,6 +15,8 @@ pub enum Icon {
     Gear,
     Search,
     Download,
+    /// Three dots, for a menu of more actions.
+    More,
     // Pages.
     Container,
     Stack,
@@ -90,6 +92,10 @@ pub fn paint(painter: &egui::Painter, rect: Rect, icon: Icon, color: Color32) {
             }
             v
         }
+        Icon::More => [5.5, 12.0, 18.5]
+            .into_iter()
+            .map(|x| Shape::circle_filled(p(x, 12.0), 1.9 * s, color))
+            .collect(),
         Icon::Download => vec![
             line(&[p(12.0, 3.5), p(12.0, 15.0)]),
             line(&[p(7.0, 10.0), p(12.0, 15.0), p(17.0, 10.0)]),
