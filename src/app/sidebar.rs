@@ -17,7 +17,7 @@ pub fn show(
 ) -> Option<usize> {
     ui.add_space(2.0);
     ui.horizontal(|ui| {
-        widgets::logo(ui, p, 22.0);
+        widgets::logo(ui, 24.0);
         ui.label(RichText::new("Ferrodock").size(17.0).strong().color(p.text));
     });
 
