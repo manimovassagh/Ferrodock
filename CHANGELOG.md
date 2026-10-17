@@ -7,6 +7,15 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.0](https://github.com/manimovassagh/Ferrodock/compare/v1.0.0...v1.1.0) - 2026-10-17
+
+### Added
+
+- rename, duplicate and change the restart policy of containers ([#88](https://github.com/manimovassagh/Ferrodock/pull/88))
+- link related items and label chart scales ([#87](https://github.com/manimovassagh/Ferrodock/pull/87))
+- live CPU and memory for every container in the list ([#86](https://github.com/manimovassagh/Ferrodock/pull/86))
+- select several containers and act on them at once ([#84](https://github.com/manimovassagh/Ferrodock/pull/84))
+
 ## [1.0.0](https://github.com/manimovassagh/Ferrodock/compare/v0.5.0...v1.0.0) - 2026-10-17
 
 The first stable release. Ferrodock gets a new look, keeps itself up to
