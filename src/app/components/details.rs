@@ -80,3 +80,29 @@ pub fn copy_field(ui: &mut egui::Ui, p: &Palette, label: &str, short: &str, full
     });
     ui.end_row();
 }
+
+/// A row of values that link somewhere, e.g. the containers using a
+/// volume. Returns the index of the one clicked.
+pub fn link_field(ui: &mut egui::Ui, p: &Palette, label: &str, items: &[&str]) -> Option<usize> {
+    ui.label(RichText::new(label).color(p.muted));
+    let mut clicked = None;
+    ui.vertical(|ui| {
+        if items.is_empty() {
+            ui.label(RichText::new("—").color(p.text));
+        }
+        for (i, item) in items.iter().enumerate() {
+            let link = ui
+                .add(
+                    egui::Label::new(RichText::new(*item).color(p.accent))
+                        .sense(egui::Sense::click()),
+                )
+                .on_hover_cursor(egui::CursorIcon::PointingHand)
+                .on_hover_text("Show it");
+            if link.clicked() {
+                clicked = Some(i);
+            }
+        }
+    });
+    ui.end_row();
+    clicked
+}

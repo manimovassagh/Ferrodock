@@ -212,7 +212,7 @@ impl Page for ImagesPage {
                     details::field(ui, p, "Created", &time_ago(image.created));
                 });
                 details::section(ui, p, "Used by", |ui| {
-                    details::field(ui, p, "Containers", &widgets::join_or_dash(&users));
+                    super::container_links(ui, ctx, &users);
                 });
                 history_section(ui, ctx, &image.id);
                 inspect_section(ui, ctx, Resource::Images, &image.id);

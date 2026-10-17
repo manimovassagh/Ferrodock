@@ -13,7 +13,7 @@ mod volumes;
 use eframe::egui;
 
 use super::components::icons::Icon;
-use super::components::{inspect, widgets};
+use super::components::{details, inspect, widgets};
 use super::page::{Confirmation, Intent, Page, PageCtx};
 use crate::docker::{Action, Resource, Task, plural};
 use crate::theme::Palette;
@@ -28,6 +28,18 @@ pub fn all() -> Vec<Box<dyn Page>> {
         Box::new(networks::NetworksPage::default()),
         Box::new(disk::DiskPage::default()),
     ]
+}
+
+/// "Containers" row linking to each container in `names`.
+fn container_links(ui: &mut egui::Ui, ctx: &mut PageCtx, names: &[&str]) {
+    if let Some(i) = details::link_field(ui, ctx.palette, "Containers", names)
+        && let Some(c) = ctx.store.containers.iter().find(|c| c.name == names[i])
+    {
+        ctx.request(Intent::Open {
+            page: "Containers",
+            id: c.id.clone(),
+        });
+    }
 }
 
 /// Draws the New volume / New network dialog while it's open.

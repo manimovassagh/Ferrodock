@@ -248,6 +248,12 @@ impl FerrodockApp {
                 self.worker.send(Request::History(image));
             }
             Intent::Notify { text, is_error } => self.toast = Some(Toast::new(text, is_error)),
+            Intent::Open { page, id } => {
+                if let Some(index) = self.pages.iter().position(|p| p.title() == page) {
+                    self.open_page(index);
+                    self.pages[index].select(&id);
+                }
+            }
             Intent::OpenPage(title) => {
                 if let Some(index) = self.pages.iter().position(|p| p.title() == title) {
                     self.open_page(index);
