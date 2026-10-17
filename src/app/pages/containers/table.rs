@@ -4,10 +4,13 @@ use eframe::egui;
 
 use super::{ContainersPage, actions, ports, status};
 use crate::app::components::icons::Icon;
-use crate::app::components::{table, widgets};
+use std::collections::VecDeque;
+
+use crate::app::components::{sparkline, table, widgets};
 use crate::app::page::{PageCtx, toggle_selection};
 use crate::app::pages::{confirm_removal, remove_task};
-use crate::docker::{Action, ContainerInfo, Resource, Task};
+use crate::docker::{Action, ContainerInfo, Resource, StatsSample, Task, format_size};
+use crate::theme::Palette;
 
 pub(super) fn show(
     page: &mut ContainersPage,
@@ -23,9 +26,14 @@ pub(super) fn show(
     let width = ui.available_width();
     let show_ports = width >= 700.0;
     let show_id = width >= 560.0;
+    let show_usage = width >= 860.0;
     let mut columns = vec![table::Col::fill("NAME"), table::Col::fixed("STATUS", 150.0)];
     if show_id {
         columns.push(table::Col::fixed("ID", 110.0));
+    }
+    if show_usage {
+        columns.push(table::Col::fixed("CPU", 104.0));
+        columns.push(table::Col::fixed("MEMORY", 90.0));
     }
     if show_ports {
         columns.push(table::Col::fixed("PORTS", 140.0));
@@ -54,6 +62,16 @@ pub(super) fn show(
             row.col(|ui| status::cell(ui, p, c, store.pending.get(&c.id).copied()));
             if show_id {
                 row.col(|ui| table::mono(ui, p, c.short_id()));
+            }
+            if show_usage {
+                let history = store.usage.get(&c.id);
+                row.col(|ui| cpu_cell(ui, p, history));
+                row.col(|ui| {
+                    let memory = history
+                        .and_then(|h| h.back())
+                        .map(|s| format_size(s.memory_used as i64));
+                    table::muted(ui, p, memory.as_deref().unwrap_or("—"));
+                });
             }
             if show_ports {
                 row.col(|ui| ports::cell(ui, p, &c.ports));
@@ -100,6 +118,33 @@ pub(super) fn show(
             page.anchor = Some(id);
         }
     }
+}
+
+/// CPU now, with a small trend line; amber above 80%.
+fn cpu_cell(ui: &mut egui::Ui, p: &Palette, history: Option<&VecDeque<StatsSample>>) {
+    let Some(latest) = history.and_then(|h| h.back()) else {
+        table::muted(ui, p, "—");
+        return;
+    };
+    let busy = latest.cpu_percent >= 80.0;
+    let color = if busy { p.warning } else { p.accent };
+    ui.add(
+        egui::Label::new(
+            egui::RichText::new(format!("{:.1}%", latest.cpu_percent)).color(if busy {
+                p.warning
+            } else {
+                p.text
+            }),
+        )
+        .selectable(false),
+    );
+    let values: Vec<f64> = history
+        .into_iter()
+        .flatten()
+        .map(|s| s.cpu_percent)
+        .collect();
+    let max = values.iter().copied().fold(10.0, f64::max);
+    sparkline::tiny(ui, &values, max, color, egui::vec2(36.0, 14.0));
 }
 
 /// "3 selected" with the actions that apply to them.

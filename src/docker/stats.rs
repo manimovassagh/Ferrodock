@@ -91,6 +91,19 @@ impl From<&ContainerStatsResponse> for StatsSample {
 }
 
 impl DockerClient {
+    /// One reading. Docker samples twice, about a second apart, so the CPU
+    /// figure is meaningful.
+    pub async fn stats_once(&self, id: &str) -> Result<StatsSample, String> {
+        let opts = StatsOptions {
+            stream: false,
+            one_shot: false,
+        };
+        match self.docker.stats(id, Some(opts)).next().await {
+            Some(reading) => reading.map(|s| StatsSample::from(&s)).map_err(describe),
+            None => Err("no reading".into()),
+        }
+    }
+
     /// Streams a reading about once a second until the container stops.
     pub fn stats(&self, id: &str) -> impl Stream<Item = Result<StatsSample, String>> + use<> {
         let opts = StatsOptions {

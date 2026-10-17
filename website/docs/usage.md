@@ -14,7 +14,8 @@ the ✕, to close it.
 
 ## Containers
 
-The containers page shows every container with its state, image, ID and
+The containers page shows every container with its state, image, ID,
+current CPU (with a short trend line, amber above 80%), memory and
 published ports. Use **All / Running / Stopped** to filter.
 
 - **▶ / ■** starts or stops a container, **⏸ / ⏵** pauses and resumes it,

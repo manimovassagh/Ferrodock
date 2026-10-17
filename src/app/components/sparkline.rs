@@ -48,3 +48,25 @@ pub fn show(ui: &mut egui::Ui, p: &Palette, values: &[f64], max: f64, color: Col
     }
     painter.add(Shape::line(points, Stroke::new(1.5, color)));
 }
+
+/// An inline trend line of `size`, without a frame, for table cells.
+pub fn tiny(ui: &mut egui::Ui, values: &[f64], max: f64, color: Color32, size: egui::Vec2) {
+    let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
+    if values.len() < 2 || max <= 0.0 {
+        return;
+    }
+    let step = rect.width() / (values.len() - 1) as f32;
+    let points: Vec<egui::Pos2> = values
+        .iter()
+        .enumerate()
+        .map(|(i, v)| {
+            let t = (v / max).clamp(0.0, 1.0) as f32;
+            pos2(
+                rect.left() + i as f32 * step,
+                rect.bottom() - t * rect.height(),
+            )
+        })
+        .collect();
+    ui.painter()
+        .add(Shape::line(points, Stroke::new(1.3, color)));
+}
