@@ -211,6 +211,24 @@ it's done, a notification says how much space was freed.
 Disk usage is loaded when you open the page or press refresh, never in the
 background. It needs Docker Engine 29 or newer.
 
+## Menu bar and notification area
+
+On macOS, Ferrodock puts an icon in the menu bar showing how many
+containers are running; on Windows it's in the notification area. Its menu
+has:
+
+- **Open Ferrodock**, and whether Docker is running.
+- **Compose**: each project with **Start all** / **Stop all**.
+- Your containers (running ones first, ● running, ○ stopped), each with
+  **Start**, **Stop**, **Restart** and **Show in Ferrodock**.
+- **Quit Ferrodock**.
+
+Closing the window keeps Ferrodock running there, so the icon stays;
+**Quit Ferrodock** in its menu really quits. To quit on close instead, turn
+off **Keep running there when the window is closed** in Settings.
+
+Linux doesn't have the icon yet.
+
 ## Settings
 
 Click **⚙ Settings** at the bottom of the sidebar, or press **⌘,** (Ctrl+,
@@ -221,6 +239,8 @@ on Windows and Linux).
 - **Density**: Comfortable shows two lines per row; Compact fits about
   twice as many rows on screen.
 - **Interface size**: 90% to 125%.
+- **Menu bar** (macOS) / **Notification area** (Windows): keep running
+  there when the window is closed.
 
 Settings, the window size and its position are remembered between runs.
 

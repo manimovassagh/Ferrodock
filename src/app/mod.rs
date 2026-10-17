@@ -15,6 +15,7 @@ mod settings;
 mod shell;
 mod sidebar;
 mod store;
+mod tray;
 
 use eframe::egui::{self, Frame, Margin};
 
@@ -50,6 +51,10 @@ pub struct FerrodockApp {
     settings: settings::Settings,
     show_settings: bool,
     updater: crate::update::Updater,
+    /// The menu bar / notification area icon, where there is one.
+    tray: Option<tray::Tray>,
+    /// Set by Quit in the tray, so closing really quits.
+    quitting: bool,
 }
 
 impl FerrodockApp {
@@ -92,6 +97,42 @@ impl FerrodockApp {
             settings,
             show_settings: false,
             updater,
+            tray: tray::Tray::new(&cc.egui_ctx),
+            quitting: false,
+        }
+    }
+
+    /// Brings the tray up to date, acts on its clicks, and hides the window
+    /// instead of closing it when the tray keeps Ferrodock running.
+    fn handle_tray(&mut self, ctx: &egui::Context) {
+        let Some(tray) = &mut self.tray else { return };
+        for action in tray.update(&self.store) {
+            match action {
+                tray::TrayAction::Open => show_window(ctx),
+                tray::TrayAction::OpenContainer(id) => {
+                    show_window(ctx);
+                    self.handle_intent(Intent::Open {
+                        page: "Containers",
+                        id,
+                    });
+                }
+                tray::TrayAction::Run(tasks) => {
+                    for task in tasks {
+                        self.run(task);
+                    }
+                }
+                tray::TrayAction::Quit => {
+                    self.quitting = true;
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
+            }
+        }
+        if self.settings.close_to_tray
+            && !self.quitting
+            && ctx.input(|i| i.viewport().close_requested())
+        {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
         }
     }
 
@@ -312,6 +353,7 @@ impl eframe::App for FerrodockApp {
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.handle_responses();
+        self.handle_tray(ui.ctx());
         let p = theme::palette(ui);
         if !self.overlay_open() {
             for shortcut in keys::read(ui.ctx()) {
@@ -429,4 +471,12 @@ impl eframe::App for FerrodockApp {
             self.toast = None;
         }
     }
+}
+
+/// Shows the window (hidden by closing it to the tray) and brings it to
+/// the front.
+fn show_window(ctx: &egui::Context) {
+    ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
+    ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
+    ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
 }
