@@ -2,16 +2,21 @@
 
 use eframe::egui;
 
+use super::create_dialog::{CreateForm, Kind};
 use super::{confirm_removal, inspect_section, remove_button, remove_task, remove_unused_button};
 use crate::app::components::icons::Icon;
 use crate::app::components::{details, table, widgets};
-use crate::app::page::{Command, Page, PageCtx, toggle_selection};
+use crate::app::page::{Command, Intent, Page, PageCtx, toggle_selection};
 use crate::app::store::Store;
-use crate::docker::{NetworkInfo, Resource, Task, plural, time_ago};
+use crate::docker::{Change, NetworkInfo, Resource, Task, plural, time_ago};
 
 #[derive(Default)]
 pub struct NetworksPage {
     selected: Option<String>,
+    /// The New network dialog, while it's open.
+    create: Option<CreateForm>,
+    /// The container picked in "Connect a container".
+    connect: String,
 }
 
 impl NetworksPage {
@@ -52,9 +57,17 @@ impl Page for NetworksPage {
 
     fn toolbar(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
         remove_unused_button(ui, ctx, "network", unused(ctx.store));
+        if widgets::button(ui, Icon::Network, "New network").clicked() {
+            self.create = Some(CreateForm::new(Kind::Network));
+        }
+    }
+
+    fn has_overlay(&self) -> bool {
+        self.create.is_some()
     }
 
     fn show(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
+        super::create_dialog(ui, ctx, &mut self.create);
         let p = ctx.palette;
         let store = ctx.store;
         let visible: Vec<&NetworkInfo> = store
@@ -159,9 +172,7 @@ impl Page for NetworksPage {
                     details::field(ui, p, "Subnet", &widgets::join_or_dash(&net.subnets));
                     details::field(ui, p, "Gateway", &widgets::join_or_dash(&net.gateways));
                 });
-                details::section(ui, p, "Connected", |ui| {
-                    details::field(ui, p, "Containers", &widgets::join_or_dash(&attached));
-                });
+                connected(ui, ctx, net, &attached, &mut self.connect);
                 inspect_section(ui, ctx, Resource::Networks, &net.id);
             });
     }
@@ -201,4 +212,69 @@ fn unused(store: &Store) -> Vec<Task> {
         .filter(|n| !n.is_builtin() && store.containers_on_network(&n.name).is_empty())
         .map(|n| remove_task(Resource::Networks, &n.id, &n.name))
         .collect()
+}
+
+/// The containers on a network, each with Disconnect, and a picker to
+/// connect another. Docker's `host` and `none` networks can't be changed.
+fn connected(
+    ui: &mut egui::Ui,
+    ctx: &mut PageCtx,
+    net: &NetworkInfo,
+    attached: &[&str],
+    pick: &mut String,
+) {
+    let p = ctx.palette;
+    let fixed = matches!(net.name.as_str(), "host" | "none");
+    details::section(ui, p, "Connected", |ui| {
+        if attached.is_empty() {
+            details::field(ui, p, "Containers", "");
+        }
+        for &name in attached {
+            ui.label(egui::RichText::new(name).color(p.text));
+            let id = format!("{}+{name}", net.name);
+            if ctx.store.pending.contains_key(&id) {
+                ui.spinner();
+            } else if !fixed && ui.small_button("Disconnect").clicked() {
+                ctx.request(Intent::Change(Change::Disconnect {
+                    network: net.name.clone(),
+                    container: name.to_owned(),
+                }));
+            } else if fixed {
+                ui.label("");
+            }
+            ui.end_row();
+        }
+    });
+    if fixed {
+        return;
+    }
+    let others: Vec<&str> = ctx
+        .store
+        .containers
+        .iter()
+        .map(|c| c.name.as_str())
+        .filter(|name| !attached.contains(name))
+        .collect();
+    if others.is_empty() {
+        return;
+    }
+    if !others.contains(&pick.as_str()) {
+        *pick = others[0].to_owned();
+    }
+    ui.horizontal(|ui| {
+        egui::ComboBox::from_id_salt(("connect", &net.id))
+            .selected_text(pick.as_str())
+            .show_ui(ui, |ui| {
+                for name in &others {
+                    ui.selectable_value(pick, (*name).to_owned(), *name);
+                }
+            });
+        if ui.button("Connect").clicked() {
+            ctx.request(Intent::Change(Change::Connect {
+                network: net.name.clone(),
+                container: pick.clone(),
+            }));
+        }
+    });
+    ui.add_space(14.0);
 }

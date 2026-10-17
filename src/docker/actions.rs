@@ -23,6 +23,12 @@ pub enum Action {
     Pull,
     /// Create and start a container from an image (also worker-driven).
     Run,
+    /// Create a volume or network (worker-driven, see [`super::Change`]).
+    Create(Resource),
+    /// Connect a container to a network.
+    Connect,
+    /// Disconnect a container from a network.
+    Disconnect,
 }
 
 impl Action {
@@ -38,6 +44,9 @@ impl Action {
             Action::Prune(_) => "clean up",
             Action::Pull => "pull",
             Action::Run => "run",
+            Action::Create(_) => "create",
+            Action::Connect => "connect",
+            Action::Disconnect => "disconnect",
         }
     }
 
@@ -52,6 +61,9 @@ impl Action {
             Action::Remove(_) | Action::Prune(_) => "Removed",
             Action::Pull => "Pulled",
             Action::Run => "Started",
+            Action::Create(_) => "Created",
+            Action::Connect => "Connected",
+            Action::Disconnect => "Disconnected",
         }
     }
 
@@ -61,6 +73,8 @@ impl Action {
             Action::Remove(resource) => resource,
             Action::Prune(kind) => kind.affects(),
             Action::Pull => Resource::Images,
+            Action::Create(resource) => resource,
+            Action::Connect | Action::Disconnect => Resource::Networks,
             _ => Resource::Containers,
         }
     }
@@ -118,7 +132,13 @@ impl DockerClient {
                 docker.remove_volume(id, None::<RemoveVolumeOptions>).await
             }
             Action::Remove(Resource::Networks) => docker.remove_network(id).await,
-            Action::Remove(Resource::Disk) | Action::Prune(_) | Action::Pull | Action::Run => {
+            Action::Remove(Resource::Disk)
+            | Action::Prune(_)
+            | Action::Pull
+            | Action::Run
+            | Action::Create(_)
+            | Action::Connect
+            | Action::Disconnect => {
                 return Err("not something that can be removed".into());
             }
         };

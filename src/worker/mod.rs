@@ -13,8 +13,8 @@ use std::time::Duration;
 use tokio::sync::mpsc as tokio_mpsc;
 
 use crate::docker::{
-    Action, ContainerInfo, DiskUsage, DockerClient, EngineEvent, ImageInfo, Inspection, Layer,
-    NetworkInfo, Processes, PullProgress, Resource, RunSpec, StatsSample, Task, VolumeInfo,
+    Action, Change, ContainerInfo, DiskUsage, DockerClient, EngineEvent, ImageInfo, Inspection,
+    Layer, NetworkInfo, Processes, PullProgress, Resource, RunSpec, StatsSample, Task, VolumeInfo,
 };
 
 /// How often the worker re-checks the engine on its own. Changes normally
@@ -40,6 +40,8 @@ pub enum Request {
     Inspect(Resource, String),
     /// Pull an image, reporting progress as it goes.
     Pull(String),
+    /// Create a volume or network, or (dis)connect a container.
+    Change(Change),
     /// List the processes running in a container.
     Processes(String),
     /// Load the layers of an image.
@@ -232,6 +234,22 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
             }
             Request::Run(task) => {
                 tokio::spawn(async move { run_task(&docker, &shared, task).await });
+            }
+            Request::Change(change) => {
+                tokio::spawn(async move {
+                    let task = change.task();
+                    let affected = task.action.affects();
+                    match docker.apply(&change).await {
+                        Ok(()) => shared.send(Response::Done { task, freed: None }),
+                        Err(e) => {
+                            let message =
+                                format!("Couldn't {} {}: {e}", task.action.verb(), task.name);
+                            shared.send(Response::Failed { task, message });
+                        }
+                    }
+                    refresh(&docker, &shared, affected).await;
+                    refresh(&docker, &shared, Resource::Containers).await;
+                });
             }
             Request::Processes(id) => {
                 tokio::spawn(async move {

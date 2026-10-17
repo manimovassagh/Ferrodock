@@ -222,6 +222,11 @@ impl FerrodockApp {
                 self.worker.send(Request::Pull(image));
             }
             Intent::RunImage(spec) => self.worker.send(Request::RunImage(spec)),
+            Intent::Change(change) => {
+                let task = change.task();
+                self.store.pending.insert(task.id, task.action);
+                self.worker.send(Request::Change(change));
+            }
             Intent::Processes(id) => {
                 // Keep the old table on screen while the new one loads.
                 let previous = self
