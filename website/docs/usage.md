@@ -69,6 +69,20 @@ Ferrodock follows your system's light or dark setting.
 
 ![Light mode](/img/light-mode.png)
 
+## Disk
+
+The **Disk** page shows how much space images, containers, volumes and the
+build cache take, and how much of it can be freed. The total is also shown
+in the sidebar.
+
+Under **Clean up**, tick what to remove: stopped containers, untagged or all
+unused images, unused volumes, unused networks, or the build cache. Ferrodock
+lists exactly what will be deleted and asks before it does anything. When
+it's done, a notification says how much space was freed.
+
+Disk usage is loaded when you open the page or press refresh, never in the
+background. It needs Docker Engine 29 or newer.
+
 ## Keyboard shortcuts
 
 Press **⌘K** (macOS) or **Ctrl+K** (Windows, Linux) to open the **command
@@ -79,7 +93,7 @@ images"), and press **Enter**. Entries you used recently come first.
 | Keys | Does |
 |---|---|
 | ⌘/Ctrl+K | Command palette |
-| ⌘/Ctrl+1 … 5 | Switch page |
+| ⌘/Ctrl+1 … 6 | Switch page |
 | / | Search this page |
 | ↑ ↓ or J K | Select the previous or next item |
 | Esc | Close the details pane |

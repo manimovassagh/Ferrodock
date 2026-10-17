@@ -3,6 +3,7 @@
 
 mod compose;
 mod containers;
+mod disk;
 mod images;
 mod networks;
 mod volumes;
@@ -22,6 +23,7 @@ pub fn all() -> Vec<Box<dyn Page>> {
         Box::new(images::ImagesPage::default()),
         Box::new(volumes::VolumesPage::default()),
         Box::new(networks::NetworksPage::default()),
+        Box::new(disk::DiskPage::default()),
     ]
 }
 

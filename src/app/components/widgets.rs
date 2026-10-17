@@ -37,12 +37,12 @@ pub fn dot(ui: &mut egui::Ui, color: Color32) {
     ui.painter().circle_filled(rect.center(), 4.0, color);
 }
 
-/// A full-width sidebar entry with a count on the right.
+/// A full-width sidebar entry with a badge (usually a count) on the right.
 pub fn nav_item(
     ui: &mut egui::Ui,
     p: &Palette,
     label: &str,
-    count: usize,
+    badge: &str,
     selected: bool,
 ) -> Response {
     let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), 30.0), Sense::click());
@@ -62,7 +62,7 @@ pub fn nav_item(
     painter.text(
         rect.right_center() - vec2(10.0, 0.0),
         Align2::RIGHT_CENTER,
-        count.to_string(),
+        badge,
         FontId::proportional(12.0),
         p.muted,
     );

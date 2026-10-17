@@ -107,8 +107,8 @@ pub trait Page {
     /// The data this page shows; it's refreshed while the page is open.
     fn resource(&self) -> Resource;
 
-    /// Number shown next to the page in the sidebar.
-    fn count(&self, store: &Store) -> usize;
+    /// Shown next to the page in the sidebar, usually how many items it has.
+    fn badge(&self, store: &Store) -> String;
 
     /// One-line summary under the page title, e.g. "3 running · 4 total".
     fn summary(&self, store: &Store) -> String;

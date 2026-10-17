@@ -1,12 +1,12 @@
-//! Things Ferrodock can do to a single item: container lifecycle and
-//! removing any resource.
+//! Things Ferrodock can do: container lifecycle, removing any resource,
+//! and cleaning up unused things.
 
 use bollard::query_parameters::{
     RemoveContainerOptions, RemoveImageOptions, RemoveVolumeOptions, RestartContainerOptions,
     StartContainerOptions, StopContainerOptions,
 };
 
-use super::{DockerClient, Resource, describe};
+use super::{DockerClient, PruneKind, Resource, describe};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
@@ -16,6 +16,8 @@ pub enum Action {
     Pause,
     Unpause,
     Remove(Resource),
+    /// Clean up a kind of unused thing (`docker … prune`).
+    Prune(PruneKind),
 }
 
 impl Action {
@@ -28,6 +30,7 @@ impl Action {
             Action::Pause => "pause",
             Action::Unpause => "resume",
             Action::Remove(_) => "remove",
+            Action::Prune(_) => "clean up",
         }
     }
 
@@ -39,7 +42,7 @@ impl Action {
             Action::Restart => "Restarted",
             Action::Pause => "Paused",
             Action::Unpause => "Resumed",
-            Action::Remove(_) => "Removed",
+            Action::Remove(_) | Action::Prune(_) => "Removed",
         }
     }
 
@@ -47,6 +50,7 @@ impl Action {
     pub fn affects(self) -> Resource {
         match self {
             Action::Remove(resource) => resource,
+            Action::Prune(kind) => kind.affects(),
             _ => Resource::Containers,
         }
     }
@@ -62,7 +66,11 @@ pub struct Task {
 }
 
 impl DockerClient {
-    pub async fn perform(&self, action: Action, id: &str) -> Result<(), String> {
+    /// Runs an action. Returns the bytes freed, for clean-ups.
+    pub async fn perform(&self, action: Action, id: &str) -> Result<Option<i64>, String> {
+        if let Action::Prune(kind) = action {
+            return self.prune(kind).await.map(Some);
+        }
         let docker = &self.docker;
         let result = match action {
             Action::Start => {
@@ -100,8 +108,11 @@ impl DockerClient {
                 docker.remove_volume(id, None::<RemoveVolumeOptions>).await
             }
             Action::Remove(Resource::Networks) => docker.remove_network(id).await,
+            Action::Remove(Resource::Disk) | Action::Prune(_) => {
+                return Err("not something that can be removed".into());
+            }
         };
-        result.map_err(describe)
+        result.map(|()| None).map_err(describe)
     }
 }
 

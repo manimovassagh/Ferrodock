@@ -13,7 +13,8 @@ use std::time::Duration;
 use tokio::sync::mpsc as tokio_mpsc;
 
 use crate::docker::{
-    ContainerInfo, DockerClient, ImageInfo, NetworkInfo, Resource, StatsSample, Task, VolumeInfo,
+    Action, ContainerInfo, DiskUsage, DockerClient, ImageInfo, NetworkInfo, Resource, StatsSample,
+    Task, VolumeInfo,
 };
 
 /// How often the worker re-checks the engine on its own.
@@ -42,9 +43,14 @@ pub enum Response {
     Images(Vec<ImageInfo>),
     Volumes(Vec<VolumeInfo>),
     Networks(Vec<NetworkInfo>),
+    Disk(DiskUsage),
     /// The daemon could not be reached or listing failed.
     Disconnected(String),
-    Done(Task),
+    Done {
+        task: Task,
+        /// Bytes freed, for clean-ups.
+        freed: Option<i64>,
+    },
     Failed {
         task: Task,
         message: String,
@@ -143,7 +149,11 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
                 Some(request) => request,
                 None => break, // The UI is gone.
             },
-            _ = ticker.tick() => Request::Refresh(polled),
+            // Disk usage is slow to compute, so only its containers are polled.
+            _ = ticker.tick() => Request::Refresh(match polled {
+                Resource::Disk => Resource::Containers,
+                other => other,
+            }),
         };
 
         // Stopping a watch must work even while Docker is unreachable.
@@ -206,11 +216,15 @@ impl Shared {
 
 async fn run_task(client: &DockerClient, shared: &Shared, task: Task) {
     match client.perform(task.action, &task.id).await {
-        Ok(()) => {
+        Ok(freed) => {
             let affected = task.action.affects();
-            shared.send(Response::Done(task));
+            let pruned = matches!(task.action, Action::Prune(_));
+            shared.send(Response::Done { task, freed });
             if affected != Resource::Containers {
                 refresh(client, shared, affected).await;
+            }
+            if pruned && affected != Resource::Disk {
+                refresh(client, shared, Resource::Disk).await;
             }
         }
         Err(e) => {
@@ -227,6 +241,12 @@ async fn run_task(client: &DockerClient, shared: &Shared, task: Task) {
 /// page, so they're refreshed alongside any other list.
 async fn refresh_with_containers(client: &DockerClient, shared: &Shared, resource: Resource) {
     refresh(client, shared, Resource::Containers).await;
+    if resource == Resource::Disk {
+        // The clean-up preview lists these, so bring them up to date too.
+        for list in [Resource::Images, Resource::Volumes, Resource::Networks] {
+            refresh(client, shared, list).await;
+        }
+    }
     if resource != Resource::Containers {
         refresh(client, shared, resource).await;
     }
@@ -272,6 +292,8 @@ async fn refresh(client: &DockerClient, shared: &Shared, resource: Resource) {
                 .changed(key, &l)
                 .then_some(Response::Networks(l))
         }),
+        // Always sent: it's only loaded when asked for.
+        Resource::Disk => client.disk_usage().await.map(|d| Some(Response::Disk(d))),
     };
     match response {
         Ok(Some(response)) => shared.send(response),

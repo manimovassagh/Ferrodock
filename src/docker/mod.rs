@@ -10,6 +10,7 @@
 mod actions;
 mod compose;
 mod containers;
+mod disk;
 mod format;
 mod images;
 mod logs;
@@ -21,6 +22,7 @@ mod volumes;
 pub use actions::{Action, Task};
 pub use compose::{ComposeProject, group_projects};
 pub use containers::ContainerInfo;
+pub use disk::{DiskUsage, PruneKind, Usage};
 pub use format::{format_size, plural, time_ago};
 pub use images::ImageInfo;
 pub use networks::NetworkInfo;
@@ -37,6 +39,9 @@ pub enum Resource {
     Images,
     Volumes,
     Networks,
+    /// Disk usage (`docker system df`). Loaded on request, never polled,
+    /// because it can be slow on big hosts.
+    Disk,
 }
 
 #[derive(Clone)]

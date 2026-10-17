@@ -26,7 +26,7 @@ pub fn show(
     ui.add_space(2.0);
     let mut clicked = None;
     for (i, page) in pages.iter().enumerate() {
-        if widgets::nav_item(ui, p, page.title(), page.count(store), i == active).clicked() {
+        if widgets::nav_item(ui, p, page.title(), &page.badge(store), i == active).clicked() {
             clicked = Some(i);
         }
     }

@@ -8,7 +8,8 @@ mod live;
 use std::collections::HashSet;
 
 use crate::docker::{
-    ComposeProject, ContainerInfo, ImageInfo, NetworkInfo, VolumeInfo, group_projects,
+    ComposeProject, ContainerInfo, DiskUsage, ImageInfo, NetworkInfo, VolumeInfo, format_size,
+    group_projects,
 };
 use crate::worker::Response;
 pub use live::Live;
@@ -33,6 +34,8 @@ pub struct Store {
     pub images: Vec<ImageInfo>,
     pub volumes: Vec<VolumeInfo>,
     pub networks: Vec<NetworkInfo>,
+    /// Disk usage, once the Disk page has loaded it.
+    pub disk: Option<DiskUsage>,
     /// IDs (names, for volumes) of items with an action in flight.
     pub pending: HashSet<String>,
     /// Logs and stats of the container being watched, if any.
@@ -48,6 +51,7 @@ impl Store {
             images: Vec::new(),
             volumes: Vec::new(),
             networks: Vec::new(),
+            disk: None,
             pending: HashSet::new(),
             live: None,
         }
@@ -65,6 +69,7 @@ impl Store {
             Response::Images(list) => self.images = list,
             Response::Volumes(list) => self.volumes = list,
             Response::Networks(list) => self.networks = list,
+            Response::Disk(usage) => self.disk = Some(usage),
             Response::Logs { container_id, text } => {
                 if let Some(live) = self.live_for(&container_id) {
                     live.logs.push(&text);
@@ -82,10 +87,14 @@ impl Store {
                 *self = Self::new();
                 self.connection = Connection::Disconnected { reason };
             }
-            Response::Done(task) => {
+            Response::Done { task, freed } => {
                 self.pending.remove(&task.id);
+                let mut text = format!("{} {}", task.action.past_tense(), task.name);
+                if let Some(bytes) = freed.filter(|b| *b > 0) {
+                    text.push_str(&format!(" · freed {}", format_size(bytes)));
+                }
                 return Some(Notice {
-                    text: format!("{} {}", task.action.past_tense(), task.name),
+                    text,
                     is_error: false,
                 });
             }
@@ -204,7 +213,10 @@ mod tests {
         assert!(store.pending.is_empty());
 
         let notice = store
-            .apply(Response::Done(task(Action::Remove(Resource::Volumes), "y")))
+            .apply(Response::Done {
+                task: task(Action::Remove(Resource::Volumes), "y"),
+                freed: None,
+            })
             .unwrap();
         assert_eq!(notice.text, "Removed web");
     }

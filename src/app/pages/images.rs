@@ -29,8 +29,8 @@ impl Page for ImagesPage {
         Resource::Images
     }
 
-    fn count(&self, store: &Store) -> usize {
-        store.images.len()
+    fn badge(&self, store: &Store) -> String {
+        store.images.len().to_string()
     }
 
     fn summary(&self, store: &Store) -> String {
