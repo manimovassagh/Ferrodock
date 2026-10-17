@@ -7,19 +7,30 @@
 //! Each resource type lives in its own file and adds its calls to
 //! [`DockerClient`].
 
+mod actions;
 mod containers;
 mod format;
 mod images;
 mod networks;
 mod volumes;
 
-pub use containers::{Action, ContainerInfo};
-pub use format::{format_size, time_ago};
+pub use actions::{Action, Task};
+pub use containers::ContainerInfo;
+pub use format::{format_size, plural, time_ago};
 pub use images::ImageInfo;
 pub use networks::NetworkInfo;
 pub use volumes::VolumeInfo;
 
 use bollard::Docker;
+
+/// The kinds of things the Docker Engine manages that IronStack shows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Resource {
+    Containers,
+    Images,
+    Volumes,
+    Networks,
+}
 
 #[derive(Clone)]
 pub struct DockerClient {

@@ -40,6 +40,15 @@ pub fn format_size(bytes: i64) -> String {
     }
 }
 
+/// "1 image", "3 images".
+pub fn plural(count: usize, noun: &str) -> String {
+    if count == 1 {
+        format!("1 {noun}")
+    } else {
+        format!("{count} {noun}s")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -59,5 +68,12 @@ mod tests {
         assert_eq!(format_size(1_500), "1.5 kB");
         assert_eq!(format_size(187_300_000), "187.3 MB");
         assert_eq!(format_size(2_000_000_000), "2.0 GB");
+    }
+
+    #[test]
+    fn pluralizes() {
+        assert_eq!(plural(1, "image"), "1 image");
+        assert_eq!(plural(0, "image"), "0 images");
+        assert_eq!(plural(4, "volume"), "4 volumes");
     }
 }

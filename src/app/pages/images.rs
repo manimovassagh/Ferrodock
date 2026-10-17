@@ -2,12 +2,11 @@
 
 use eframe::egui;
 
-use super::usage_pill;
+use super::{remove_button, remove_task, remove_unused_button, usage_pill};
 use crate::app::components::{details, table, widgets};
 use crate::app::page::{Page, PageCtx, toggle_selection};
 use crate::app::store::Store;
-use crate::docker::{ImageInfo, format_size, time_ago};
-use crate::worker::Resource;
+use crate::docker::{ImageInfo, Resource, Task, format_size, plural, time_ago};
 
 #[derive(Default)]
 pub struct ImagesPage {
@@ -36,11 +35,26 @@ impl Page for ImagesPage {
 
     fn summary(&self, store: &Store) -> String {
         let total: i64 = store.images.iter().map(|i| i.size).sum();
-        format!("{} images · {}", store.images.len(), format_size(total))
+        format!(
+            "{} · {}",
+            plural(store.images.len(), "image"),
+            format_size(total)
+        )
     }
 
     fn search_hint(&self) -> &'static str {
         "Search name or ID"
+    }
+
+    fn toolbar(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
+        let unused: Vec<Task> = ctx
+            .store
+            .images
+            .iter()
+            .filter(|i| ctx.store.containers_using_image(&i.id).is_empty())
+            .map(|i| remove_task(Resource::Images, &i.id, i.name()))
+            .collect();
+        remove_unused_button(ui, ctx, "image", unused);
     }
 
     fn show(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
@@ -78,7 +92,7 @@ impl Page for ImagesPage {
             |i, row| {
                 let image = visible[i];
                 let users = store.containers_using_image(&image.id).len();
-                row.col(|ui| table::two_line(ui, p, image.name(), image.short_id()));
+                row.col(|ui| table::two_line(ui, p, image.name(), &secondary_line(image)));
                 row.col(|ui| usage_pill(ui, p, users));
                 row.col(|ui| table::text(ui, p, &format_size(image.size)));
                 row.col(|ui| table::muted(ui, p, &time_ago(image.created)));
@@ -104,6 +118,14 @@ impl Page for ImagesPage {
             self.selected = None;
         }
         usage_pill(ui, p, users.len());
+        ui.add_space(10.0);
+        let blocked = (!users.is_empty()).then_some("Used by a container");
+        let task = remove_task(Resource::Images, &image.id, image.name());
+        if !ctx.store.pending.contains(&image.id) {
+            remove_button(ui, ctx, "image", task, blocked);
+        } else {
+            ui.spinner();
+        }
         ui.add_space(16.0);
 
         egui::ScrollArea::vertical()
@@ -123,5 +145,13 @@ impl Page for ImagesPage {
 
     fn clear_selection(&mut self) {
         self.selected = None;
+    }
+}
+
+/// Short ID, plus how many more tags the image has beyond the one shown.
+fn secondary_line(image: &ImageInfo) -> String {
+    match image.tags.len() {
+        0 | 1 => image.short_id().to_owned(),
+        n => format!("{} · +{}", image.short_id(), plural(n - 1, "tag")),
     }
 }

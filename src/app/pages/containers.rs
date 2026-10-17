@@ -2,12 +2,12 @@
 
 use eframe::egui::{self, Color32, RichText};
 
+use super::{remove_button, remove_task};
 use crate::app::components::{details, table, widgets};
 use crate::app::page::{Intent, Page, PageCtx, toggle_selection};
 use crate::app::store::Store;
-use crate::docker::{Action, ContainerInfo, time_ago};
+use crate::docker::{Action, ContainerInfo, Resource, Task, time_ago};
 use crate::theme::Palette;
-use crate::worker::Resource;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum StateFilter {
@@ -180,6 +180,11 @@ impl Page for ContainersPage {
             if let Some(action) = action_buttons(ui, c, busy, true) {
                 ctx.request(intent(action, c));
             }
+            if !busy {
+                let blocked = c.is_active().then_some("Stop the container first");
+                let task = remove_task(Resource::Containers, &c.id, &c.name);
+                remove_button(ui, ctx, "container", task, blocked);
+            }
         });
         ui.add_space(16.0);
 
@@ -208,11 +213,11 @@ impl Page for ContainersPage {
 }
 
 fn intent(action: Action, c: &ContainerInfo) -> Intent {
-    Intent::Container {
+    Intent::Run(Task {
         action,
         id: c.id.clone(),
         name: c.name.clone(),
-    }
+    })
 }
 
 /// Start/Stop and Restart controls. Shows a spinner while an action is in

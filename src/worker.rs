@@ -8,25 +8,16 @@ use std::thread;
 
 use tokio::sync::mpsc as tokio_mpsc;
 
-use crate::docker::{Action, ContainerInfo, DockerClient, ImageInfo, NetworkInfo, VolumeInfo};
-
-/// Things the UI can ask to have (re)loaded.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Resource {
-    Containers,
-    Images,
-    Volumes,
-    Networks,
-}
+use crate::docker::{
+    ContainerInfo, DockerClient, ImageInfo, NetworkInfo, Resource, Task, VolumeInfo,
+};
 
 #[derive(Debug)]
 pub enum Request {
+    /// Reload one list.
     Refresh(Resource),
-    Container {
-        action: Action,
-        id: String,
-        name: String,
-    },
+    /// Run an action, then reload the list it changed.
+    Run(Task),
 }
 
 #[derive(Debug)]
@@ -40,13 +31,9 @@ pub enum Response {
     Networks(Vec<NetworkInfo>),
     /// The daemon could not be reached or listing failed.
     Disconnected(String),
-    ActionDone {
-        id: String,
-        action: Action,
-        name: String,
-    },
-    ActionFailed {
-        id: String,
+    Done(Task),
+    Failed {
+        task: Task,
         message: String,
     },
 }
@@ -133,14 +120,23 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
         tokio::spawn(async move {
             match request {
                 Request::Refresh(resource) => refresh(&client, &out, resource).await,
-                Request::Container { action, id, name } => {
-                    match client.perform(action, &id).await {
-                        Ok(()) => out.send(Response::ActionDone { id, action, name }),
+                Request::Run(task) => {
+                    match client.perform(task.action, &task.id).await {
+                        Ok(()) => {
+                            let affected = task.action.affects();
+                            out.send(Response::Done(task));
+                            if affected != Resource::Containers {
+                                refresh(&client, &out, affected).await;
+                            }
+                        }
                         Err(e) => {
-                            let message = format!("Failed to {} {name}: {e}", action.verb());
-                            out.send(Response::ActionFailed { id, message })
+                            let message =
+                                format!("Couldn't {} {}: {e}", task.action.verb(), task.name);
+                            out.send(Response::Failed { task, message });
                         }
                     }
+                    // Container state may change either way (and removals
+                    // change the "in use" info), so always reload them.
                     refresh(&client, &out, Resource::Containers).await;
                 }
             }

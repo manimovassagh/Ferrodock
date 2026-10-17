@@ -2,12 +2,11 @@
 
 use eframe::egui;
 
-use super::usage_pill;
+use super::{remove_button, remove_task, remove_unused_button, usage_pill};
 use crate::app::components::{details, table, widgets};
 use crate::app::page::{Page, PageCtx, toggle_selection};
 use crate::app::store::Store;
-use crate::docker::{VolumeInfo, time_ago};
-use crate::worker::Resource;
+use crate::docker::{Resource, Task, VolumeInfo, plural, time_ago};
 
 #[derive(Default)]
 pub struct VolumesPage {
@@ -41,11 +40,25 @@ impl Page for VolumesPage {
             .iter()
             .filter(|v| !store.containers_using_volume(&v.name).is_empty())
             .count();
-        format!("{} volumes · {in_use} in use", store.volumes.len())
+        format!(
+            "{} · {in_use} in use",
+            plural(store.volumes.len(), "volume")
+        )
     }
 
     fn search_hint(&self) -> &'static str {
         "Search name or driver"
+    }
+
+    fn toolbar(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
+        let unused: Vec<Task> = ctx
+            .store
+            .volumes
+            .iter()
+            .filter(|v| ctx.store.containers_using_volume(&v.name).is_empty())
+            .map(|v| remove_task(Resource::Volumes, &v.name, &v.name))
+            .collect();
+        remove_unused_button(ui, ctx, "volume", unused);
     }
 
     fn show(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
@@ -109,6 +122,14 @@ impl Page for VolumesPage {
             self.selected = None;
         }
         usage_pill(ui, p, users.len());
+        ui.add_space(10.0);
+        let blocked = (!users.is_empty()).then_some("Mounted by a container");
+        let task = remove_task(Resource::Volumes, &volume.name, &volume.name);
+        if !ctx.store.pending.contains(&volume.name) {
+            remove_button(ui, ctx, "volume", task, blocked);
+        } else {
+            ui.spinner();
+        }
         ui.add_space(16.0);
 
         egui::ScrollArea::vertical()

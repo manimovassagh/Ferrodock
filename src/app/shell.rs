@@ -6,7 +6,8 @@ use eframe::egui::{self, Align, Layout, RichText};
 use super::components::widgets;
 use crate::theme::Palette;
 
-/// Page title, summary line, search box and refresh button.
+/// Page title, summary line, the page's own toolbar, search box and
+/// refresh button.
 /// Returns true when refresh was clicked.
 pub fn header(
     ui: &mut egui::Ui,
@@ -15,6 +16,7 @@ pub fn header(
     summary: &str,
     search_hint: &str,
     search: &mut String,
+    toolbar: impl FnOnce(&mut egui::Ui),
 ) -> bool {
     let mut refresh = false;
     ui.horizontal(|ui| {
@@ -30,6 +32,7 @@ pub fn header(
                     .desired_width(240.0)
                     .margin(egui::vec2(8.0, 5.0)),
             );
+            toolbar(ui);
         });
     });
     refresh

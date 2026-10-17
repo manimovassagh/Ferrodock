@@ -5,7 +5,7 @@
 
 use std::collections::HashSet;
 
-use crate::docker::{Action, ContainerInfo, ImageInfo, NetworkInfo, VolumeInfo};
+use crate::docker::{ContainerInfo, ImageInfo, NetworkInfo, VolumeInfo};
 use crate::worker::Response;
 
 pub enum Connection {
@@ -26,7 +26,7 @@ pub struct Store {
     pub images: Vec<ImageInfo>,
     pub volumes: Vec<VolumeInfo>,
     pub networks: Vec<NetworkInfo>,
-    /// Container IDs with an action in flight.
+    /// IDs (names, for volumes) of items with an action in flight.
     pub pending: HashSet<String>,
 }
 
@@ -55,20 +55,15 @@ impl Store {
                 *self = Self::new();
                 self.connection = Connection::Disconnected { reason };
             }
-            Response::ActionDone { id, action, name } => {
-                self.pending.remove(&id);
-                let past = match action {
-                    Action::Start => "Started",
-                    Action::Stop => "Stopped",
-                    Action::Restart => "Restarted",
-                };
+            Response::Done(task) => {
+                self.pending.remove(&task.id);
                 return Some(Notice {
-                    text: format!("{past} {name}"),
+                    text: format!("{} {}", task.action.past_tense(), task.name),
                     is_error: false,
                 });
             }
-            Response::ActionFailed { id, message } => {
-                self.pending.remove(&id);
+            Response::Failed { task, message } => {
+                self.pending.remove(&task.id);
                 return Some(Notice {
                     text: message,
                     is_error: true,
@@ -76,6 +71,10 @@ impl Store {
             }
         }
         None
+    }
+
+    pub fn is_disconnected(&self) -> bool {
+        matches!(self.connection, Connection::Disconnected { .. })
     }
 
     pub fn container(&self, id: &str) -> Option<&ContainerInfo> {
@@ -113,6 +112,7 @@ impl Store {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::docker::{Action, Resource, Task};
 
     fn container(name: &str, image_id: &str, volumes: &[&str], networks: &[&str]) -> ContainerInfo {
         ContainerInfo {
@@ -146,13 +146,21 @@ mod tests {
         assert_eq!(store.running_count(), 2);
     }
 
+    fn task(action: Action, id: &str) -> Task {
+        Task {
+            action,
+            id: id.into(),
+            name: "web".into(),
+        }
+    }
+
     #[test]
     fn action_results_clear_pending_and_notify() {
         let mut store = Store::new();
         store.pending.insert("x".into());
         let notice = store
-            .apply(Response::ActionFailed {
-                id: "x".into(),
+            .apply(Response::Failed {
+                task: task(Action::Start, "x"),
                 message: "boom".into(),
             })
             .unwrap();
@@ -160,13 +168,9 @@ mod tests {
         assert!(store.pending.is_empty());
 
         let notice = store
-            .apply(Response::ActionDone {
-                id: "y".into(),
-                action: Action::Stop,
-                name: "web".into(),
-            })
+            .apply(Response::Done(task(Action::Remove(Resource::Volumes), "y")))
             .unwrap();
-        assert_eq!(notice.text, "Stopped web");
+        assert_eq!(notice.text, "Removed web");
     }
 
     #[test]

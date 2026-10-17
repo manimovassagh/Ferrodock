@@ -7,19 +7,27 @@
 use eframe::egui;
 
 use super::store::Store;
-use crate::docker::Action;
+use crate::docker::{Resource, Task};
 use crate::theme::Palette;
-use crate::worker::Resource;
 
 /// Something a page wants done. The app decides how (today: by asking the
 /// background worker), so pages never depend on the worker directly.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Intent {
-    Container {
-        action: Action,
-        id: String,
-        name: String,
-    },
+    /// Do it now.
+    Run(Task),
+    /// Ask the user first; run the tasks only if they agree.
+    Confirm(Confirmation),
+}
+
+/// A question for the user before something destructive happens.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Confirmation {
+    pub title: String,
+    pub message: String,
+    /// Label of the confirm button, e.g. "Remove".
+    pub action_label: String,
+    pub tasks: Vec<Task>,
 }
 
 /// What a page gets to work with while drawing.
@@ -71,6 +79,9 @@ pub trait Page {
     fn search_hint(&self) -> &'static str {
         "Search"
     }
+
+    /// Extra buttons for the page header, e.g. "Remove unused".
+    fn toolbar(&mut self, _ui: &mut egui::Ui, _ctx: &mut PageCtx) {}
 
     /// Draws the page body below the shared header.
     fn show(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx);
