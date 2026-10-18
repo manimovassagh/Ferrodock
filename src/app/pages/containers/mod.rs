@@ -2,6 +2,7 @@
 //! with Overview, Logs and Stats tabs.
 
 mod actions;
+mod bulk;
 mod details;
 mod limits;
 mod logs;

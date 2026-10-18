@@ -16,6 +16,13 @@ pub enum Action {
     Pause,
     Unpause,
     Remove(Resource),
+    /// Stop a container if it runs, then remove it.
+    StopAndRemove,
+    /// Remove every container, image, custom network and the build cache,
+    /// and the volumes unless they're kept.
+    Reset {
+        keep_volumes: bool,
+    },
     /// Clean up a kind of unused thing (`docker … prune`).
     Prune(PruneKind),
     /// Pull an image; the task's ID is the image reference. Streamed by
@@ -53,7 +60,8 @@ impl Action {
             Action::Restart => "restart",
             Action::Pause => "pause",
             Action::Unpause => "resume",
-            Action::Remove(_) => "remove",
+            Action::Remove(_) | Action::StopAndRemove => "remove",
+            Action::Reset { .. } => "reset",
             Action::Prune(_) => "clean up",
             Action::Pull => "pull",
             Action::Run => "run",
@@ -78,7 +86,8 @@ impl Action {
             Action::Restart => "Restarted",
             Action::Pause => "Paused",
             Action::Unpause => "Resumed",
-            Action::Remove(_) | Action::Prune(_) => "Removed",
+            Action::Remove(_) | Action::Prune(_) | Action::StopAndRemove => "Removed",
+            Action::Reset { .. } => "Reset",
             Action::Pull => "Pulled",
             Action::Run => "Started",
             Action::Create(_) => "Created",
@@ -99,6 +108,7 @@ impl Action {
         match self {
             Action::Remove(resource) => resource,
             Action::Prune(kind) => kind.affects(),
+            Action::Reset { .. } => Resource::Disk,
             Action::Pull | Action::Tag | Action::Push | Action::Save | Action::Load => {
                 Resource::Images
             }
@@ -121,8 +131,10 @@ pub struct Task {
 impl DockerClient {
     /// Runs an action. Returns the bytes freed, for clean-ups.
     pub async fn perform(&self, action: Action, id: &str) -> Result<Option<i64>, String> {
-        if let Action::Prune(kind) = action {
-            return self.prune(kind).await.map(Some);
+        match action {
+            Action::Prune(kind) => return self.prune(kind).await.map(Some),
+            Action::Reset { keep_volumes } => return self.reset(keep_volumes).await.map(Some),
+            _ => {}
         }
         let docker = &self.docker;
         let result = match action {
@@ -148,6 +160,17 @@ impl DockerClient {
                     .remove_container(id, None::<RemoveContainerOptions>)
                     .await
             }
+            Action::StopAndRemove => {
+                // Stopping one that has just exited isn't an error here.
+                let _ = docker
+                    .stop_container(id, None::<StopContainerOptions>)
+                    .await;
+                let opts = RemoveContainerOptions {
+                    force: true,
+                    ..Default::default()
+                };
+                docker.remove_container(id, Some(opts)).await
+            }
             Action::Remove(Resource::Images) => {
                 // `force` lets an image with several tags go in one step. The
                 // UI only offers this for images no container uses.
@@ -165,6 +188,7 @@ impl DockerClient {
             Action::Remove(Resource::Networks) => docker.remove_network(id).await,
             Action::Remove(Resource::Disk)
             | Action::Prune(_)
+            | Action::Reset { .. }
             | Action::Pull
             | Action::Run
             | Action::Create(_)

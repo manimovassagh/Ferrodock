@@ -394,6 +394,7 @@ fn remove_project_button(ui: &mut egui::Ui, ctx: &mut PageCtx, project: &Compose
             ),
             action_label: "Remove".into(),
             tasks,
+            ..Default::default()
         }));
     }
 }

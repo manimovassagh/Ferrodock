@@ -4,6 +4,7 @@ use eframe::egui;
 
 use super::create_dialog::{CreateForm, Kind};
 use super::files::{self, FilesTab, Target};
+use super::marks::{Item, Marks};
 use super::{
     confirm_removal, inspect_section, remove_button, remove_task, remove_unused_button, usage_pill,
 };
@@ -21,6 +22,8 @@ pub struct VolumesPage {
     create: Option<CreateForm>,
     /// Where the file browser is, while browsing a volume.
     files: FilesTab,
+    /// Rows ticked for removing together.
+    marks: Marks,
 }
 
 /// Stops browsing `volume` and removes its helper container.
@@ -143,7 +146,19 @@ impl Page for VolumesPage {
             return;
         }
 
+        let items: Vec<Item> = visible
+            .iter()
+            .map(|v| Item {
+                id: &v.name,
+                name: &v.name,
+                in_use: !store.containers_using_volume(&v.name).is_empty(),
+            })
+            .collect();
+        self.marks.bar(ui, ctx, "volume", Resource::Volumes, &items);
+        let marks = &self.marks;
+        let mut ticks = Vec::new();
         let columns = vec![
+            marks.column(&items),
             table::Col::fill("NAME"),
             table::Col::fixed("USAGE", 110.0),
             table::Col::fixed("CREATED", 130.0),
@@ -155,10 +170,13 @@ impl Page for VolumesPage {
             "volumes",
             columns,
             visible.len(),
-            |i| selected.as_deref() == Some(visible[i].name.as_str()),
+            |i| {
+                selected.as_deref() == Some(visible[i].name.as_str()) || marks.contains(items[i].id)
+            },
             |i, row| {
                 let volume = visible[i];
                 let users = store.containers_using_volume(&volume.name).len();
+                row.col(|ui| ticks.extend(marks.cell(ui, p, &items[i])));
                 row.col(|ui| {
                     table::with_icon(
                         ui,
@@ -175,6 +193,7 @@ impl Page for VolumesPage {
                 });
             },
         );
+        self.marks.apply(ui, "volumes", &items, ticks);
         if let Some(i) = clicked {
             toggle_selection(&mut self.selected, visible[i].name.clone());
         }
@@ -255,6 +274,22 @@ impl Page for VolumesPage {
 
     fn clear_selection(&mut self) {
         self.selected = None;
+        self.marks.clear();
+    }
+
+    fn select_all(&mut self, ctx: &PageCtx) {
+        let items: Vec<Item> = ctx
+            .store
+            .volumes
+            .iter()
+            .filter(|v| ctx.matches_search(&[&v.name, &v.driver]))
+            .map(|v| Item {
+                id: &v.name,
+                name: &v.name,
+                in_use: false,
+            })
+            .collect();
+        self.marks.select_all(&items);
     }
 
     fn select(&mut self, id: &str) {

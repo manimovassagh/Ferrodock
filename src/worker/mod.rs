@@ -547,8 +547,14 @@ async fn run_task(client: &DockerClient, shared: &Shared, task: Task) {
     match client.perform(task.action, &task.id).await {
         Ok(freed) => {
             let affected = task.action.affects();
-            let pruned = matches!(task.action, Action::Prune(_));
+            let pruned = matches!(task.action, Action::Prune(_) | Action::Reset { .. });
+            let everything = matches!(task.action, Action::Reset { .. });
             shared.send(Response::Done { task, freed });
+            if everything {
+                for list in [Resource::Images, Resource::Volumes, Resource::Networks] {
+                    refresh(client, shared, list).await;
+                }
+            }
             if affected != Resource::Containers {
                 refresh(client, shared, affected).await;
             }

@@ -396,14 +396,14 @@ impl FerrodockApp {
     }
 
     fn show_confirmation(&mut self, ui: &mut egui::Ui, p: &theme::Palette) {
-        let Some(confirmation) = &self.confirmation else {
+        let Some(confirmation) = &mut self.confirmation else {
             return;
         };
         match confirm::show(ui, p, confirmation) {
             Some(Choice::Confirm) => {
                 if let Some(confirmation) = self.confirmation.take() {
                     confirmation
-                        .tasks
+                        .chosen_tasks()
                         .into_iter()
                         .for_each(|task| self.run(task));
                 }

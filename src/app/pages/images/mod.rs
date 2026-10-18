@@ -7,6 +7,7 @@ mod tag_dialog;
 
 use eframe::egui;
 
+use super::marks::{Item, Marks};
 use super::run_dialog::{self, RunForm};
 use super::{
     confirm_removal, inspect_section, remove_button, remove_task, remove_unused_button, usage_pill,
@@ -31,6 +32,8 @@ pub struct ImagesPage {
     searching: bool,
     /// When the Pull box last changed, to search once typing pauses.
     typed_at: Option<std::time::Instant>,
+    /// Rows ticked for removing together.
+    marks: Marks,
 }
 
 /// How long typing has to pause before Docker Hub is searched.
@@ -249,7 +252,19 @@ impl Page for ImagesPage {
             return;
         }
 
+        let items: Vec<Item> = visible
+            .iter()
+            .map(|i| Item {
+                id: &i.id,
+                name: i.name(),
+                in_use: !store.containers_using_image(&i.id).is_empty(),
+            })
+            .collect();
+        self.marks.bar(ui, ctx, "image", Resource::Images, &items);
+        let marks = &self.marks;
+        let mut ticks = Vec::new();
         let columns = vec![
+            marks.column(&items),
             table::Col::fill("NAME"),
             table::Col::fixed("USAGE", 110.0),
             table::Col::fixed("SIZE", 100.0),
@@ -264,10 +279,11 @@ impl Page for ImagesPage {
             "images",
             columns,
             visible.len(),
-            |i| selected.as_deref() == Some(visible[i].id.as_str()),
+            |i| selected.as_deref() == Some(visible[i].id.as_str()) || marks.contains(items[i].id),
             |i, row| {
                 let image = visible[i];
                 let users = store.containers_using_image(&image.id).len();
+                row.col(|ui| ticks.extend(marks.cell(ui, p, &items[i])));
                 row.col(|ui| {
                     let line = secondary_line(image);
                     table::with_icon(ui, p, Icon::Layers, p.accent, image.name(), &line)
@@ -284,6 +300,7 @@ impl Page for ImagesPage {
                 });
             },
         );
+        self.marks.apply(ui, "images", &items, ticks);
         if let Some(i) = run {
             self.open_run(visible[i], ctx);
         } else if let Some(i) = clicked {
@@ -345,6 +362,22 @@ impl Page for ImagesPage {
 
     fn clear_selection(&mut self) {
         self.selected = None;
+        self.marks.clear();
+    }
+
+    fn select_all(&mut self, ctx: &PageCtx) {
+        let items: Vec<Item> = ctx
+            .store
+            .images
+            .iter()
+            .filter(|i| ctx.matches_search(&[&i.tags.join(" "), i.short_id()]))
+            .map(|i| Item {
+                id: &i.id,
+                name: i.name(),
+                in_use: false,
+            })
+            .collect();
+        self.marks.select_all(&items);
     }
 
     fn select(&mut self, id: &str) {

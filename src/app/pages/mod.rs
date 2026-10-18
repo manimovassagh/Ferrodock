@@ -7,6 +7,7 @@ mod create_dialog;
 mod disk;
 mod files;
 mod images;
+mod marks;
 mod networks;
 pub(super) mod run_dialog;
 mod volumes;
@@ -191,6 +192,7 @@ fn confirm_removal(kind: &str, tasks: Vec<Task>) -> Intent {
         message,
         action_label: "Remove".into(),
         tasks,
+        ..Default::default()
     })
 }
 

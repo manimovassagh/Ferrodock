@@ -3,6 +3,7 @@
 use eframe::egui;
 
 use super::create_dialog::{CreateForm, Kind};
+use super::marks::{Item, Marks};
 use super::{confirm_removal, inspect_section, remove_button, remove_task, remove_unused_button};
 use crate::app::components::icons::Icon;
 use crate::app::components::{details, table, widgets};
@@ -17,6 +18,8 @@ pub struct NetworksPage {
     create: Option<CreateForm>,
     /// The container picked in "Connect a container".
     connect: String,
+    /// Rows ticked for removing together.
+    marks: Marks,
 }
 
 impl NetworksPage {
@@ -90,7 +93,13 @@ impl Page for NetworksPage {
             return;
         }
 
+        let items: Vec<Item> = visible.iter().map(|n| item(store, n)).collect();
+        self.marks
+            .bar(ui, ctx, "network", Resource::Networks, &items);
+        let marks = &self.marks;
+        let mut ticks = Vec::new();
         let columns = vec![
+            marks.column(&items),
             table::Col::fill("NAME"),
             table::Col::fixed("SUBNET", 150.0),
             table::Col::fixed("CONTAINERS", 100.0),
@@ -103,10 +112,11 @@ impl Page for NetworksPage {
             "networks",
             columns,
             visible.len(),
-            |i| selected.as_deref() == Some(visible[i].id.as_str()),
+            |i| selected.as_deref() == Some(visible[i].id.as_str()) || marks.contains(items[i].id),
             |i, row| {
                 let net = visible[i];
                 let attached = store.containers_on_network(&net.name).len();
+                row.col(|ui| ticks.extend(marks.cell(ui, p, &items[i])));
                 row.col(|ui| {
                     table::with_icon(ui, p, Icon::Network, p.muted, &net.name, &net.driver)
                 });
@@ -115,6 +125,7 @@ impl Page for NetworksPage {
                 row.col(|ui| table::muted(ui, p, &net.created.map(time_ago).unwrap_or_default()));
             },
         );
+        self.marks.apply(ui, "networks", &items, ticks);
         if let Some(i) = clicked {
             toggle_selection(&mut self.selected, visible[i].id.clone());
         }
@@ -179,6 +190,18 @@ impl Page for NetworksPage {
 
     fn clear_selection(&mut self) {
         self.selected = None;
+        self.marks.clear();
+    }
+
+    fn select_all(&mut self, ctx: &PageCtx) {
+        let items: Vec<Item> = ctx
+            .store
+            .networks
+            .iter()
+            .filter(|n| ctx.matches_search(&[&n.name, &n.driver, &n.subnets.join(" ")]))
+            .map(|n| item(ctx.store, n))
+            .collect();
+        self.marks.select_all(&items);
     }
 
     fn select(&mut self, id: &str) {
@@ -205,6 +228,16 @@ impl Page for NetworksPage {
 
 /// Removal tasks for every network no container is on (except Docker's
 /// built-in ones).
+/// A network as a row to tick; built-in ones count as in use, since they
+/// can't be removed.
+fn item<'a>(store: &Store, n: &'a NetworkInfo) -> Item<'a> {
+    Item {
+        id: &n.id,
+        name: &n.name,
+        in_use: n.is_builtin() || !store.containers_on_network(&n.name).is_empty(),
+    }
+}
+
 fn unused(store: &Store) -> Vec<Task> {
     store
         .networks
