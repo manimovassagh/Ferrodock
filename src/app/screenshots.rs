@@ -544,8 +544,10 @@ fn screenshots_of_engine_start() {
     settle(&mut h, Duration::from_millis(1500));
     save(&mut h, "engine-starting");
     let start = Instant::now();
-    while !matches!(h.state().store.connection, super::Connection::Connected { .. })
-        && start.elapsed() < Duration::from_secs(60)
+    while !matches!(
+        h.state().store.connection,
+        super::Connection::Connected { .. }
+    ) && start.elapsed() < Duration::from_secs(60)
     {
         settle(&mut h, Duration::from_millis(500));
     }
