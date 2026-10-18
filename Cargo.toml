@@ -14,6 +14,10 @@ categories = ["gui", "development-tools"]
 # Only what building needs; the website, docs and packaging stay on GitHub.
 include = ["/src", "/assets", "/build.rs", "/README.md", "/LICENSE", "/CHANGELOG.md"]
 
+[workspace]
+# The app, and the agent that runs inside its Linux VM (#114).
+members = [".", "agent"]
+
 [dependencies]
 bollard = { version = "0.21.1", features = ["time", "ssl"] }
 bytes = "1.12.1"
