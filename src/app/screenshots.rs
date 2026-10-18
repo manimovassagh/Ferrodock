@@ -479,3 +479,19 @@ fn screenshots_of_compose_up() {
     std::fs::remove_dir_all(&dir).unwrap();
     assert!(up_ok, "compose up finished without errors");
 }
+
+/// The container list grouped by Compose project.
+#[test]
+#[ignore]
+fn screenshots_of_grouping() {
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(3));
+    set_theme(&mut h, Theme::Light);
+    open(&mut h, 0, None);
+    save(&mut h, "before-grouping");
+    click(&mut h, "Group by project");
+    settle(&mut h, Duration::from_secs(1));
+    save(&mut h, "grouped");
+    click(&mut h, "Group by project");
+    h.run_steps(2);
+}

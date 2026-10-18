@@ -1,4 +1,5 @@
-//! The container list.
+//! The container list, optionally grouped by Compose project under
+//! collapsible headers.
 
 use eframe::egui;
 
@@ -11,6 +12,95 @@ use crate::app::page::{PageCtx, toggle_selection};
 use crate::app::pages::{confirm_removal, remove_task};
 use crate::docker::{Action, ContainerInfo, Resource, StatsSample, Task, format_size};
 use crate::theme::Palette;
+
+/// One line of the list.
+enum Row<'a> {
+    /// A Compose project (None: containers in no project) and its
+    /// containers.
+    Group {
+        project: Option<&'a str>,
+        containers: Vec<&'a ContainerInfo>,
+    },
+    /// A container; `grouped` indents it under its project.
+    Item {
+        container: &'a ContainerInfo,
+        grouped: bool,
+    },
+}
+
+fn grouping_id() -> egui::Id {
+    egui::Id::unique("containers-grouped-by-project")
+}
+
+/// Whether the list is grouped by Compose project (remembered between runs).
+fn grouped(ui: &egui::Ui) -> bool {
+    ui.data_mut(|d| d.get_persisted::<bool>(grouping_id()))
+        .unwrap_or(false)
+}
+
+/// The "Group by project" switch.
+pub(super) fn grouping_toggle(ui: &mut egui::Ui) {
+    let mut on = grouped(ui);
+    if ui
+        .toggle_value(&mut on, "Group by project")
+        .on_hover_text("Show containers under their Compose project")
+        .changed()
+    {
+        ui.data_mut(|d| d.insert_persisted(grouping_id(), on));
+    }
+}
+
+/// The rows to show: containers as they are, or grouped by project with
+/// folded projects' containers left out.
+fn rows<'a>(
+    visible: &[&'a ContainerInfo],
+    grouped: bool,
+    collapsed: &std::collections::BTreeSet<String>,
+) -> Vec<Row<'a>> {
+    if !grouped {
+        return visible
+            .iter()
+            .map(|c| Row::Item {
+                container: c,
+                grouped: false,
+            })
+            .collect();
+    }
+    let mut projects: std::collections::BTreeMap<&str, Vec<&ContainerInfo>> = Default::default();
+    let mut loose = Vec::new();
+    for c in visible {
+        match &c.compose {
+            Some(labels) => projects.entry(labels.project.as_str()).or_default().push(c),
+            None => loose.push(*c),
+        }
+    }
+    let mut groups: Vec<(Option<&str>, Vec<&ContainerInfo>)> =
+        projects.into_iter().map(|(p, cs)| (Some(p), cs)).collect();
+    if !loose.is_empty() {
+        groups.push((None, loose));
+    }
+    let mut rows = Vec::new();
+    for (project, containers) in groups {
+        let folded = collapsed.contains(project.unwrap_or(""));
+        let items: Vec<Row> = if folded {
+            Vec::new()
+        } else {
+            containers
+                .iter()
+                .map(|c| Row::Item {
+                    container: c,
+                    grouped: true,
+                })
+                .collect()
+        };
+        rows.push(Row::Group {
+            project,
+            containers,
+        });
+        rows.extend(items);
+    }
+    rows
+}
 
 pub(super) fn show(
     page: &mut ContainersPage,
@@ -46,16 +136,36 @@ pub(super) fn show(
 
     let selected = page.selected.clone();
     let marked = page.marked.clone();
+    let rows = rows(visible, grouped(ui), &page.collapsed);
+    let columns_count = columns.len();
     let clicked = table::show(
         ui,
         p,
         "containers",
         columns,
-        visible.len(),
-        |i| selected.as_deref() == Some(visible[i].id.as_str()) || marked.contains(&visible[i].id),
+        rows.len(),
+        |i| match &rows[i] {
+            Row::Item { container: c, .. } => {
+                selected.as_deref() == Some(c.id.as_str()) || marked.contains(&c.id)
+            }
+            Row::Group { .. } => false,
+        },
         |i, row| {
-            let c = visible[i];
+            let (c, indented) = match &rows[i] {
+                Row::Item { container, grouped } => (*container, *grouped),
+                Row::Group {
+                    project,
+                    containers,
+                } => {
+                    let folded = page.collapsed.contains(project.unwrap_or(""));
+                    group_row(row, ctx, *project, containers, folded, columns_count);
+                    return;
+                }
+            };
             row.col(|ui| {
+                if indented {
+                    ui.add_space(18.0);
+                }
                 let color = status::color(p, &c.state);
                 table::with_icon(ui, p, Icon::Container, color, &c.name, &c.image)
             });
@@ -90,6 +200,18 @@ pub(super) fn show(
             });
         },
     );
+    let clicked = match clicked.map(|i| &rows[i]) {
+        Some(Row::Group { project, .. }) => {
+            // Fold or unfold the project.
+            let key = project.unwrap_or("").to_owned();
+            if !page.collapsed.remove(&key) {
+                page.collapsed.insert(key);
+            }
+            None
+        }
+        Some(Row::Item { container, .. }) => visible.iter().position(|c| c.id == container.id),
+        None => None,
+    };
     if let Some(i) = clicked {
         let modifiers = ui.input(|input| input.modifiers);
         let id = visible[i].id.clone();
@@ -118,6 +240,78 @@ pub(super) fn show(
             page.anchor = Some(id);
         }
     }
+}
+
+/// A project's header: fold arrow, name, how many run, and actions for
+/// all of its containers.
+fn group_row(
+    row: &mut egui_extras::TableRow<'_, '_>,
+    ctx: &mut PageCtx,
+    project: Option<&str>,
+    containers: &[&ContainerInfo],
+    folded: bool,
+    columns: usize,
+) {
+    let p = ctx.palette;
+    let running = containers.iter().filter(|c| c.is_active()).count();
+    row.col(|ui| {
+        let chevron = if folded {
+            Icon::ChevronRight
+        } else {
+            Icon::ChevronDown
+        };
+        let (rect, _) = ui.allocate_exact_size(egui::vec2(16.0, 16.0), egui::Sense::hover());
+        crate::app::components::icons::paint(ui.painter(), rect, chevron, p.muted);
+        let name = project.unwrap_or("Other containers");
+        ui.label(
+            egui::RichText::new(name)
+                .font(egui::FontId::new(14.0, crate::theme::semibold()))
+                .color(p.text),
+        );
+        let count = if project.is_some() {
+            format!("{running}/{} running", containers.len())
+        } else {
+            format!("{running} running")
+        };
+        ui.label(egui::RichText::new(count).size(12.0).color(p.muted));
+    });
+    // Empty cells up to the actions column.
+    for _ in 1..columns - 1 {
+        row.col(|_| {});
+    }
+    row.col(|ui| {
+        if project.is_none() {
+            return;
+        }
+        ui.spacing_mut().item_spacing.x = 2.0;
+        let tasks = |action: Action, wanted: bool| -> Vec<Task> {
+            containers
+                .iter()
+                .filter(|c| c.is_active() == wanted)
+                .map(|c| Task {
+                    action,
+                    id: c.id.clone(),
+                    name: c.name.clone(),
+                })
+                .collect()
+        };
+        let mut run = Vec::new();
+        if running < containers.len() && widgets::icon_button(ui, Icon::Play, "Start all").clicked()
+        {
+            run = tasks(Action::Start, false);
+        }
+        if running > 0 {
+            if widgets::icon_button(ui, Icon::Stop, "Stop all").clicked() {
+                run = tasks(Action::Stop, true);
+            }
+            if widgets::icon_button(ui, Icon::Restart, "Restart all").clicked() {
+                run = tasks(Action::Restart, true);
+            }
+        }
+        for task in run {
+            ctx.request(crate::app::page::Intent::Run(task));
+        }
+    });
 }
 
 /// CPU now, with a small trend line; amber above 80%.
@@ -220,4 +414,55 @@ fn bulk_bar(
             });
         });
     ui.add_space(6.0);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::docker::ComposeLabels;
+
+    fn container(name: &str, project: Option<&str>) -> ContainerInfo {
+        ContainerInfo {
+            id: name.into(),
+            name: name.into(),
+            compose: project.map(|p| ComposeLabels {
+                project: p.into(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }
+    }
+
+    fn shape(rows: &[Row]) -> Vec<String> {
+        rows.iter()
+            .map(|r| match r {
+                Row::Group { project, .. } => format!("# {}", project.unwrap_or("other")),
+                Row::Item { container, .. } => container.name.clone(),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn groups_and_folds_projects() {
+        let all = [
+            container("api", Some("shop")),
+            container("lone", None),
+            container("blog-web", Some("blog")),
+            container("db", Some("shop")),
+        ];
+        let visible: Vec<&ContainerInfo> = all.iter().collect();
+        let mut folded = std::collections::BTreeSet::new();
+        assert_eq!(shape(&rows(&visible, false, &folded)).len(), 4);
+        assert_eq!(
+            shape(&rows(&visible, true, &folded)),
+            [
+                "# blog", "blog-web", "# shop", "api", "db", "# other", "lone"
+            ]
+        );
+        folded.insert("shop".to_owned());
+        assert_eq!(
+            shape(&rows(&visible, true, &folded)),
+            ["# blog", "blog-web", "# shop", "# other", "lone"]
+        );
+    }
 }

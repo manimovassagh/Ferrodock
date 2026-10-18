@@ -52,6 +52,12 @@ In a container's details, the **⋯** menu next to the actions has:
 - **Limits** (in Overview) shows its CPU and memory limits; **Change…** sets
   them on the spot. Removing a limit needs **Edit…**.
 
+**Group by project** (top right of the list) puts containers under their
+Compose project, with a header such as **shop · 2/3 running** that folds
+the project away when clicked and has **Start all**, **Stop all** and
+**Restart all**. Containers in no project are listed last. The choice is
+remembered.
+
 To act on several containers at once, **⌘-click** (Ctrl-click) rows to
 select them, **Shift-click** to select a range, or press **⌘A** (Ctrl+A)
 for all of them. A bar above the list then offers **Start**, **Stop**,

@@ -19,6 +19,9 @@ pub enum Icon {
     More,
     Folder,
     File,
+    /// A group that's folded (pointing right) or open (pointing down).
+    ChevronRight,
+    ChevronDown,
     // Pages.
     Container,
     Stack,
@@ -112,6 +115,8 @@ pub fn paint(painter: &egui::Painter, rect: Rect, icon: Icon, color: Color32) {
             ]),
             line(&[p(14.0, 3.5), p(14.0, 8.0), p(18.5, 8.0)]),
         ],
+        Icon::ChevronRight => vec![line(&[p(9.0, 6.0), p(15.0, 12.0), p(9.0, 18.0)])],
+        Icon::ChevronDown => vec![line(&[p(6.0, 9.0), p(12.0, 15.0), p(18.0, 9.0)])],
         Icon::More => [5.5, 12.0, 18.5]
             .into_iter()
             .map(|x| Shape::circle_filled(p(x, 12.0), 1.9 * s, color))
