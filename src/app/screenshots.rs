@@ -360,8 +360,7 @@ fn screenshots_of_image_tools() {
         .click();
     h.run_steps(2);
     h.event(egui::Event::Text("nginx".into()));
-    h.run_steps(2);
-    click(&mut h, "Search Docker Hub");
+    // Results come by themselves once typing pauses.
     settle(&mut h, Duration::from_secs(5));
     save(&mut h, "image-search");
     click(&mut h, "More actions");

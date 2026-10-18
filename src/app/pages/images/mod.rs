@@ -29,6 +29,23 @@ pub struct ImagesPage {
     tag_form: Option<TagForm>,
     /// Whether the search results show.
     searching: bool,
+    /// When the Pull box last changed, to search once typing pauses.
+    typed_at: Option<std::time::Instant>,
+}
+
+/// How long typing has to pause before Docker Hub is searched.
+const SEARCH_DELAY: std::time::Duration = std::time::Duration::from_millis(400);
+
+/// What to search Docker Hub for, given what's typed in the Pull box: the
+/// name without a tag (`nginx:alpine` → `nginx`), since the search doesn't
+/// know tags. None when it's too short to be worth it.
+fn search_term(input: &str) -> Option<&str> {
+    let input = input.trim();
+    let name = match input.rsplit_once(':') {
+        Some((name, tag)) if !tag.contains('/') => name,
+        _ => input,
+    };
+    (name.chars().count() >= 2).then_some(name)
 }
 
 impl ImagesPage {
@@ -49,9 +66,12 @@ impl ImagesPage {
         let busy = ctx.store.pending.contains_key(self.pull_input.trim());
         let field = ui.add(
             egui::TextEdit::singleline(&mut self.pull_input)
-                .hint_text("Pull an image, e.g. nginx:alpine")
-                .desired_width(260.0),
+                .hint_text("Search Docker Hub or pull an image, e.g. nginx:alpine")
+                .desired_width(380.0),
         );
+        if field.changed() {
+            self.typed_at = Some(std::time::Instant::now());
+        }
         let submitted = field.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
         let image = self.pull_input.trim().to_owned();
         let pull = ui
@@ -65,16 +85,39 @@ impl ImagesPage {
         if (clicked || submitted) && !image.is_empty() && !busy {
             ctx.request(Intent::Pull(image.clone()));
             self.pull_input.clear();
+            self.searching = false;
+            self.typed_at = None;
+            return;
         }
-        let search = ui
-            .add_enabled_ui(!image.is_empty(), |ui| {
-                widgets::button(ui, Icon::Search, "Search Docker Hub")
-            })
-            .inner;
-        if search.clicked() {
-            ctx.request(Intent::Image(ImageOp::Search(image)));
-            self.searching = true;
+        self.search_when_paused(ui, ctx);
+    }
+
+    /// Searches Docker Hub once typing in the Pull box has paused, and
+    /// hides the results when the box is emptied.
+    fn search_when_paused(&mut self, ui: &egui::Ui, ctx: &mut PageCtx) {
+        let Some(typed_at) = self.typed_at else {
+            return;
+        };
+        let Some(term) = search_term(&self.pull_input) else {
+            self.searching = false;
+            self.typed_at = None;
+            return;
+        };
+        let waited = typed_at.elapsed();
+        if waited < SEARCH_DELAY {
+            ui.ctx().request_repaint_after(SEARCH_DELAY - waited);
+            return;
         }
+        self.typed_at = None;
+        let already = ctx
+            .store
+            .search
+            .as_ref()
+            .is_some_and(|(asked, _)| asked == term);
+        if !already {
+            ctx.request(Intent::Image(ImageOp::Search(term.to_owned())));
+        }
+        self.searching = true;
     }
 
     /// Loads `.tar` files dropped on the window; says where they'll go
@@ -464,4 +507,21 @@ fn unused(store: &Store) -> Vec<Task> {
         .filter(|i| store.containers_using_image(&i.id).is_empty())
         .map(|i| remove_task(Resource::Images, &i.id, i.name()))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::search_term;
+
+    #[test]
+    fn searches_for_the_name_without_its_tag() {
+        assert_eq!(search_term("nginx:alpine"), Some("nginx"));
+        assert_eq!(search_term(" postgres "), Some("postgres"));
+        assert_eq!(
+            search_term("localhost:5000/app"),
+            Some("localhost:5000/app")
+        );
+        assert_eq!(search_term("r"), None);
+        assert_eq!(search_term(""), None);
+    }
 }
