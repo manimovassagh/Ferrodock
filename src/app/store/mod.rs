@@ -281,6 +281,8 @@ impl Store {
                     live.push_stats(sample);
                 }
             }
+            // The app handles these itself.
+            Response::EngineStarted(_) | Response::Provider(_) => {}
             Response::Disconnected(reason) => {
                 // Which engines there are doesn't depend on reaching one,
                 // and switching is how to get out of a dead engine.

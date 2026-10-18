@@ -532,3 +532,27 @@ fn screenshots_of_bulk_and_reset() {
     click(&mut h, "Cancel");
     assert!(h.state().confirmation.is_none());
 }
+
+/// With the engine down: Ferrodock starts it at launch and connects.
+/// Needs a stopped engine that `systemctl start docker` (or the platform's
+/// starter) brings up.
+#[test]
+#[ignore]
+fn screenshots_of_engine_start() {
+    let mut h = harness();
+    set_theme(&mut h, Theme::Light);
+    settle(&mut h, Duration::from_millis(1500));
+    save(&mut h, "engine-starting");
+    let start = Instant::now();
+    while !matches!(h.state().store.connection, super::Connection::Connected { .. })
+        && start.elapsed() < Duration::from_secs(60)
+    {
+        settle(&mut h, Duration::from_millis(500));
+    }
+    settle(&mut h, Duration::from_secs(2));
+    save(&mut h, "engine-started");
+    assert!(matches!(
+        h.state().store.connection,
+        super::Connection::Connected { .. }
+    ));
+}

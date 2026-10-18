@@ -88,6 +88,18 @@ enum Problem {
     NotRunning,
 }
 
+/// Whether `reason` means nothing is listening (rather than a permission
+/// problem), so starting the engine could help.
+pub fn is_not_running(reason: &str) -> bool {
+    diagnose(reason) == Problem::NotRunning
+}
+
+/// What the user clicked on the "Docker isn't running" screen.
+pub enum Click {
+    Retry,
+    Start,
+}
+
 fn diagnose(reason: &str) -> Problem {
     let reason = reason.to_lowercase();
     if reason.contains("permission denied") || reason.contains("access is denied") {
@@ -129,12 +141,27 @@ pub fn connecting(ui: &mut egui::Ui, p: &Palette) {
 /// Shown instead of the page while the engine is unreachable: what's
 /// wrong, how to fix it, and that Ferrodock reconnects by itself.
 /// Returns true when "Retry now" was clicked.
-pub fn disconnected(ui: &mut egui::Ui, p: &Palette, reason: &str) -> bool {
+pub fn disconnected(
+    ui: &mut egui::Ui,
+    p: &Palette,
+    reason: &str,
+    offer: &super::engine_start::Offer,
+) -> Option<Click> {
+    use super::engine_start::Offer;
     let problem = diagnose(reason);
+    let starting = matches!(offer, Offer::Starting(_)) && problem == Problem::NotRunning;
+    let starting_title = match offer {
+        Offer::Starting(name) => format!("Starting {name}…"),
+        _ => String::new(),
+    };
     let (title, explanation) = match problem {
         Problem::PermissionDenied => (
             "Docker won't let Ferrodock in",
             "Docker is running, but your user isn't allowed to use it.",
+        ),
+        Problem::NotRunning if starting => (
+            starting_title.as_str(),
+            "Ferrodock connects as soon as the engine is up. The first start can take a minute.",
         ),
         Problem::NotRunning => (
             "Docker isn't running",
@@ -142,7 +169,7 @@ pub fn disconnected(ui: &mut egui::Ui, p: &Palette, reason: &str) -> bool {
              Desktop or a plain dockerd. Start it and Ferrodock connects by itself.",
         ),
     };
-    let mut retry = false;
+    let mut click = None;
     ui.add_space(48.0);
     ui.vertical_centered(|ui| {
         ui.set_max_width(520.0);
@@ -163,6 +190,34 @@ pub fn disconnected(ui: &mut egui::Ui, p: &Palette, reason: &str) -> bool {
         ui.label(RichText::new(explanation).color(p.muted));
         ui.add_space(16.0);
 
+        if problem == Problem::NotRunning {
+            match offer {
+                Offer::Start(name) => {
+                    if widgets::primary_button(ui, &format!("Start {name}")).clicked() {
+                        click = Some(Click::Start);
+                    }
+                    ui.add_space(16.0);
+                }
+                Offer::Starting(_) => {
+                    ui.spinner();
+                    ui.add_space(16.0);
+                }
+                Offer::Failed { name, error } => {
+                    ui.label(RichText::new(error).color(p.danger));
+                    ui.add_space(6.0);
+                    if widgets::primary_button(ui, &format!("Try starting {name} again")).clicked()
+                    {
+                        click = Some(Click::Start);
+                    }
+                    ui.add_space(16.0);
+                }
+                Offer::Nothing => {}
+            }
+        }
+
+        if starting {
+            return;
+        }
         for (what, command) in fixes(problem) {
             egui::Frame::new()
                 .fill(p.sidebar)
@@ -193,7 +248,9 @@ pub fn disconnected(ui: &mut egui::Ui, p: &Palette, reason: &str) -> bool {
         });
         ui.add_space(10.0);
         ui.horizontal(|ui| {
-            retry = widgets::primary_button(ui, "Retry now").clicked();
+            if ui.button("Retry now").clicked() {
+                click = Some(Click::Retry);
+            }
             ui.hyperlink_to(
                 "Install Docker",
                 "https://docs.docker.com/get-started/get-docker/",
@@ -203,7 +260,7 @@ pub fn disconnected(ui: &mut egui::Ui, p: &Palette, reason: &str) -> bool {
         ui.label(RichText::new(reason).size(11.5).color(p.muted))
             .on_hover_text("The error Docker reported");
     });
-    retry
+    click
 }
 
 #[cfg(test)]

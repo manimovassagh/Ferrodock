@@ -21,6 +21,7 @@ mod files;
 mod format;
 mod images;
 mod inspect;
+mod launch;
 mod limits;
 mod logs;
 mod networks;
@@ -51,6 +52,7 @@ pub use files::{
 pub use format::{format_size, plural, time_ago};
 pub use images::ImageInfo;
 pub use inspect::{Inspection, RunSettings, looks_secret};
+pub use launch::{Starter, provider_app, starter};
 pub use limits::{cpus_text, memory_text, parse_cpus, parse_memory};
 pub use networks::NetworkInfo;
 pub use ports::{PortMapping, engine_host};

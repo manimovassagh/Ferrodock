@@ -48,6 +48,11 @@ pub struct Settings {
     /// Show a system notification when a container crashes or runs out
     /// of memory while Ferrodock isn't in front.
     pub notify_crashes: bool,
+    /// Start the Docker engine when Ferrodock opens and finds it down.
+    pub start_engine: bool,
+    /// The app that served the engine when it last ran (macOS), to start
+    /// it again.
+    pub engine_app: Option<String>,
     /// Ferrodock opens when the user logs in. Read from the system at
     /// start, never saved: the system's login items are the record.
     #[serde(skip)]
@@ -65,6 +70,8 @@ impl Default for Settings {
             engine: None,
             recent_compose: Vec::new(),
             notify_crashes: true,
+            start_engine: true,
+            engine_app: None,
             launch_at_login: false,
         }
     }
@@ -168,6 +175,10 @@ pub fn show(ui: &mut egui::Ui, p: &Palette, settings: &mut Settings, updater: &U
 
             ui.add_space(18.0);
             heading(ui, p, "Startup");
+            ui.checkbox(
+                &mut settings.start_engine,
+                "Start the Docker engine when Ferrodock opens, if it isn't running",
+            );
             let before = settings.launch_at_login;
             ui.checkbox(
                 &mut settings.launch_at_login,
