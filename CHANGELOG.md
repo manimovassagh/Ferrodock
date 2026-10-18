@@ -7,6 +7,16 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.7.0](https://github.com/manimovassagh/Ferrodock/compare/v1.6.0...v1.7.0) - 2026-10-17
+
+### Added
+
+- open Ferrodock at login
+- Compose dev loop: up from a file, rebuild services, merged logs
+- switch between Docker engines and contexts from the sidebar
+- tag, push, save and load images, and search Docker Hub
+- debug shell for containers without a shell
+
 ## [1.6.0](https://github.com/manimovassagh/Ferrodock/compare/v1.5.0...v1.6.0) - 2026-10-17
 
 ### Added
