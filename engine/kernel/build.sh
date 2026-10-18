@@ -9,7 +9,9 @@
 # CROSS_COMPILE=aarch64-linux-gnu-.
 set -euo pipefail
 
-src=$1 base=$2 out=$3
+src=$1 base=$2
+# Absolute: make runs inside the source folder (-C).
+out=$(mkdir -p "$3" && cd "$3" && pwd)
 here=$(cd "$(dirname "$0")" && pwd)
 jobs=${JOBS:-$(nproc)}
 
