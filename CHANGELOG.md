@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.11.0](https://github.com/manimovassagh/Ferrodock/compare/v1.10.1...v1.11.0) - 2026-10-18
+
+### Added
+
+- Quick start templates, Run from Docker Hub, menu bar sections
+
 ## [1.10.0](https://github.com/manimovassagh/Ferrodock/compare/v1.9.0...v1.10.0) - 2026-10-18
 
 ### Added
