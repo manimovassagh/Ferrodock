@@ -7,6 +7,13 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.8.0](https://github.com/manimovassagh/Ferrodock/compare/v1.7.0...v1.8.0) - 2026-10-18
+
+### Added
+
+- group the container list by Compose project
+- system notifications when a container crashes
+
 ## [1.7.0](https://github.com/manimovassagh/Ferrodock/compare/v1.6.0...v1.7.0) - 2026-10-17
 
 ### Added
