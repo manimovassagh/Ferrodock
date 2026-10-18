@@ -198,8 +198,9 @@ button, so you can reuse it in scripts.
 
 ### Search, tag, push, save and load
 
-- **Search Docker Hub** next to the Pull box lists matching images, official
-  ones first, with their stars; **Pull** on a result pulls it.
+- Type in the Pull box and Docker Hub results appear by themselves once you
+  pause: official images first, with their stars. **Pull** on a result pulls
+  it; pressing **Enter** pulls exactly what you typed (say `nginx:alpine`).
 - In an image's details, the **⋯** menu has **Tag…** (give it another
   name, such as `ghcr.io/me/app:1.0`), **Push** (with progress, to the
   registry its name starts with) and **Save as .tar** (to your Downloads
