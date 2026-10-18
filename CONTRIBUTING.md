@@ -6,7 +6,7 @@ requests are all welcome.
 ## Reporting bugs and asking for features
 
 Use the [issue templates](https://github.com/manimovassagh/Ferrodock/issues/new/choose).
-For bugs, include your OS, your Docker engine (Docker Desktop, Colima, …) and
+For bugs, include your OS, your Docker engine (Colima, Rancher Desktop, …) and
 the Ferrodock version.
 
 ## Development setup

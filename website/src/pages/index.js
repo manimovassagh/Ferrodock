@@ -211,7 +211,7 @@ const FEATURES = [
   },
   {
     title: "Works with any engine",
-    text: "Docker Desktop, Colima, Rancher Desktop, or a plain dockerd. Ferrodock connects as soon as the engine is up.",
+    text: "Colima, Rancher Desktop, a plain dockerd, or any other Docker engine. Ferrodock connects as soon as the engine is up.",
     icon: icon(<><path d="M12 2v6" /><path d="M12 16v6" /><circle cx="12" cy="12" r="4" /></>),
   },
 ];

@@ -116,15 +116,11 @@ fn fixes(problem: Problem) -> Vec<(&'static str, &'static str)> {
             "Let your user use Docker, then log out and back in",
             "sudo usermod -aG docker $USER",
         )],
-        Problem::NotRunning if cfg!(target_os = "macos") => vec![
-            ("Start Docker Desktop", "open -a Docker"),
-            ("Or start Colima", "colima start"),
-        ],
-        Problem::NotRunning if cfg!(windows) => vec![(
-            "Start Docker Desktop",
-            "start \"\" \"%ProgramFiles%\\Docker\\Docker\\Docker Desktop.exe\"",
-        )],
-        Problem::NotRunning => vec![("Start the Docker service", "sudo systemctl start docker")],
+        // Ferrodock starts the engine itself where it can (the Start button).
+        Problem::NotRunning if cfg!(target_os = "linux") => {
+            vec![("Start the Docker service", "sudo systemctl start docker")]
+        }
+        Problem::NotRunning => Vec::new(),
     }
 }
 
@@ -163,10 +159,14 @@ pub fn disconnected(
             starting_title.as_str(),
             "Ferrodock connects as soon as the engine is up. The first start can take a minute.",
         ),
+        Problem::NotRunning if matches!(offer, Offer::Nothing) => (
+            "No Docker engine found",
+            "Ferrodock couldn't find a Docker engine on this machine to start. \
+             Once one runs, Ferrodock connects by itself.",
+        ),
         Problem::NotRunning => (
             "Docker isn't running",
-            "Ferrodock needs a Docker Engine: Docker Desktop, Colima, Rancher \
-             Desktop or a plain dockerd. Start it and Ferrodock connects by itself.",
+            "Start the engine and Ferrodock connects by itself.",
         ),
     };
     let mut click = None;
@@ -252,8 +252,8 @@ pub fn disconnected(
                 click = Some(Click::Retry);
             }
             ui.hyperlink_to(
-                "Install Docker",
-                "https://docs.docker.com/get-started/get-docker/",
+                "Set up an engine",
+                "https://manimovassagh.github.io/Ferrodock/docs/engines",
             );
         });
         ui.add_space(14.0);

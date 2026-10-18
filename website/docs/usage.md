@@ -323,7 +323,7 @@ The list has:
 - **default**, and every **Docker context** (`docker context ls`), whether
   it uses a local socket, a remote `tcp://` host with TLS, or `ssh://`
   (macOS and Linux).
-- Engines found on this machine: **Docker Desktop**, **Colima** (every
+- Engines found on this machine: **Colima** (every
   profile), **Rancher Desktop** and **Podman**.
 
 ### Starting the engine
@@ -331,11 +331,14 @@ The list has:
 When Ferrodock opens and the engine isn't running, it starts it for you and
 connects once it's up:
 
-- **macOS**: the app that ran the engine last time (Ferrodock remembers
-  it), otherwise Docker Desktop, Rancher Desktop or Colima.
-- **Windows**: Docker Desktop.
-- **Linux**: the `docker` service (it may ask for your password), or Docker
-  Desktop.
+- **macOS**: the app that runs your engine (Ferrodock recognises it from
+  the engine's Docker context or socket, or remembers it from last time),
+  otherwise Colima.
+- **Windows**: the engine's app.
+- **Linux**: the `docker` service (it may ask for your password).
+
+If Ferrodock finds no engine at all, the screen links to the
+[Engines](engines.md) page to help you set one up.
 
 If the engine stops later, the "Docker isn't running" screen has a
 **Start** button that does the same. Turn this off under **Settings →
