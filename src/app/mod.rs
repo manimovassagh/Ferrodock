@@ -8,6 +8,7 @@ mod autostart;
 mod commands;
 mod components;
 mod keys;
+mod notify;
 mod page;
 mod pages;
 #[cfg(test)]
@@ -186,9 +187,14 @@ impl FerrodockApp {
         }
     }
 
-    fn handle_responses(&mut self) {
+    fn handle_responses(&mut self, ctx: &egui::Context) {
+        // Hidden in the tray, or another app in front.
+        let away = !ctx.input(|i| i.viewport().focused.unwrap_or(true));
         while let Some(response) = self.worker.try_recv() {
             if let Some(notice) = self.store.apply(response) {
+                if notice.alert && away && self.settings.notify_crashes {
+                    notify::send(notice.text.clone());
+                }
                 self.toast = Some(Toast::new(notice.text, notice.is_error));
             }
         }
@@ -414,7 +420,7 @@ impl eframe::App for FerrodockApp {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        self.handle_responses();
+        self.handle_responses(ui.ctx());
         self.handle_tray(ui.ctx());
         self.store
             .recent_compose

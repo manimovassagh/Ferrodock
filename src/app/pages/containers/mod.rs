@@ -67,6 +67,8 @@ pub struct ContainersPage {
     terminal: terminal::TerminalTab,
     /// The Limits dialog, while it's open.
     limits: Option<limits::LimitsForm>,
+    /// Compose projects folded away in the grouped list.
+    collapsed: std::collections::BTreeSet<String>,
     /// The new name being typed in the Rename dialog, while it's open.
     rename: Option<String>,
 }
@@ -84,6 +86,7 @@ impl ContainersPage {
             files: Default::default(),
             terminal: Default::default(),
             limits: None,
+            collapsed: Default::default(),
             rename: None,
         }
     }
@@ -151,7 +154,12 @@ impl Page for ContainersPage {
     fn show(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
         let p = ctx.palette;
         let store = ctx.store;
-        self.state_tabs(ui, p, store);
+        ui.horizontal(|ui| {
+            self.state_tabs(ui, p, store);
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                table::grouping_toggle(ui);
+            });
+        });
         ui.add_space(8.0);
 
         let visible = self.visible(ctx);

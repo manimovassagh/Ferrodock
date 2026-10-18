@@ -45,6 +45,9 @@ pub struct Settings {
     pub engine: Option<String>,
     /// Compose files brought up from Ferrodock, newest first.
     pub recent_compose: Vec<String>,
+    /// Show a system notification when a container crashes or runs out
+    /// of memory while Ferrodock isn't in front.
+    pub notify_crashes: bool,
     /// Ferrodock opens when the user logs in. Read from the system at
     /// start, never saved: the system's login items are the record.
     #[serde(skip)]
@@ -61,6 +64,7 @@ impl Default for Settings {
             close_to_tray: true,
             engine: None,
             recent_compose: Vec::new(),
+            notify_crashes: true,
             launch_at_login: false,
         }
     }
@@ -154,6 +158,13 @@ pub fn show(ui: &mut egui::Ui, p: &Palette, settings: &mut Settings, updater: &U
                     }
                     ui.end_row();
                 });
+
+            ui.add_space(18.0);
+            heading(ui, p, "Notifications");
+            ui.checkbox(
+                &mut settings.notify_crashes,
+                "Tell me when a container crashes, even when Ferrodock is in the background",
+            );
 
             ui.add_space(18.0);
             heading(ui, p, "Startup");

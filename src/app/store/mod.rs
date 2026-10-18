@@ -35,10 +35,14 @@ pub enum Connection {
     Disconnected { reason: String },
 }
 
-/// User-facing result of a finished action.
+/// User-facing result of a finished action, or news nobody asked for.
+#[derive(Default)]
 pub struct Notice {
     pub text: String,
     pub is_error: bool,
+    /// Something went wrong on its own (a container crashed): worth a
+    /// system notification when the window isn't in front.
+    pub alert: bool,
 }
 
 /// Docker Hub's results, or why there are none.
@@ -174,6 +178,7 @@ impl Store {
                 return Some(Notice {
                     text,
                     is_error: true,
+                    alert: true,
                 });
             }
             Response::Pulling { image, progress } => {
@@ -185,7 +190,11 @@ impl Store {
             Response::ComposeOutput { job, lines } => self.compose.output(job, lines),
             Response::ComposeDone { job, error } => {
                 if let Some((text, is_error)) = self.compose.done(job, error) {
-                    return Some(Notice { text, is_error });
+                    return Some(Notice {
+                        text,
+                        is_error,
+                        ..Default::default()
+                    });
                 }
             }
             Response::SearchResults { term, results } => {
@@ -225,7 +234,11 @@ impl Store {
                 is_error,
             } => {
                 files::transferred(&mut self.files, &container, changed_dir.as_deref());
-                return Some(Notice { text, is_error });
+                return Some(Notice {
+                    text,
+                    is_error,
+                    ..Default::default()
+                });
             }
             Response::Processes(result) => {
                 let id = match &result {
@@ -287,6 +300,7 @@ impl Store {
                 return Some(Notice {
                     text,
                     is_error: false,
+                    ..Default::default()
                 });
             }
             Response::Failed { task, message } => {
@@ -295,6 +309,7 @@ impl Store {
                 return Some(Notice {
                     text: message,
                     is_error: true,
+                    ..Default::default()
                 });
             }
         }
@@ -428,5 +443,19 @@ mod tests {
         assert!(store.containers.is_empty());
         assert!(store.pending.is_empty());
         assert!(matches!(store.connection, Connection::Disconnected { .. }));
+    }
+
+    #[test]
+    fn crashes_are_alerts_and_results_are_not() {
+        let mut store = Store::new();
+        let alert = store.apply(Response::Alert("web crashed".into())).unwrap();
+        assert!(alert.alert && alert.is_error);
+        let done = store
+            .apply(Response::Done {
+                task: task(Action::Stop, "x"),
+                freed: None,
+            })
+            .unwrap();
+        assert!(!done.alert);
     }
 }
