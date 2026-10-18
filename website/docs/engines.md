@@ -15,7 +15,7 @@ Ferrodock connects to the platform's default Docker endpoint:
 To use a different engine, set `DOCKER_HOST` before starting Ferrodock:
 
 ```bash
-# Docker Desktop on macOS, if "Allow the default Docker socket" is off
+# If your engine doesn't use the default socket
 DOCKER_HOST=unix://$HOME/.docker/run/docker.sock ferrodock
 
 # Colima

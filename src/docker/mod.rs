@@ -1,6 +1,6 @@
 //! Thin wrapper around the Docker Engine API (via `bollard`).
 //!
-//! On Windows this talks to Docker Desktop / dockerd over the
+//! On Windows this talks to the Docker engine over the
 //! `\\.\pipe\docker_engine` named pipe; elsewhere it uses the unix socket.
 //! `DOCKER_HOST` is honoured on every platform.
 //!
@@ -114,7 +114,7 @@ fn describe(err: bollard::errors::Error) -> String {
     match err {
         E::DockerResponseServerError { message, .. } => message,
         E::HyperResponseError { .. } | E::IOError { .. } => {
-            format!("Cannot reach the Docker Engine ({err}). Is Docker Desktop running?")
+            format!("Cannot reach the Docker Engine ({err}). Is the Docker engine running?")
         }
         other => other.to_string(),
     }

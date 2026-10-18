@@ -5,8 +5,8 @@ title: Installation
 
 # Installation
 
-Ferrodock needs a running Docker Engine: Docker Desktop on Windows and macOS,
-or any other engine (Colima, Rancher Desktop, native `dockerd`, …).
+Ferrodock needs a running Docker engine, such as Colima,
+Rancher Desktop or a native `dockerd`.
 
 ## Download a release
 

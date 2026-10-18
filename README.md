@@ -41,8 +41,8 @@ brew tap manimovassagh/ferrodock https://github.com/manimovassagh/Ferrodock
 brew install --cask ferrodock
 ```
 
-Ferrodock needs a running Docker Engine: Docker Desktop, Colima, Rancher
-Desktop, or a native `dockerd`.
+Ferrodock needs a running Docker engine: Colima, Rancher
+Desktop, a native `dockerd`, or any other.
 
 Every release also has a `SHA256SUMS.txt`. To check that a download is
 intact, run this in the folder you downloaded to:
@@ -125,7 +125,7 @@ Ferrodock uses the platform default (`/var/run/docker.sock`, or the
 `\\.\pipe\docker_engine` named pipe on Windows) unless `DOCKER_HOST` is set:
 
 ```bash
-# Docker Desktop on macOS with the default socket turned off
+# If your engine doesn't use the default socket
 DOCKER_HOST=unix://$HOME/.docker/run/docker.sock ferrodock
 
 # Colima

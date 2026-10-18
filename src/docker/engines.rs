@@ -1,6 +1,6 @@
 //! Docker engines to connect to: the Docker CLI's contexts, plus the
-//! sockets of common engines found on this machine (Docker Desktop, Colima,
-//! Rancher Desktop, Podman).
+//! sockets of common engines found on this machine (Colima, Rancher
+//! Desktop, Podman, and the one in `~/.docker/run`).
 
 use std::path::{Path, PathBuf};
 
@@ -121,10 +121,7 @@ fn contexts(dir: &Path, current: &str) -> Vec<Engine> {
 /// Sockets of other engines, where they exist.
 fn detected(home: &Path) -> Vec<Engine> {
     let mut candidates: Vec<(String, PathBuf)> = vec![
-        (
-            "Docker Desktop".into(),
-            home.join(".docker/run/docker.sock"),
-        ),
+        ("Local engine".into(), home.join(".docker/run/docker.sock")),
         ("Rancher Desktop".into(), home.join(".rd/docker.sock")),
         (
             "Podman".into(),

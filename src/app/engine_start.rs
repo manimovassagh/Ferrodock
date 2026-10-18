@@ -10,8 +10,8 @@ use super::store::{Connection, Store};
 use crate::docker::{Starter, starter};
 use crate::worker::{Request, Worker};
 
-/// How long a start may take before Ferrodock says it didn't work. Colima
-/// and Docker Desktop can take a minute or two to boot their VM.
+/// How long a start may take before Ferrodock says it didn't work. Engines
+/// that run in a VM can take a minute or two to boot it.
 const PATIENCE: Duration = Duration::from_secs(180);
 
 /// What the Start button shows.
@@ -19,7 +19,7 @@ const PATIENCE: Duration = Duration::from_secs(180);
 pub enum Offer {
     /// Nothing on this machine Ferrodock knows how to start.
     Nothing,
-    /// Can start this (e.g. "Docker Desktop").
+    /// Can start this (e.g. "Colima").
     Start(String),
     /// Starting it now.
     Starting(String),
@@ -38,19 +38,24 @@ pub struct EngineStarter {
     provider_checked: bool,
 }
 
-/// The host of the engine in use.
-fn host(store: &Store) -> Option<&str> {
+/// The engine in use: its name and host.
+fn engine(store: &Store) -> Option<(&str, &str)> {
     let name = store.engine.as_deref()?;
     store
         .engines
         .iter()
         .find(|e| e.name == name)
-        .map(|e| e.host.as_str())
+        .map(|e| (e.name.as_str(), e.host.as_str()))
+}
+
+fn host(store: &Store) -> Option<&str> {
+    engine(store).map(|(_, host)| host)
 }
 
 impl EngineStarter {
     fn starter(store: &Store, settings: &Settings) -> Option<Starter> {
-        starter(host(store)?, settings.engine_app.as_deref())
+        let (name, host) = engine(store)?;
+        starter(host, name, settings.engine_app.as_deref())
     }
 
     /// Asks the worker to start the engine.
