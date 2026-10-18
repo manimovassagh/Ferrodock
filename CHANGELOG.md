@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.11.1](https://github.com/manimovassagh/Ferrodock/compare/v1.11.0...v1.11.1) - 2026-10-18
+
+### Fixed
+
+- no other products named; find the engine's app from the engine
+
 ## [1.11.0](https://github.com/manimovassagh/Ferrodock/compare/v1.10.1...v1.11.0) - 2026-10-18
 
 ### Added
