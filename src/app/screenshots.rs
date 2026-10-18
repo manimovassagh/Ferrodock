@@ -494,3 +494,65 @@ fn screenshots_of_grouping() {
     click(&mut h, "Group by project");
     h.run_steps(2);
 }
+
+/// Ticked containers with the bulk bar, the removal question, and the
+/// Reset Docker question (never confirmed).
+#[test]
+#[ignore]
+fn screenshots_of_bulk_and_reset() {
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(3));
+    set_theme(&mut h, Theme::Light);
+    open(&mut h, 0, None);
+    let names: Vec<String> = h
+        .state()
+        .store
+        .containers
+        .iter()
+        .take(3)
+        .map(|c| c.name.clone())
+        .collect();
+    for name in &names {
+        click(&mut h, &format!("Select {name}"));
+    }
+    save(&mut h, "bulk-selected");
+    click(&mut h, &format!("Remove {}…", names.len()));
+    save(&mut h, "bulk-remove");
+    click(&mut h, "Cancel");
+    click(&mut h, "Select all");
+    save(&mut h, "bulk-all");
+    click(&mut h, "Select none");
+
+    open(&mut h, 5, None);
+    save(&mut h, "disk-danger-zone");
+    click(&mut h, "Reset Docker…");
+    h.get_by_label("Type “reset” to confirm").type_text("res");
+    h.run_steps(3);
+    save(&mut h, "reset");
+    click(&mut h, "Cancel");
+    assert!(h.state().confirmation.is_none());
+}
+
+/// With the engine down: Ferrodock starts it at launch and connects.
+/// Needs a stopped engine that `systemctl start docker` (or the platform's
+/// starter) brings up.
+#[test]
+#[ignore]
+fn screenshots_of_engine_start() {
+    let mut h = harness();
+    set_theme(&mut h, Theme::Light);
+    settle(&mut h, Duration::from_millis(1500));
+    save(&mut h, "engine-starting");
+    let start = Instant::now();
+    while !matches!(h.state().store.connection, super::Connection::Connected { .. })
+        && start.elapsed() < Duration::from_secs(60)
+    {
+        settle(&mut h, Duration::from_millis(500));
+    }
+    settle(&mut h, Duration::from_secs(2));
+    save(&mut h, "engine-started");
+    assert!(matches!(
+        h.state().store.connection,
+        super::Connection::Connected { .. }
+    ));
+}

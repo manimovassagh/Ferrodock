@@ -50,13 +50,64 @@ pub enum Intent {
 }
 
 /// A question for the user before something destructive happens.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Confirmation {
     pub title: String,
     pub message: String,
     /// Label of the confirm button, e.g. "Remove".
     pub action_label: String,
     pub tasks: Vec<Task>,
+    /// A box to tick that runs other tasks instead, e.g. "Stop running
+    /// ones first".
+    pub option: Option<ConfirmOption>,
+    /// A word the user has to type before the button turns on, for things
+    /// that are hard to undo.
+    pub typed: Option<TypedCheck>,
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct ConfirmOption {
+    pub label: String,
+    /// Shown under the label.
+    pub hint: String,
+    pub on: bool,
+    /// Run instead of the confirmation's tasks while ticked.
+    pub tasks: Vec<Task>,
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct TypedCheck {
+    pub word: String,
+    /// What the user typed so far.
+    pub entered: String,
+}
+
+impl TypedCheck {
+    pub fn new(word: &str) -> Self {
+        Self {
+            word: word.to_owned(),
+            entered: String::new(),
+        }
+    }
+
+    pub fn matches(&self) -> bool {
+        self.entered.trim() == self.word
+    }
+}
+
+impl Confirmation {
+    /// The tasks to run, given the option's state.
+    pub fn chosen_tasks(self) -> Vec<Task> {
+        match self.option {
+            Some(option) if option.on => option.tasks,
+            _ => self.tasks,
+        }
+    }
+
+    /// Whether the confirm button may be pressed.
+    pub fn ready(&self) -> bool {
+        self.typed.as_ref().is_none_or(TypedCheck::matches)
+    }
 }
 
 /// An entry a page offers in the command palette.

@@ -7,6 +7,7 @@
 mod autostart;
 mod commands;
 mod components;
+mod engine_start;
 mod keys;
 mod notify;
 mod page;
@@ -57,6 +58,8 @@ pub struct FerrodockApp {
     tray: Option<tray::Tray>,
     /// Set by Quit in the tray, so closing really quits.
     quitting: bool,
+    /// Starts the engine when it's down.
+    engine_starter: engine_start::EngineStarter,
 }
 
 impl FerrodockApp {
@@ -107,6 +110,7 @@ impl FerrodockApp {
             updater,
             tray: tray::Tray::new(&cc.egui_ctx),
             quitting: false,
+            engine_starter: Default::default(),
         }
         .started(&cc.egui_ctx)
     }
@@ -162,6 +166,7 @@ impl FerrodockApp {
         self.store.engines = crate::docker::engines();
         self.store.engine = Some(engine.name.clone());
         self.watching = None;
+        self.engine_starter.engine_switched();
         self.worker.send(Request::UseEngine(engine));
         for page in &self.pages {
             self.worker.send(Request::Refresh(page.resource()));
@@ -191,6 +196,17 @@ impl FerrodockApp {
         // Hidden in the tray, or another app in front.
         let away = !ctx.input(|i| i.viewport().focused.unwrap_or(true));
         while let Some(response) = self.worker.try_recv() {
+            match response {
+                crate::worker::Response::EngineStarted(result) => {
+                    self.engine_starter.finished(result);
+                    continue;
+                }
+                crate::worker::Response::Provider(app) => {
+                    self.settings.engine_app = Some(app);
+                    continue;
+                }
+                _ => {}
+            }
             if let Some(notice) = self.store.apply(response) {
                 if notice.alert && away && self.settings.notify_crashes {
                     notify::send(notice.text.clone());
@@ -396,14 +412,14 @@ impl FerrodockApp {
     }
 
     fn show_confirmation(&mut self, ui: &mut egui::Ui, p: &theme::Palette) {
-        let Some(confirmation) = &self.confirmation else {
+        let Some(confirmation) = &mut self.confirmation else {
             return;
         };
         match confirm::show(ui, p, confirmation) {
             Some(Choice::Confirm) => {
                 if let Some(confirmation) = self.confirmation.take() {
                     confirmation
-                        .tasks
+                        .chosen_tasks()
                         .into_iter()
                         .for_each(|task| self.run(task));
                 }
@@ -421,6 +437,8 @@ impl eframe::App for FerrodockApp {
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.handle_responses(ui.ctx());
+        self.engine_starter
+            .update(&self.store, &self.settings, &self.worker);
         self.handle_tray(ui.ctx());
         self.store
             .recent_compose
@@ -511,7 +529,15 @@ impl eframe::App for FerrodockApp {
                 self.search = search;
                 ui.add_space(12.0);
                 if let Connection::Disconnected { reason } = &self.store.connection {
-                    refresh |= shell::disconnected(ui, p, reason);
+                    let offer = self.engine_starter.offer(&self.store, &self.settings);
+                    match shell::disconnected(ui, p, reason, &offer) {
+                        Some(shell::Click::Retry) => refresh = true,
+                        Some(shell::Click::Start) => {
+                            self.engine_starter
+                                .start(&self.store, &self.settings, &self.worker)
+                        }
+                        None => {}
+                    }
                 } else if matches!(self.store.connection, Connection::Connecting) {
                     shell::connecting(ui, p);
                 } else {

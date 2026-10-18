@@ -7,9 +7,11 @@ use eframe::egui::{self, CornerRadius, RichText, Sense, Stroke, vec2};
 
 use crate::app::components::icons::Icon;
 use crate::app::components::widgets;
-use crate::app::page::{Command, Confirmation, Intent, Page, PageCtx};
+use crate::app::page::{Command, ConfirmOption, Confirmation, Intent, Page, PageCtx, TypedCheck};
 use crate::app::store::Store;
-use crate::docker::{Action, DiskUsage, PruneKind, Resource, Task, Usage, format_size, plural};
+use crate::docker::{
+    Action, DiskUsage, PruneKind, RESET_WORD, Resource, Task, Usage, format_size, plural,
+};
 use crate::theme::Palette;
 
 /// How many names the preview lists per kind before "and n more".
@@ -149,6 +151,7 @@ fn confirm_cleanup(store: &Store, kinds: &[PruneKind]) -> Intent {
         ),
         action_label: "Clean up".into(),
         tasks: kinds.iter().copied().map(prune_task).collect(),
+        ..Default::default()
     })
 }
 
@@ -223,6 +226,8 @@ impl Page for DiskPage {
                     ui.add_space(22.0);
                 }
                 self.cleanup(ui, ctx, disk);
+                ui.add_space(22.0);
+                danger_zone(ui, ctx);
             });
     }
 
@@ -253,6 +258,11 @@ impl Page for DiskPage {
                 confirm_cleanup(store, &[kind]),
             )
         })
+        .chain(std::iter::once(Command::intent(
+            "Reset Docker…",
+            "Disk · removes everything",
+            confirm_reset(store),
+        )))
         .collect()
     }
 }
@@ -349,6 +359,116 @@ impl DiskPage {
     }
 }
 
+/// The Reset Docker section, apart from Clean up so it's hard to hit by
+/// accident.
+fn danger_zone(ui: &mut egui::Ui, ctx: &mut PageCtx) {
+    let p = ctx.palette;
+    let store = ctx.store;
+    ui.label(RichText::new("DANGER ZONE").size(11.0).color(p.danger));
+    ui.add_space(4.0);
+    egui::Frame::new()
+        .fill(p.danger.gamma_multiply(0.06))
+        .stroke(Stroke::new(1.0, p.danger.gamma_multiply(0.45)))
+        .corner_radius(CornerRadius::same(10))
+        .inner_margin(egui::Margin::same(14))
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.horizontal(|ui| {
+                let text_width = (ui.available_width() - 140.0).max(160.0);
+                ui.vertical(|ui| {
+                    ui.set_max_width(text_width);
+                    ui.label(
+                        RichText::new("Reset Docker")
+                            .font(egui::FontId::new(14.5, crate::theme::semibold()))
+                            .color(p.text),
+                    );
+                    ui.label(
+                        RichText::new(
+                            "Removes everything, in use or not: all containers, images, \
+                             volumes, custom networks and the build cache. For a clean start.",
+                        )
+                        .color(p.muted),
+                    );
+                });
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let busy = store.pending.contains_key(RESET_ID);
+                    if busy {
+                        ui.label(RichText::new("Resetting…").color(p.muted));
+                        ui.spinner();
+                    } else if widgets::danger_button(ui, p, "Reset Docker…").clicked() {
+                        ctx.request(confirm_reset(store));
+                    }
+                });
+            });
+        });
+}
+
+const RESET_ID: &str = "reset";
+
+fn reset_task(keep_volumes: bool) -> Task {
+    Task {
+        action: Action::Reset { keep_volumes },
+        id: RESET_ID.into(),
+        name: "Docker".into(),
+    }
+}
+
+/// "Reset Docker?" with what goes, a Keep volumes box, and the word to
+/// type.
+fn confirm_reset(store: &Store) -> Intent {
+    let size = |usage: Option<&Usage>| {
+        usage
+            .map(|u| format!(" · {}", format_size(u.total_size)))
+            .filter(|_| usage.is_some_and(|u| u.total_size > 0))
+            .unwrap_or_default()
+    };
+    let disk = store.disk.as_ref();
+    let running = store.running_count();
+    let custom_networks = store.networks.iter().filter(|n| !n.is_builtin()).count();
+    let mut lines = vec![format!(
+        "• {}{}{}",
+        plural(store.containers.len(), "container"),
+        if running > 0 {
+            format!(" ({running} running, stopped first)")
+        } else {
+            String::new()
+        },
+        size(disk.and_then(|d| d.containers.as_ref()))
+    )];
+    lines.push(format!(
+        "• {}{}",
+        plural(store.images.len(), "image"),
+        size(disk.and_then(|d| d.images.as_ref()))
+    ));
+    lines.push(format!(
+        "• {}{} (deletes their data)",
+        plural(store.volumes.len(), "volume"),
+        size(disk.and_then(|d| d.volumes.as_ref()))
+    ));
+    lines.push(format!("• {}", plural(custom_networks, "custom network")));
+    lines.push(format!(
+        "• Build cache{}",
+        size(disk.and_then(|d| d.build_cache.as_ref()))
+    ));
+    Intent::Confirm(Confirmation {
+        title: "Reset Docker?".into(),
+        message: format!(
+            "This removes everything below from this engine. It can't be undone.\n\n{}\n\n\
+             Built-in networks (bridge, host, none) are never touched.",
+            lines.join("\n")
+        ),
+        action_label: "Reset Docker".into(),
+        tasks: vec![reset_task(false)],
+        option: Some(ConfirmOption {
+            label: "Keep volumes".into(),
+            hint: "Reset everything else, keep your data".into(),
+            on: false,
+            tasks: vec![reset_task(true)],
+        }),
+        typed: Some(TypedCheck::new(RESET_WORD)),
+    })
+}
+
 /// One usage summary: size, a bar of how much could be freed, counts.
 fn card(ui: &mut egui::Ui, p: &Palette, title: &str, usage: Option<&Usage>, noun: &str) {
     egui::Frame::new()
@@ -422,5 +542,23 @@ mod tests {
         assert!(c.message.contains("data in those volumes is lost"));
         assert_eq!(c.tasks.len(), 2);
         assert_eq!(c.tasks[0].action, Action::Prune(PruneKind::BuildCache));
+    }
+
+    #[test]
+    fn reset_needs_the_word_and_can_keep_volumes() {
+        let Intent::Confirm(mut c) = confirm_reset(&Store::new()) else {
+            panic!("expected a confirmation");
+        };
+        assert!(!c.ready());
+        c.typed.as_mut().unwrap().entered = "reset".into();
+        assert!(c.ready());
+        assert!(c.message.contains("0 volumes (deletes their data)"));
+        let keep = |c: Confirmation| match c.chosen_tasks()[0].action {
+            Action::Reset { keep_volumes } => keep_volumes,
+            _ => panic!("expected a reset"),
+        };
+        assert!(!keep(c.clone()));
+        c.option.as_mut().unwrap().on = true;
+        assert!(keep(c));
     }
 }

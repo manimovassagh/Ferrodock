@@ -24,18 +24,48 @@ fn compact_id() -> egui::Id {
     egui::Id::unique("ferrodock-compact")
 }
 
+/// How many of the shown rows are ticked, for the Select all box.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Ticked {
+    None,
+    Some,
+    All,
+}
+
+impl Ticked {
+    pub fn of(ticked: usize, shown: usize) -> Self {
+        match ticked {
+            0 => Ticked::None,
+            n if n >= shown => Ticked::All,
+            _ => Ticked::Some,
+        }
+    }
+}
+
 /// A column: header title and sizing.
 pub struct Col {
     pub title: &'static str,
     pub width: Column,
+    /// For the tick-box column: draws Select all in the header.
+    pub ticked: Option<Ticked>,
 }
 
 impl Col {
+    /// The narrow first column of tick boxes, with Select all on top.
+    pub fn ticks(ticked: Ticked) -> Self {
+        Self {
+            title: "",
+            width: Column::exact(28.0),
+            ticked: Some(ticked),
+        }
+    }
+
     /// Takes the space left over by the fixed columns.
     pub fn fill(title: &'static str) -> Self {
         Self {
             title,
             width: Column::remainder().at_least(160.0).clip(true),
+            ticked: None,
         }
     }
 
@@ -43,6 +73,7 @@ impl Col {
         Self {
             title,
             width: Column::exact(width).clip(true),
+            ticked: None,
         }
     }
 }
@@ -60,6 +91,69 @@ pub fn clear_step(ctx: &egui::Context) {
 
 fn step_id() -> egui::Id {
     egui::Id::unique("ferrodock-table-step")
+}
+
+fn select_all_id(table: &str) -> egui::Id {
+    egui::Id::unique("ferrodock-table-select-all").with(table)
+}
+
+/// Whether the Select all box of table `id` was clicked when it was last
+/// drawn (this frame).
+pub fn select_all_clicked(ui: &egui::Ui, id: &str) -> bool {
+    ui.data_mut(|d| d.remove_temp::<bool>(select_all_id(id)))
+        .unwrap_or(false)
+}
+
+/// A tick box for one row; `name` is what it selects, for screen readers.
+/// Returns true when clicked.
+pub fn tick(ui: &mut egui::Ui, p: &Palette, on: bool, name: &str) -> bool {
+    let state = if on { Ticked::All } else { Ticked::None };
+    tick_box(ui, p, state, &format!("Select {name}"))
+}
+
+/// A tick box that can also show "some ticked", e.g. for a group.
+pub fn tick_state(ui: &mut egui::Ui, p: &Palette, state: Ticked, label: &str) -> bool {
+    tick_box(ui, p, state, label)
+}
+
+fn tick_box(ui: &mut egui::Ui, p: &Palette, state: Ticked, label: &str) -> bool {
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(16.0, 16.0), Sense::click());
+    let response = response.on_hover_cursor(egui::CursorIcon::PointingHand);
+    response.widget_info(|| {
+        egui::WidgetInfo::selected(egui::Role::CheckBox, true, state == Ticked::All, label)
+    });
+    let painter = ui.painter();
+    let corner = egui::CornerRadius::same(4);
+    if state == Ticked::None {
+        let stroke = if response.hovered() {
+            p.accent
+        } else {
+            p.muted.gamma_multiply(0.6)
+        };
+        painter.rect_stroke(
+            rect.shrink(0.5),
+            corner,
+            egui::Stroke::new(1.3, stroke),
+            egui::StrokeKind::Inside,
+        );
+    } else {
+        painter.rect_filled(rect, corner, p.accent);
+        let white = egui::Stroke::new(2.0, egui::Color32::WHITE);
+        let c = rect.center();
+        if state == Ticked::All {
+            painter.line(
+                vec![
+                    c + egui::vec2(-4.0, 0.0),
+                    c + egui::vec2(-1.0, 3.0),
+                    c + egui::vec2(4.5, -3.5),
+                ],
+                white,
+            );
+        } else {
+            painter.line_segment([c + egui::vec2(-4.0, 0.0), c + egui::vec2(4.0, 0.0)], white);
+        }
+    }
+    response.clicked()
 }
 
 /// The row a step of `delta` lands on, if it moves at all.
@@ -109,8 +203,20 @@ pub fn show(
     builder
         .header(26.0, |mut header| {
             for col in &columns {
-                header.col(|ui| {
-                    ui.label(RichText::new(col.title).size(11.0).color(p.muted));
+                header.col(|ui| match col.ticked {
+                    Some(state) => {
+                        let label = if state == Ticked::All {
+                            "Select none"
+                        } else {
+                            "Select all"
+                        };
+                        if tick_box(ui, p, state, label) {
+                            ui.data_mut(|d| d.insert_temp(select_all_id(id), true));
+                        }
+                    }
+                    None => {
+                        ui.label(RichText::new(col.title).size(11.0).color(p.muted));
+                    }
                 });
             }
         })

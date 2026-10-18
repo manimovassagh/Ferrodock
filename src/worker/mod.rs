@@ -19,7 +19,7 @@ use tokio::sync::mpsc as tokio_mpsc;
 use crate::docker::{
     Action, Change, ComposeOp, ContainerInfo, DiskUsage, DockerClient, Engine, EngineEvent, FileOp,
     ImageInfo, ImageOp, Inspection, Layer, Listing, NetworkInfo, Preview, Processes, PullProgress,
-    Resource, RunSpec, SearchResult, StatsSample, Task, TermOp, VolumeInfo,
+    Resource, RunSpec, SearchResult, Starter, StatsSample, Task, TermOp, VolumeInfo,
 };
 
 /// How often the worker re-checks the engine on its own. Changes normally
@@ -67,6 +67,10 @@ pub enum Request {
     UseEngine(Engine),
     /// Run `docker compose`.
     Compose(ComposeOp),
+    /// Start the engine (it isn't running).
+    StartEngine(Starter),
+    /// Find which app serves the engine at this host (macOS).
+    FindProvider(String),
 }
 
 #[derive(Debug)]
@@ -148,6 +152,10 @@ pub enum Response {
     },
     /// The daemon could not be reached or listing failed.
     Disconnected(String),
+    /// Starting the engine was asked for; the error says why it failed.
+    EngineStarted(Result<(), String>),
+    /// The app serving the engine, to start it next time.
+    Provider(String),
     Done {
         task: Task,
         /// Bytes freed, for clean-ups.
@@ -286,6 +294,22 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
                 watch.stop();
                 continue;
             }
+            Request::StartEngine(starter) => {
+                let shared = shared.clone();
+                tokio::task::spawn_blocking(move || {
+                    shared.send(Response::EngineStarted(starter.run()));
+                });
+                continue;
+            }
+            Request::FindProvider(host) => {
+                let shared = shared.clone();
+                tokio::task::spawn_blocking(move || {
+                    if let Some(app) = crate::docker::provider_app(&host) {
+                        shared.send(Response::Provider(app));
+                    }
+                });
+                continue;
+            }
             Request::Poll(resource) => {
                 polled = resource;
                 ticker.reset();
@@ -392,7 +416,10 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
                     shared.send(response);
                 });
             }
-            Request::Watch(None) | Request::UseEngine(_) => unreachable!("handled above"),
+            Request::Watch(None)
+            | Request::UseEngine(_)
+            | Request::StartEngine(_)
+            | Request::FindProvider(_) => unreachable!("handled above"),
         }
     }
     watch.stop();
@@ -547,8 +574,14 @@ async fn run_task(client: &DockerClient, shared: &Shared, task: Task) {
     match client.perform(task.action, &task.id).await {
         Ok(freed) => {
             let affected = task.action.affects();
-            let pruned = matches!(task.action, Action::Prune(_));
+            let pruned = matches!(task.action, Action::Prune(_) | Action::Reset { .. });
+            let everything = matches!(task.action, Action::Reset { .. });
             shared.send(Response::Done { task, freed });
+            if everything {
+                for list in [Resource::Images, Resource::Volumes, Resource::Networks] {
+                    refresh(client, shared, list).await;
+                }
+            }
             if affected != Resource::Containers {
                 refresh(client, shared, affected).await;
             }

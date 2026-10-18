@@ -9,8 +9,7 @@ use std::collections::VecDeque;
 
 use crate::app::components::{sparkline, table, widgets};
 use crate::app::page::{PageCtx, toggle_selection};
-use crate::app::pages::{confirm_removal, remove_task};
-use crate::docker::{Action, ContainerInfo, Resource, StatsSample, Task, format_size};
+use crate::docker::{Action, ContainerInfo, StatsSample, Task, format_size};
 use crate::theme::Palette;
 
 /// One line of the list.
@@ -117,7 +116,15 @@ pub(super) fn show(
     let show_ports = width >= 700.0;
     let show_id = width >= 560.0;
     let show_usage = width >= 860.0;
-    let mut columns = vec![table::Col::fill("NAME"), table::Col::fixed("STATUS", 150.0)];
+    let ticked = visible
+        .iter()
+        .filter(|c| page.marked.contains(&c.id))
+        .count();
+    let mut columns = vec![
+        table::Col::ticks(table::Ticked::of(ticked, visible.len())),
+        table::Col::fill("NAME"),
+        table::Col::fixed("STATUS", 150.0),
+    ];
     if show_id {
         columns.push(table::Col::fixed("ID", 110.0));
     }
@@ -131,13 +138,14 @@ pub(super) fn show(
     columns.push(table::Col::fixed("", 100.0));
 
     if !page.marked.is_empty() {
-        bulk_bar(page, ui, ctx, visible);
+        super::bulk::bar(page, ui, ctx, visible);
     }
 
     let selected = page.selected.clone();
     let marked = page.marked.clone();
     let rows = rows(visible, grouped(ui), &page.collapsed);
     let columns_count = columns.len();
+    let mut ticks: Vec<(Vec<String>, bool)> = Vec::new();
     let clicked = table::show(
         ui,
         p,
@@ -158,10 +166,28 @@ pub(super) fn show(
                     containers,
                 } => {
                     let folded = page.collapsed.contains(project.unwrap_or(""));
-                    group_row(row, ctx, *project, containers, folded, columns_count);
+                    let all = containers.iter().all(|c| marked.contains(&c.id));
+                    let state = table::Ticked::of(
+                        containers.iter().filter(|c| marked.contains(&c.id)).count(),
+                        containers.len(),
+                    );
+                    row.col(|ui| {
+                        let name = project.unwrap_or("other containers");
+                        if group_tick(ui, p, state, name) {
+                            let ids = containers.iter().map(|c| c.id.clone()).collect();
+                            ticks.push((ids, !all));
+                        }
+                    });
+                    group_row(row, ctx, *project, containers, folded, columns_count - 1);
                     return;
                 }
             };
+            row.col(|ui| {
+                let on = marked.contains(&c.id);
+                if table::tick(ui, p, on, &c.name) {
+                    ticks.push((vec![c.id.clone()], !on));
+                }
+            });
             row.col(|ui| {
                 if indented {
                     ui.add_space(18.0);
@@ -200,6 +226,29 @@ pub(super) fn show(
             });
         },
     );
+    if table::select_all_clicked(ui, "containers") {
+        if ticked >= visible.len() {
+            page.marked.clear();
+        } else {
+            page.marked.extend(visible.iter().map(|c| c.id.clone()));
+        }
+    }
+    for (ids, on) in ticks {
+        // The row open in the details pane joins the selection.
+        if on
+            && page.marked.is_empty()
+            && let Some(open) = page.selected.take()
+        {
+            page.marked.insert(open);
+        }
+        for id in ids {
+            if on {
+                page.marked.insert(id);
+            } else {
+                page.marked.remove(&id);
+            }
+        }
+    }
     let clicked = match clicked.map(|i| &rows[i]) {
         Some(Row::Group { project, .. }) => {
             // Fold or unfold the project.
@@ -240,6 +289,11 @@ pub(super) fn show(
             page.anchor = Some(id);
         }
     }
+}
+
+/// The tick box of a project's header, which (un)ticks all of it.
+fn group_tick(ui: &mut egui::Ui, p: &Palette, state: table::Ticked, name: &str) -> bool {
+    table::tick_state(ui, p, state, &format!("Select {name}"))
 }
 
 /// A project's header: fold arrow, name, how many run, and actions for
@@ -339,81 +393,6 @@ fn cpu_cell(ui: &mut egui::Ui, p: &Palette, history: Option<&VecDeque<StatsSampl
         .collect();
     let max = values.iter().copied().fold(10.0, f64::max);
     sparkline::tiny(ui, &values, max, color, egui::vec2(36.0, 14.0));
-}
-
-/// "3 selected" with the actions that apply to them.
-fn bulk_bar(
-    page: &mut ContainersPage,
-    ui: &mut egui::Ui,
-    ctx: &mut PageCtx,
-    visible: &[&ContainerInfo],
-) {
-    let p = ctx.palette;
-    let chosen: Vec<&ContainerInfo> = visible
-        .iter()
-        .copied()
-        .filter(|c| page.marked.contains(&c.id))
-        .collect();
-    egui::Frame::new()
-        .fill(p.accent.gamma_multiply(0.08))
-        .stroke(egui::Stroke::new(1.0, p.accent.gamma_multiply(0.3)))
-        .corner_radius(egui::CornerRadius::same(10))
-        .inner_margin(egui::Margin::symmetric(12, 6))
-        .show(ui, |ui| {
-            ui.set_width(ui.available_width());
-            ui.horizontal(|ui| {
-                ui.label(
-                    egui::RichText::new(format!("{} selected", chosen.len()))
-                        .font(egui::FontId::new(13.5, crate::theme::semibold()))
-                        .color(p.text),
-                );
-                ui.add_space(8.0);
-                let groups = [
-                    (Action::Start, Icon::Play, "Start"),
-                    (Action::Stop, Icon::Stop, "Stop"),
-                    (Action::Restart, Icon::Restart, "Restart"),
-                ];
-                for (action, icon, label) in groups {
-                    let targets: Vec<&ContainerInfo> = chosen
-                        .iter()
-                        .copied()
-                        .filter(|c| match action {
-                            Action::Start => !c.is_active(),
-                            Action::Stop => c.is_active(),
-                            _ => true,
-                        })
-                        .collect();
-                    let response = ui
-                        .add_enabled_ui(!targets.is_empty(), |ui| widgets::button(ui, icon, label))
-                        .inner;
-                    if response.clicked() {
-                        for c in targets {
-                            ctx.request(actions::intent(action, c));
-                        }
-                    }
-                }
-                let stopped: Vec<Task> = chosen
-                    .iter()
-                    .filter(|c| !c.is_active())
-                    .map(|c| remove_task(Resource::Containers, &c.id, &c.name))
-                    .collect();
-                let remove = ui
-                    .add_enabled_ui(!stopped.is_empty(), |ui| {
-                        widgets::danger_button(ui, p, "Remove…")
-                    })
-                    .inner
-                    .on_disabled_hover_text("Stop them first");
-                if remove.clicked() {
-                    ctx.request(confirm_removal("container", stopped));
-                }
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("Clear").clicked() {
-                        page.marked.clear();
-                    }
-                });
-            });
-        });
-    ui.add_space(6.0);
 }
 
 #[cfg(test)]

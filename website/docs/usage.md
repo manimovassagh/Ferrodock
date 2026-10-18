@@ -24,6 +24,10 @@ published ports. Use **All / Running / Stopped** to filter.
   browser, or right-click to copy its address.
 - **Remove…** (in the details pane's **⋯** menu) is available once the
   container is stopped, and always asks for confirmation.
+- Tick the box in front of a row to select it, or the box in the header to
+  select every container shown (it shows a dash when only some are).
+  A bar then offers **Start**, **Stop**, **Restart** and **Remove** for all
+  of them. When some of them run, Remove asks whether to stop those first.
 
 Changes show up the moment they happen, whether you make them in
 Ferrodock, in a terminal or with Docker Compose. Ferrodock follows the
@@ -123,6 +127,8 @@ Each page shows what's in use and by which containers.
   reason on hover, while something still uses it.
 - **Remove unused** in the page header removes everything nothing uses.
   Docker's built-in networks (`bridge`, `host`, `none`) are never touched.
+- Tick rows (or **Select all** in the header) to remove several at once.
+  Ones still in use are kept, and the question says so.
 
 ![Volumes](/img/volumes.png)
 
@@ -255,6 +261,14 @@ it's done, a notification says how much space was freed.
 Disk usage is loaded when you open the page or press refresh, never in the
 background. It needs Docker Engine 29 or newer.
 
+### Reset Docker
+
+For a clean start, **Reset Docker…** in the **Danger zone** removes
+everything, in use or not: it stops and removes every container, then
+removes all images, volumes, custom networks and the build cache. The
+question lists what goes, with sizes. Tick **Keep volumes** to keep your
+data, and type `reset` to confirm. It can't be undone.
+
 ## Docker engines
 
 Ferrodock connects to the same engine as the `docker` command: your
@@ -270,6 +284,21 @@ The list has:
   (macOS and Linux).
 - Engines found on this machine: **Docker Desktop**, **Colima** (every
   profile), **Rancher Desktop** and **Podman**.
+
+### Starting the engine
+
+When Ferrodock opens and the engine isn't running, it starts it for you and
+connects once it's up:
+
+- **macOS**: the app that ran the engine last time (Ferrodock remembers
+  it), otherwise Docker Desktop, Rancher Desktop or Colima.
+- **Windows**: Docker Desktop.
+- **Linux**: the `docker` service (it may ask for your password), or Docker
+  Desktop.
+
+If the engine stops later, the "Docker isn't running" screen has a
+**Start** button that does the same. Turn this off under **Settings →
+Startup**.
 
 ## Menu bar and notification area
 
@@ -302,7 +331,8 @@ on Windows and Linux).
 - **Notifications**: when a container crashes or runs out of memory while
   Ferrodock is in the background (or hidden in the menu bar), you get a
   system notification. On by default.
-- **Startup**: open Ferrodock when you log in. On macOS and Windows it
+- **Startup**: start the Docker engine when Ferrodock opens, if it isn't
+  running (on by default). Open Ferrodock when you log in. On macOS and Windows it
   then starts in the menu bar / notification area, without opening the
   window.
 - **Menu bar** (macOS) / **Notification area** (Windows): keep running
