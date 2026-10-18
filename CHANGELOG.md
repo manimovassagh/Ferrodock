@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.9.0](https://github.com/manimovassagh/Ferrodock/compare/v1.8.0...v1.9.0) - 2026-10-18
+
+### Added
+
+- search Docker Hub as you type in the Pull box
+
 ## [1.8.0](https://github.com/manimovassagh/Ferrodock/compare/v1.7.0...v1.8.0) - 2026-10-18
 
 ### Added
