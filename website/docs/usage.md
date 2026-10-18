@@ -207,6 +207,8 @@ button, so you can reuse it in scripts.
 - Type in the Pull box and Docker Hub results appear by themselves once you
   pause: official images first, with their stars. **Pull** on a result pulls
   it; pressing **Enter** pulls exactly what you typed (say `nginx:alpine`).
+  **Run…** next to it opens the Run dialog for that image; the image is
+  pulled when you run it.
 - In an image's details, the **⋯** menu has **Tag…** (give it another
   name, such as `ghcr.io/me/app:1.0`), **Push** (with progress, to the
   registry its name starts with) and **Save as .tar** (to your Downloads
@@ -217,6 +219,45 @@ button, so you can reuse it in scripts.
 Pulling and pushing use the logins of the Docker CLI: whatever
 `docker login` stored in `~/.docker/config.json`, including credential
 helpers such as the macOS keychain. Private registries work the same way.
+
+## Quick start
+
+The **Quick start** page, under **START** at the bottom of the sidebar,
+shows cards for popular services with settings that work for local
+development. Type in the filter box to narrow the cards.
+
+| Service | Image | Ports | Login |
+|---|---|---|---|
+| Postgres | `postgres:17` | 5432 | postgres / postgres, database `app` |
+| MySQL | `mysql:8.4` | 3306 | root / mysql, database `app` |
+| Redis | `redis:8` | 6379 | none |
+| MongoDB | `mongo:8` | 27017 | mongo / mongo |
+| RabbitMQ | `rabbitmq:4-management` | 5672 (AMQP), 15672 (web UI) | guest / guest |
+| MinIO | `minio/minio` | 9000 (S3 API), 9001 (console) | minioadmin / minioadmin |
+| Mailpit | `axllent/mailpit` | 1025 (SMTP), 8025 (web UI) | none |
+| Nginx | `nginx:alpine` | 8080 → 80 | none |
+
+Click **Run…** on a card to open its Run dialog. A card whose service
+already runs also shows **Running**, and **Show** opens that container.
+
+The dialog asks for:
+
+- **Name** and **Version** (the image tag).
+- **Ports** on your machine. If a port or the name is taken, the next free
+  one is suggested.
+- The template's own settings, such as user, password and database.
+- **Keep data** (on by default) stores the data in a volume named
+  `<name>-data`, so it survives removing the container.
+
+The **connection string**, such as
+`postgres://postgres:postgres@localhost:5432/app`, updates as you type. Click
+**Copy** to copy it.
+
+The container restarts unless you stop it. If the image isn't on your
+machine, Ferrodock pulls it first and shows the progress.
+
+These defaults are for local development only. Change the passwords for
+anything else.
 
 ## Inspect
 
@@ -304,12 +345,16 @@ Startup**.
 
 On macOS, Ferrodock puts an icon in the menu bar showing how many
 containers are running; on Windows it's in the notification area. Its menu
-has:
+follows the sidebar:
 
 - **Open Ferrodock**, and whether Docker is running.
+- **Containers**: each container (running ones first, ● running, ○ stopped)
+  with **Start**, **Stop**, **Restart** and **Show in Ferrodock**.
 - **Compose**: each project with **Start all** / **Stop all**.
-- Your containers (running ones first, ● running, ○ stopped), each with
-  **Start**, **Stop**, **Restart** and **Show in Ferrodock**.
+- **Images**, **Volumes** and **Networks**: each lists its items. Click one
+  to open it in Ferrodock.
+- **Quick start**: lists the templates. Click one to run it right away with
+  its defaults. **Customize…** opens the [Quick start](#quick-start) page.
 - **Quit Ferrodock**.
 
 Closing the window keeps Ferrodock running there, so the icon stays;

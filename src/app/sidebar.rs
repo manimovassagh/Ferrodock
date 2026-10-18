@@ -45,7 +45,7 @@ pub fn show(
     ui.label(RichText::new("DOCKER").size(11.0).color(p.muted));
     ui.add_space(2.0);
     let mut clicked = None;
-    for (i, page) in pages.iter().enumerate() {
+    for (i, page) in pages.iter().enumerate().filter(|(_, page)| !page.bottom()) {
         let item = widgets::nav_item(
             ui,
             p,
@@ -75,6 +75,30 @@ pub fn show(
         }
         if let Some(click) = update_item(ui, p, update) {
             clicked = Some(click);
+        }
+        // Drawn bottom-up: the pages, then their heading above them.
+        let bottom: Vec<(usize, &Box<dyn Page>)> = pages
+            .iter()
+            .enumerate()
+            .filter(|(_, page)| page.bottom())
+            .collect();
+        if !bottom.is_empty() {
+            ui.add_space(14.0);
+            for (i, page) in bottom.iter().rev() {
+                let item = widgets::nav_item(
+                    ui,
+                    p,
+                    page.icon(),
+                    page.title(),
+                    &page.badge(store),
+                    *i == active,
+                );
+                if item.clicked() {
+                    clicked = Some(Click::Page(*i));
+                }
+            }
+            ui.add_space(2.0);
+            ui.label(RichText::new("START").size(11.0).color(p.muted));
         }
     });
     clicked

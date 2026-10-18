@@ -132,6 +132,27 @@ impl RunForm {
         }
     }
 
+    /// For an image that may not be pulled yet (a Docker Hub result): no
+    /// ports to pre-fill, and the run pulls it first.
+    pub fn for_reference(reference: &str) -> Self {
+        Self {
+            title: format!("Run {reference}"),
+            image_id: reference.to_owned(),
+            image: reference.to_owned(),
+            name: String::new(),
+            ports: Vec::new(),
+            env: Vec::new(),
+            volumes: Vec::new(),
+            network: String::new(),
+            restart: Restart::No,
+            command: String::new(),
+            cpus: String::new(),
+            memory: String::new(),
+            prefilled: true,
+            replaces: None,
+        }
+    }
+
     /// The image whose inspect output is needed to pre-fill ports.
     pub fn image_id(&self) -> &str {
         &self.image_id

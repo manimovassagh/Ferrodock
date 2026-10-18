@@ -10,10 +10,10 @@
 mod native;
 
 use crate::app::store::{Connection, Store};
-use crate::docker::{Action, ContainerInfo, Task};
+use crate::docker::{Action, ContainerInfo, TEMPLATES, Task};
 
-/// Containers listed in the menu; the rest are a click away in the window.
-const MAX_CONTAINERS: usize = 20;
+/// Items listed per section; the rest are a click away in the window.
+const MAX_ITEMS: usize = 20;
 
 /// One menu entry.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,8 +35,15 @@ pub enum Entry {
 pub enum TrayAction {
     /// Show the window.
     Open,
-    /// Show the window with this container selected.
-    OpenContainer(String),
+    /// Show the window with an item selected on a page.
+    Show {
+        page: &'static str,
+        id: String,
+    },
+    /// Show the window on a page.
+    OpenPage(&'static str),
+    /// Run the Quick start template with this name, with its defaults.
+    QuickStart(&'static str),
     Run(Vec<Task>),
     Quit,
 }
@@ -78,8 +85,28 @@ pub fn model(store: &Store) -> Vec<Entry> {
         _ => menu.push(note("Docker isn't running")),
     }
 
+    // The same sections as the sidebar.
+    menu.push(Entry::Separator);
+    let mut containers: Vec<&ContainerInfo> = store.containers.iter().collect();
+    // Running first, then by name (the store's order).
+    containers.sort_by_key(|c| !c.is_active());
+    let mut items: Vec<Entry> = containers
+        .iter()
+        .take(MAX_ITEMS)
+        .map(|c| Entry::Menu {
+            label: format!("{} {}", dot(c.is_active()), c.name),
+            items: container_items(c),
+        })
+        .collect();
+    if containers.len() > MAX_ITEMS {
+        items.push(note(format!(
+            "{} more in the window",
+            containers.len() - MAX_ITEMS
+        )));
+    }
+    menu.push(section("Containers", items));
+
     if !store.projects.is_empty() {
-        menu.push(Entry::Separator);
         let projects = store
             .projects
             .iter()
@@ -106,28 +133,63 @@ pub fn model(store: &Store) -> Vec<Entry> {
             items: projects,
         });
     }
+    let images = store
+        .images
+        .iter()
+        .map(|i| item(format!("image:{}", i.id), i.name()));
+    menu.push(section("Images", listed(images.collect())));
+    let volumes = store
+        .volumes
+        .iter()
+        .map(|v| item(format!("volume:{}", v.name), &v.name));
+    menu.push(section("Volumes", listed(volumes.collect())));
+    let networks = store
+        .networks
+        .iter()
+        .map(|n| item(format!("network:{}", n.id), &n.name));
+    menu.push(section("Networks", listed(networks.collect())));
 
-    if !store.containers.is_empty() {
-        menu.push(Entry::Separator);
-        let mut containers: Vec<&ContainerInfo> = store.containers.iter().collect();
-        // Running first, then by name (the store's order).
-        containers.sort_by_key(|c| !c.is_active());
-        for c in containers.iter().take(MAX_CONTAINERS) {
-            menu.push(Entry::Menu {
-                label: format!("{} {}", dot(c.is_active()), c.name),
-                items: container_items(c),
-            });
-        }
-        if containers.len() > MAX_CONTAINERS {
-            menu.push(note(format!(
-                "{} more in the window",
-                containers.len() - MAX_CONTAINERS
-            )));
-        }
-    }
+    menu.push(Entry::Separator);
+    let mut templates: Vec<Entry> = TEMPLATES
+        .iter()
+        .map(|t| {
+            let label = if crate::app::pages::quick_start::running(store, t).is_some() {
+                format!("● {}", t.name)
+            } else {
+                t.name.to_owned()
+            };
+            item(format!("quick:{}", t.name), label)
+        })
+        .collect();
+    templates.extend([Entry::Separator, item("quick-start", "Customize…")]);
+    menu.push(Entry::Menu {
+        label: "Quick start".into(),
+        items: templates,
+    });
 
     menu.extend([Entry::Separator, item("quit", "Quit Ferrodock")]);
     menu
+}
+
+/// A submenu, or a dimmed line when there's nothing in it.
+fn section(label: &str, items: Vec<Entry>) -> Entry {
+    if items.is_empty() {
+        return note(format!("No {}", label.to_lowercase()));
+    }
+    Entry::Menu {
+        label: label.into(),
+        items,
+    }
+}
+
+/// The first [`MAX_ITEMS`] of `items`, with a note for the rest.
+fn listed(mut items: Vec<Entry>) -> Vec<Entry> {
+    if items.len() > MAX_ITEMS {
+        let rest = items.len() - MAX_ITEMS;
+        items.truncate(MAX_ITEMS);
+        items.push(note(format!("{rest} more in the window")));
+    }
+    items
 }
 
 fn dot(running: bool) -> &'static str {
@@ -158,8 +220,23 @@ pub fn action(store: &Store, id: &str) -> Option<TrayAction> {
         None => match id {
             "open" => Some(TrayAction::Open),
             "quit" => Some(TrayAction::Quit),
+            "quick-start" => Some(TrayAction::OpenPage("Quick start")),
             _ => None,
         },
+        Some(("quick", name)) => {
+            crate::docker::template(name).map(|t| TrayAction::QuickStart(t.name))
+        }
+        Some((kind @ ("image" | "volume" | "network"), id)) => {
+            let page = match kind {
+                "image" => "Images",
+                "volume" => "Volumes",
+                _ => "Networks",
+            };
+            Some(TrayAction::Show {
+                page,
+                id: id.to_owned(),
+            })
+        }
         Some((verb @ ("up" | "down"), name)) => {
             let project = store.projects.iter().find(|p| p.name == name)?;
             let (action, wanted) = if verb == "up" {
@@ -181,7 +258,12 @@ pub fn action(store: &Store, id: &str) -> Option<TrayAction> {
                 "start" => Action::Start,
                 "stop" => Action::Stop,
                 "restart" => Action::Restart,
-                "show" => return Some(TrayAction::OpenContainer(c.id.clone())),
+                "show" => {
+                    return Some(TrayAction::Show {
+                        page: "Containers",
+                        id: c.id.clone(),
+                    });
+                }
                 _ => return None,
             };
             Some(TrayAction::Run(vec![task(action, c)]))
@@ -274,16 +356,31 @@ mod tests {
     #[test]
     fn lists_running_containers_first() {
         let menu = model(&store());
-        let labels: Vec<&str> = menu
+        let labels = |entries: &[Entry]| -> Vec<String> {
+            entries
+                .iter()
+                .filter_map(|e| match e {
+                    Entry::Menu { label, .. } => Some(label.clone()),
+                    _ => None,
+                })
+                .collect()
+        };
+        // The sidebar's sections; empty ones are a dimmed line.
+        assert_eq!(labels(&menu), ["Containers", "Quick start"]);
+        assert!(menu.contains(&note("No images")));
+        let Some(Entry::Menu { items, .. }) = menu
             .iter()
-            .filter_map(|e| match e {
-                Entry::Menu { label, .. } => Some(label.as_str()),
-                _ => None,
-            })
-            .collect();
-        assert_eq!(labels, ["● web", "○ api"]);
+            .find(|e| matches!(e, Entry::Menu { label, .. } if label == "Containers"))
+        else {
+            panic!("expected a Containers submenu");
+        };
+        assert_eq!(labels(items), ["● web", "○ api"]);
         assert!(menu.contains(&note("Docker 29.0 · 1 running")));
         assert_eq!(title(&store()), "1");
+        assert_eq!(
+            action(&store(), "quick:Postgres"),
+            Some(TrayAction::QuickStart("Postgres"))
+        );
     }
 
     #[test]
@@ -299,7 +396,10 @@ mod tests {
         );
         assert_eq!(
             action(&store, "show:a1"),
-            Some(TrayAction::OpenContainer("a1".into()))
+            Some(TrayAction::Show {
+                page: "Containers",
+                id: "a1".into()
+            })
         );
         assert_eq!(action(&store, "stop:gone"), None);
     }

@@ -6,8 +6,15 @@ use crate::app::components::{icons::Icon, widgets};
 use crate::app::page::{Intent, PageCtx};
 use crate::theme::Palette;
 
-/// Draws the results of the last search. Returns false once closed.
-pub(super) fn show(ui: &mut egui::Ui, ctx: &mut PageCtx) -> bool {
+/// What was clicked on a result.
+enum Click {
+    Pull,
+    Run,
+}
+
+/// Draws the results of the last search. Returns false once closed; puts
+/// the image to run in `run` when Run is clicked.
+pub(super) fn show(ui: &mut egui::Ui, ctx: &mut PageCtx, run: &mut Option<String>) -> bool {
     let p = ctx.palette;
     // The search asked for this frame reaches the store after it.
     let Some((term, results)) = &ctx.store.search else {
@@ -31,6 +38,19 @@ pub(super) fn show(ui: &mut egui::Ui, ctx: &mut PageCtx) -> bool {
                     if widgets::icon_button(ui, Icon::Close, "Close the results").clicked() {
                         open = false;
                     }
+                    // A Quick start template for this, with its defaults.
+                    if let Some(template) = crate::docker::TEMPLATES
+                        .iter()
+                        .find(|t| t.is_image(term) || t.name.eq_ignore_ascii_case(term))
+                        && ui
+                            .link(format!("{} quick start, with defaults →", template.name))
+                            .clicked()
+                    {
+                        ctx.request(Intent::Open {
+                            page: "Quick start",
+                            id: template.name.to_owned(),
+                        });
+                    }
                 });
             });
             ui.add_space(4.0);
@@ -49,8 +69,12 @@ pub(super) fn show(ui: &mut egui::Ui, ctx: &mut PageCtx) -> bool {
                         .max_height(260.0)
                         .show(ui, |ui| {
                             for result in list {
-                                if row(ui, p, result) {
-                                    ctx.request(Intent::Pull(result.name.clone()));
+                                match row(ui, p, result) {
+                                    Some(Click::Pull) => {
+                                        ctx.request(Intent::Pull(result.name.clone()));
+                                    }
+                                    Some(Click::Run) => *run = Some(result.name.clone()),
+                                    None => {}
                                 }
                             }
                         });
@@ -61,12 +85,12 @@ pub(super) fn show(ui: &mut egui::Ui, ctx: &mut PageCtx) -> bool {
     open
 }
 
-/// One result. Returns true when Pull is clicked.
-fn row(ui: &mut egui::Ui, p: &Palette, result: &crate::docker::SearchResult) -> bool {
-    let mut pull = false;
+/// One result, with Pull and Run.
+fn row(ui: &mut egui::Ui, p: &Palette, result: &crate::docker::SearchResult) -> Option<Click> {
+    let mut click = None;
     ui.horizontal(|ui| {
-        // Leave room for the Pull button.
-        let text_width = (ui.available_width() - 100.0).max(120.0);
+        // Leave room for the buttons.
+        let text_width = (ui.available_width() - 190.0).max(120.0);
         ui.vertical(|ui| {
             ui.set_max_width(text_width);
             ui.horizontal(|ui| {
@@ -88,13 +112,22 @@ fn row(ui: &mut egui::Ui, p: &Palette, result: &crate::docker::SearchResult) -> 
             }
         });
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            pull = widgets::button(ui, Icon::Download, "Pull")
+            if widgets::button(ui, Icon::Play, "Run…")
+                .on_hover_text(format!("Run {} as a container", result.name))
+                .clicked()
+            {
+                click = Some(Click::Run);
+            }
+            if widgets::button(ui, Icon::Download, "Pull")
                 .on_hover_text(format!("Pull {}", result.name))
-                .clicked();
+                .clicked()
+            {
+                click = Some(Click::Pull);
+            }
         });
     });
     ui.add_space(6.0);
-    pull
+    click
 }
 
 /// 21408 → "21,408".

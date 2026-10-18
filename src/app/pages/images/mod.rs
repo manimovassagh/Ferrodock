@@ -229,7 +229,11 @@ impl Page for ImagesPage {
         ui.horizontal(|ui| self.pull_box(ui, ctx));
         ui.add_space(8.0);
         if self.searching {
-            self.searching = search::show(ui, ctx);
+            let mut run = None;
+            self.searching = search::show(ui, ctx, &mut run);
+            if let Some(reference) = run {
+                self.run_form = Some(RunForm::for_reference(&reference));
+            }
         }
         pulls(ui, p, store);
         let visible: Vec<&ImageInfo> = store

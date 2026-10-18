@@ -204,6 +204,12 @@ pub trait Page {
         "Search"
     }
 
+    /// Listed at the bottom of the sidebar, under START, rather than with
+    /// the Docker pages.
+    fn bottom(&self) -> bool {
+        false
+    }
+
     /// Extra buttons for the page header, e.g. "Remove unused".
     fn toolbar(&mut self, _ui: &mut egui::Ui, _ctx: &mut PageCtx) {}
 

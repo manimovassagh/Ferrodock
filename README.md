@@ -69,6 +69,10 @@ Get-FileHash .\Ferrodock-*-windows-x64.zip            # Windows (compare with SH
 - **Pull and run images**: pull with a progress bar, and start a container
   from any image with a form for ports, environment, volumes and restart
   policy. It shows the equivalent `docker run` command as you type.
+- **Quick start**: run Postgres, MySQL, Redis, MongoDB, RabbitMQ, MinIO,
+  Mailpit or Nginx with local-development settings, and copy the connection
+  string. Also reachable from the menu bar, or with **Run…** on a Docker Hub
+  search result.
 - **Images, Volumes, Networks**: size, mountpoints, subnets, and which
   containers use each one.
 - **Disk**: see where the space goes (images, containers, volumes, build

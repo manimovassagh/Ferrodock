@@ -558,3 +558,53 @@ fn screenshots_of_engine_start() {
         super::Connection::Connected { .. }
     ));
 }
+
+/// The Quick start page, a template's Run dialog, a real run of Redis
+/// (pulled first; the container is left for the caller to remove), and
+/// Run on Docker Hub results.
+#[test]
+#[ignore]
+fn screenshots_of_quick_start() {
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(3));
+    set_theme(&mut h, Theme::Light);
+    let page = h
+        .state()
+        .pages
+        .iter()
+        .position(|p| p.title() == "Quick start")
+        .unwrap();
+    open(&mut h, page, None);
+    save(&mut h, "quick-start");
+
+    h.state_mut().pages[page].select("Postgres");
+    h.run_steps(3);
+    save(&mut h, "quick-start-run");
+    click(&mut h, "Cancel");
+
+    h.state_mut().pages[page].select("Redis");
+    h.run_steps(3);
+    click(&mut h, "Run");
+    let start = Instant::now();
+    while !h
+        .state()
+        .store
+        .containers
+        .iter()
+        .any(|c| c.name == "redis" && c.is_running())
+        && start.elapsed() < Duration::from_secs(120)
+    {
+        settle(&mut h, Duration::from_millis(500));
+    }
+    settle(&mut h, Duration::from_secs(1));
+    save(&mut h, "quick-start-running");
+    assert!(h.state().store.containers.iter().any(|c| c.name == "redis"));
+
+    open(&mut h, 2, None);
+    h.get_by_role_and_label(egui::accesskit::Role::TextInput, "Pull")
+        .click();
+    h.run_steps(2);
+    h.event(egui::Event::Text("postgres".into()));
+    settle(&mut h, Duration::from_secs(5));
+    save(&mut h, "hub-run");
+}
