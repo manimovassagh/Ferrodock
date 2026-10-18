@@ -7,6 +7,13 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.10.0](https://github.com/manimovassagh/Ferrodock/compare/v1.9.0...v1.10.0) - 2026-10-18
+
+### Added
+
+- start the Docker engine when it isn't running
+- select all, bulk remove and Reset Docker
+
 ## [1.9.0](https://github.com/manimovassagh/Ferrodock/compare/v1.8.0...v1.9.0) - 2026-10-18
 
 ### Added
