@@ -292,6 +292,9 @@ on Windows and Linux).
 - **Density**: Comfortable shows two lines per row; Compact fits about
   twice as many rows on screen.
 - **Interface size**: 90% to 125%.
+- **Notifications**: when a container crashes or runs out of memory while
+  Ferrodock is in the background (or hidden in the menu bar), you get a
+  system notification. On by default.
 - **Startup**: open Ferrodock when you log in. On macOS and Windows it
   then starts in the menu bar / notification area, without opening the
   window.
