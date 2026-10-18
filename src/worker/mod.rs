@@ -394,7 +394,9 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
                 });
             }
             Request::Pull(image) => {
-                tokio::spawn(async move { pull(&docker, &shared, image).await });
+                tokio::spawn(async move {
+                    pull(&docker, &shared, image).await;
+                });
             }
             Request::Terminal(op) => terminals.handle(&docker, &shared, op),
             Request::Compose(op) => compose_jobs.handle(&docker, &shared, engine.clone(), op),
@@ -504,7 +506,8 @@ impl Shared {
 }
 
 /// Pulls an image, sending progress at most ten times a second.
-async fn pull(client: &DockerClient, shared: &Shared, image: String) {
+/// Pulls `image`, reporting progress. Returns whether it worked.
+async fn pull(client: &DockerClient, shared: &Shared, image: String) -> bool {
     let task = Task {
         action: Action::Pull,
         id: image.clone(),
@@ -522,6 +525,7 @@ async fn pull(client: &DockerClient, shared: &Shared, image: String) {
             }
         })
         .await;
+    let pulled = result.is_ok();
     match result {
         Ok(()) => shared.send(Response::Done { task, freed: None }),
         Err(e) => {
@@ -530,6 +534,7 @@ async fn pull(client: &DockerClient, shared: &Shared, image: String) {
         }
     }
     refresh(client, shared, Resource::Images).await;
+    pulled
 }
 
 async fn run_image(client: &DockerClient, shared: &Shared, spec: RunSpec) {
@@ -543,6 +548,10 @@ async fn run_image(client: &DockerClient, shared: &Shared, spec: RunSpec) {
         id: format!("run:{}", spec.image),
         name: label,
     };
+    // Images from a template or a Docker Hub search may not be here yet.
+    if !client.has_image(&spec.image).await && !pull(client, shared, spec.image.clone()).await {
+        return;
+    }
     match client.run(&spec).await {
         Ok(_) => shared.send(Response::Done { task, freed: None }),
         Err(e) => {

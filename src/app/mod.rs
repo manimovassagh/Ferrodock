@@ -132,12 +132,19 @@ impl FerrodockApp {
         for action in tray.update(&self.store) {
             match action {
                 tray::TrayAction::Open => show_window(ctx),
-                tray::TrayAction::OpenContainer(id) => {
+                tray::TrayAction::Show { page, id } => {
                     show_window(ctx);
-                    self.handle_intent(Intent::Open {
-                        page: "Containers",
-                        id,
-                    });
+                    self.handle_intent(Intent::Open { page, id });
+                }
+                tray::TrayAction::OpenPage(page) => {
+                    show_window(ctx);
+                    self.handle_intent(Intent::OpenPage(page));
+                }
+                tray::TrayAction::QuickStart(name) => {
+                    if let Some(template) = crate::docker::template(name) {
+                        let choices = pages::quick_start::defaults(&self.store, template);
+                        self.handle_intent(Intent::RunImage(template.spec(&choices)));
+                    }
                 }
                 tray::TrayAction::Run(tasks) => {
                     for task in tasks {

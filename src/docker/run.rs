@@ -216,6 +216,11 @@ impl DockerClient {
         Ok(created.id)
     }
 
+    /// Whether `image` (a reference like `nginx:alpine`, or an ID) is here.
+    pub async fn has_image(&self, image: &str) -> bool {
+        self.docker.inspect_image(image).await.is_ok()
+    }
+
     /// Pulls `image` (e.g. `nginx:alpine`), calling `progress` as layers
     /// download.
     pub async fn pull(

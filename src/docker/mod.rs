@@ -31,6 +31,7 @@ mod registry;
 mod reset;
 mod run;
 mod stats;
+mod templates;
 mod terminal;
 mod volumes;
 
@@ -61,6 +62,7 @@ pub use registry::{ImageOp, SearchResult};
 pub use reset::RESET_WORD;
 pub use run::{PullProgress, Restart, RunSpec};
 pub use stats::StatsSample;
+pub use templates::{Choices, TEMPLATES, Template, template};
 pub use terminal::{TermOp, exit_message, next_session};
 pub use volumes::VolumeInfo;
 
