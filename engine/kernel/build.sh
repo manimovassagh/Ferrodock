@@ -32,6 +32,9 @@ done <"$here/ferrodock.config"
 
 make -C "$src" ARCH=arm64 -j"$jobs" Image modules
 mkdir -p "$out/modules"
-make -C "$src" ARCH=arm64 INSTALL_MOD_PATH="$out/modules" INSTALL_MOD_STRIP=1 modules_install
+# The module folder otherwise follows the build machine's kmod (newer
+# distributions say /usr/lib/modules); the engine's root has /lib/modules.
+make -C "$src" ARCH=arm64 INSTALL_MOD_PATH="$out/modules" INSTALL_MOD_STRIP=1 \
+    KERNEL_MODULE_DIRECTORY=/lib/modules modules_install
 cp "$src/arch/arm64/boot/Image" "$out/Image"
 cp "$src/.config" "$out/config"

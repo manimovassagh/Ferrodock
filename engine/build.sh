@@ -31,7 +31,9 @@ rm -rf "$root/dev" "$root/.dockerenv" && mkdir -p "$root/dev"
 
 echo "==> kernel modules"
 rm -rf "$root/lib/modules"
-cp -a "$modules/lib/modules" "$root/lib/"
+installed=$modules/lib/modules
+[ -d "$installed" ] || installed=$modules/usr/lib/modules
+cp -a "$installed" "$root/lib/"
 
 echo "==> ferrodock-agent"
 install -m 0755 "$agent" "$root/sbin/ferrodock-agent"
