@@ -7,6 +7,17 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.15.0](https://github.com/manimovassagh/Ferrodock/compare/v1.14.0...v1.15.0) - 2026-10-19
+
+### Added
+
+- Ferrodock's own engine on Linux
+
+### Documentation
+
+- Ferrodock's own engine on Linux
+- refresh the README and rewrite the docs site as user documentation
+
 ## [1.14.0](https://github.com/manimovassagh/Ferrodock/compare/v1.13.2...v1.14.0) - 2026-10-19
 
 ### Added
