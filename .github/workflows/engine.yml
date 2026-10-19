@@ -141,9 +141,10 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v7
+      # Not "assets": that's the app's own folder in the repository.
       - uses: actions/download-artifact@v8
         with:
-          path: assets
+          path: engine-release
           merge-multiple: true
       - name: Publish
         env:
@@ -151,7 +152,7 @@ jobs:
         run: |
           version=$(tr -d '[:space:]' < engine/VERSION)
           tag="engine-v$version"
-          cd assets
+          cd engine-release
           if gh release view "$tag" >/dev/null 2>&1; then
             # Already out: only add what it doesn't have yet. The images
             # themselves never change once published.
