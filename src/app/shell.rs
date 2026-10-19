@@ -145,9 +145,11 @@ pub fn disconnected(
 ) -> Option<Click> {
     use super::engine_start::Offer;
     let problem = diagnose(reason);
-    let starting = matches!(offer, Offer::Starting(_)) && problem == Problem::NotRunning;
+    let starting = matches!(offer, Offer::Starting(_) | Offer::Downloading(_))
+        && problem == Problem::NotRunning;
     let starting_title = match offer {
         Offer::Starting(name) => format!("Starting {name}…"),
+        Offer::Downloading(_) => "Downloading Ferrodock's engine…".to_owned(),
         _ => String::new(),
     };
     let (title, explanation) = match problem {
@@ -158,6 +160,11 @@ pub fn disconnected(
         Problem::NotRunning if starting => (
             starting_title.as_str(),
             "Ferrodock connects as soon as the engine is up. The first start can take a minute.",
+        ),
+        Problem::NotRunning if matches!(offer, Offer::SetUp) => (
+            "No Docker engine yet",
+            "Ferrodock can run its own: a small Linux VM with the Docker engine, \
+             set up in one step. Nothing else to install.",
         ),
         Problem::NotRunning if matches!(offer, Offer::Nothing) => (
             "No Docker engine found",
@@ -196,6 +203,27 @@ pub fn disconnected(
                     if widgets::primary_button(ui, &format!("Start {name}")).clicked() {
                         click = Some(Click::Start);
                     }
+                    ui.add_space(16.0);
+                }
+                Offer::SetUp => {
+                    if widgets::primary_button(ui, "Set up Ferrodock's engine").clicked() {
+                        click = Some(Click::Start);
+                    }
+                    ui.add_space(6.0);
+                    ui.label(
+                        RichText::new("Downloads about 200 MB once, then starts in seconds.")
+                            .size(12.0)
+                            .color(p.muted),
+                    );
+                    ui.add_space(16.0);
+                }
+                Offer::Downloading(fraction) => {
+                    ui.add(
+                        egui::ProgressBar::new(fraction.unwrap_or(0.0))
+                            .desired_width(320.0)
+                            .show_percentage()
+                            .fill(p.accent),
+                    );
                     ui.add_space(16.0);
                 }
                 Offer::Starting(_) => {

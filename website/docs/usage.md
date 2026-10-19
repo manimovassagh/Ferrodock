@@ -326,6 +326,23 @@ The list has:
 - Engines found on this machine: **Colima** (every
   profile), **Rancher Desktop** and **Podman**.
 
+### Ferrodock's own engine
+
+On a Mac with Apple Silicon, Ferrodock can run Docker by itself, with
+nothing else installed. When it finds no engine, click **Set up
+Ferrodock's engine**. It downloads a small Linux VM with the Docker engine
+once (about 200 MB), then starts it through Apple's own virtualization, at
+native speed. From then on it starts with Ferrodock.
+
+- Everything lives in `~/.ferrodock`: the engine image, its data disk
+  (images, containers and volumes; it only takes the space it uses) and
+  its log, `console.log`.
+- Your home folder is shared with the engine at the same path, so bind
+  mounts such as `-v ~/project:/app` work as you'd expect.
+- It shows up as **Ferrodock** in the engine list. The `docker` command
+  can use it too: `export DOCKER_HOST=unix://$HOME/.ferrodock/docker.sock`.
+- It stops when you quit Ferrodock.
+
 ### Starting the engine
 
 When Ferrodock opens and the engine isn't running, it starts it for you and
@@ -337,8 +354,9 @@ connects once it's up:
 - **Windows**: the engine's app.
 - **Linux**: the `docker` service (it may ask for your password).
 
-If Ferrodock finds no engine at all, the screen links to the
-[Engines](engines.md) page to help you set one up.
+If Ferrodock finds no engine at all, it offers its own on Apple Silicon
+Macs; elsewhere the screen links to the [Engines](engines.md) page to help
+you set one up.
 
 If the engine stops later, the "Docker isn't running" screen has a
 **Start** button that does the same. Turn this off under **Settings →

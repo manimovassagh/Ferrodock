@@ -33,6 +33,8 @@ notify-rust = "4.18.2"
 sha2 = "0.10.9"
 tar = "0.4.46"
 vt100 = "0.16.2"
+ureq = "3.4.2"
+ruzstd = "0.9.1"
 tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros", "time", "fs", "process", "io-util"] }
 
 # Contexts over SSH run the system's ssh, which bollard supports on Unix.
@@ -43,6 +45,16 @@ bollard = { version = "0.21.1", features = ["ssh"] }
 # left out there.
 [target.'cfg(any(target_os = "macos", target_os = "windows"))'.dependencies]
 tray-icon = "0.26.1"
+
+# Ferrodock's own engine: a Linux VM through Apple's Virtualization
+# framework, on Apple Silicon.
+[target.'cfg(all(target_os = "macos", target_arch = "aarch64"))'.dependencies]
+objc2 = "0.6.5"
+objc2-foundation = "0.3.2"
+objc2-virtualization = "0.3.2"
+block2 = "0.6.2"
+dispatch2 = "0.3.1"
+libc = "0.2.191"
 
 [build-dependencies]
 winresource = "0.1.34"

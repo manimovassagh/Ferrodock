@@ -1,0 +1,89 @@
+//! The engine on macOS: the VM, and the Docker socket on the Mac that
+//! reaches the engine inside it.
+
+mod machine;
+
+use std::io::{Read, Write};
+use std::net::Shutdown;
+use std::os::unix::net::{UnixListener, UnixStream};
+use std::sync::Arc;
+use std::thread;
+
+pub use machine::Machine;
+
+use super::{Paths, Resources};
+
+/// Copies one way, then tells the other side nothing more comes.
+fn pipe(mut from: UnixStream, mut to: UnixStream) {
+    let mut buffer = vec![0u8; 64 * 1024];
+    loop {
+        match from.read(&mut buffer) {
+            Ok(0) | Err(_) => break,
+            Ok(n) => {
+                if to.write_all(&buffer[..n]).is_err() {
+                    break;
+                }
+            }
+        }
+    }
+    let _ = to.shutdown(Shutdown::Write);
+}
+
+/// Joins a client of the Mac's socket to a connection into the VM.
+fn join(client: UnixStream, engine: UnixStream) {
+    let (Ok(client_out), Ok(engine_out)) = (client.try_clone(), engine.try_clone()) else {
+        return;
+    };
+    let up = thread::spawn(move || pipe(client, engine_out));
+    pipe(engine, client_out);
+    let _ = up.join();
+}
+
+/// The running engine: the VM and the socket on the Mac.
+pub struct Running {
+    machine: Arc<Machine>,
+}
+
+impl Running {
+    /// Boots the VM and opens `paths.socket` for Docker clients.
+    pub fn start(paths: &Paths, resources: &Resources) -> Result<Self, String> {
+        let machine = Arc::new(Machine::new(paths, resources)?);
+        machine.start()?;
+        // A socket left from a run that didn't end cleanly.
+        let _ = std::fs::remove_file(&paths.socket);
+        let listener = UnixListener::bind(&paths.socket)
+            .map_err(|e| format!("{}: {e}", paths.socket.display()))?;
+        let bridge = machine.clone();
+        thread::Builder::new()
+            .name("engine-socket".into())
+            .spawn(move || {
+                for client in listener.incoming().flatten() {
+                    let machine = bridge.clone();
+                    thread::spawn(move || match machine.connect() {
+                        Ok(engine) => join(client, engine),
+                        // The engine isn't listening yet (still booting):
+                        // the client sees a closed connection and retries.
+                        Err(_) => drop(client),
+                    });
+                }
+            })
+            .map_err(|e| e.to_string())?;
+        Ok(Self { machine })
+    }
+
+    pub fn is_running(&self) -> bool {
+        self.machine.running()
+    }
+
+    /// Shuts the guest down, and stops it hard if it takes too long.
+    pub fn stop(&self) {
+        self.machine.request_stop();
+        for _ in 0..50 {
+            if !self.machine.running() {
+                return;
+            }
+            thread::sleep(std::time::Duration::from_millis(100));
+        }
+        self.machine.force_stop();
+    }
+}

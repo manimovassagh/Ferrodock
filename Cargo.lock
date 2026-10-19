@@ -1133,6 +1133,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e0e367e4e7da84520dedcac1901e4da967309406d1e51017ae1abfb97adbd38"
 dependencies = [
  "bitflags 2.13.2",
+ "block2 0.6.2",
+ "libc",
  "objc2 0.6.5",
 ]
 
@@ -1593,13 +1595,20 @@ checksum = "b97b65636e5b9ef369943878ac74335ba1c55c1cb6adbf1e2c293c624248d693"
 name = "ferrodock"
 version = "1.12.0"
 dependencies = [
+ "block2 0.6.2",
  "bollard",
  "bytes",
+ "dispatch2",
  "eframe",
  "egui_extras",
  "egui_kittest",
  "futures-util",
+ "libc",
  "notify-rust",
+ "objc2 0.6.5",
+ "objc2-foundation 0.3.2",
+ "objc2-virtualization",
+ "ruzstd",
  "self-replace",
  "self_update",
  "serde",
@@ -1608,6 +1617,7 @@ dependencies = [
  "tar",
  "tokio",
  "tray-icon",
+ "ureq",
  "vt100",
  "winresource",
 ]
@@ -3471,6 +3481,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "objc2-virtualization"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8edb98625ad1f7dea2e82ab54d5bdf3f477e6645b550f4a7cced1818be9ff59d"
+dependencies = [
+ "bitflags 2.13.2",
+ "block2 0.6.2",
+ "dispatch2",
+ "objc2 0.6.5",
+ "objc2-app-kit 0.3.2",
+ "objc2-core-foundation",
+ "objc2-foundation 0.3.2",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4375,6 +4400,15 @@ name = "rustversion"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
+
+[[package]]
+name = "ruzstd"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69e4ce4a039f42bf25920b95667e4d789e98749ab11bbb8d2c2936f788421bb5"
+dependencies = [
+ "twox-hash",
+]
 
 [[package]]
 name = "ryu"
@@ -5342,6 +5376,12 @@ name = "ttf-parser"
 version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2df906b07856748fa3f6e0ad0cbaa047052d4a7dd609e231c4f72cee8c36f31"
+
+[[package]]
+name = "twox-hash"
+version = "2.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "86a801b3cea342a06d468c8710662aa29e5e05e4f5c0d62f00bbb7f2ad7941c2"
 
 [[package]]
 name = "type-map"

@@ -21,6 +21,8 @@ jobs:
   image:
     name: Build the engine image (arm64)
     runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
@@ -53,7 +55,7 @@ jobs:
         run: |
           engine/build.sh kernel-out/Image kernel-out/modules \
             agent/target/aarch64-unknown-linux-musl/release/ferrodock-agent out
-          tar --sparse -C out -cf - kernel rootfs.img | zstd -19 -T0 > ferrodock-engine-arm64.tar.zst
+          tar -C out -cf - kernel rootfs.img | zstd -19 -T0 > ferrodock-engine-arm64.tar.zst
           sha256sum ferrodock-engine-arm64.tar.zst | tee ferrodock-engine-arm64.tar.zst.sha256
           cp kernel-out/config ferrodock-engine-arm64.kernel-config
       - uses: actions/upload-artifact@v7
@@ -63,3 +65,24 @@ jobs:
             ferrodock-engine-arm64.tar.zst
             ferrodock-engine-arm64.tar.zst.sha256
             ferrodock-engine-arm64.kernel-config
+
+      # Ferrodock downloads the image of the version in engine/VERSION from
+      # the release engine-v<version>. A pre-release, so it never shows as
+      # the app's latest release (the updater and Homebrew use that).
+      - name: Publish (main only, once per version)
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(tr -d '[:space:]' < engine/VERSION)
+          tag="engine-v$version"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "$tag is already published"
+          else
+            gh release create "$tag" --prerelease --latest=false \
+              --title "Ferrodock engine $version" \
+              --notes "The Linux VM image of Ferrodock's own Docker engine (Apple Silicon). Ferrodock downloads it by itself; there's no need to get it by hand. Built from engine/ and agent/ at ${{ github.sha }}." \
+              ferrodock-engine-arm64.tar.zst \
+              ferrodock-engine-arm64.tar.zst.sha256 \
+              ferrodock-engine-arm64.kernel-config
+          fi
