@@ -26,7 +26,7 @@ const PATIENCE: Duration = Duration::from_secs(180);
 pub enum Offer {
     /// Nothing on this machine Ferrodock knows how to start.
     Nothing,
-    /// Can start this (e.g. "Colima").
+    /// Can start this (e.g. "the Docker engine").
     Start(String),
     /// Can download and start Ferrodock's own engine.
     SetUp,
@@ -231,7 +231,7 @@ mod tests {
         let mut starter = EngineStarter {
             builtin: vm::Engine::new(),
             repaint: None,
-            started: Some((Instant::now(), "Colima".into())),
+            started: Some((Instant::now(), "the Docker engine".into())),
             error: None,
             tried_at_launch: false,
             provider_checked: false,
@@ -240,7 +240,7 @@ mod tests {
         let settings = Settings::default();
         assert_eq!(
             starter.offer(&store, &settings),
-            Offer::Starting("Colima".into())
+            Offer::Starting("the Docker engine".into())
         );
         starter.finished(Err("no VM".into()));
         assert!(matches!(

@@ -25,17 +25,12 @@ pub enum Starter {
 }
 
 impl Starter {
-    /// What it starts, e.g. "Colima".
+    /// What it starts, for messages.
+    /// Never another product's name: Ferrodock speaks of the engine.
     pub fn name(&self) -> String {
         match self {
-            Starter::App(app) => app
-                .file_stem()
-                .map(|s| s.to_string_lossy().into_owned())
-                .unwrap_or_else(|| "Docker".into()),
-            Starter::Colima { profile, .. } if profile == "default" => "Colima".into(),
-            Starter::Colima { profile, .. } => format!("Colima ({profile})"),
-            Starter::Program(_) | Starter::UserService => "the Docker engine".into(),
             Starter::Service => "the Docker service".into(),
+            _ => "the Docker engine".into(),
         }
     }
 
@@ -254,20 +249,13 @@ mod tests {
         );
         assert_eq!(colima_profile("unix:///var/run/docker.sock"), None);
         let app = Starter::App(PathBuf::from("/Applications/Some Engine.app"));
-        assert_eq!(app.name(), "Some Engine");
+        assert_eq!(app.name(), "the Docker engine");
         assert_eq!(normalized("Some Engine.app"), normalized(".some-engine"));
         assert_eq!(
             hints("unix:///Users/me/.someengine/run/docker.sock", "work"),
             ["work", "someengine"]
         );
         assert!(hints("unix:///var/run/nothing-here.sock", "default").is_empty());
-        assert_eq!(
-            Starter::Colima {
-                binary: PathBuf::new(),
-                profile: "default".into()
-            }
-            .name(),
-            "Colima"
-        );
+        assert_eq!(Starter::Service.name(), "the Docker service");
     }
 }

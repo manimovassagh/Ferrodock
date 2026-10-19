@@ -1,6 +1,6 @@
 //! Docker engines to connect to: the Docker CLI's contexts, plus the
-//! sockets of common engines found on this machine (Colima, Rancher
-//! Desktop, Podman, and the one in `~/.docker/run`).
+//! sockets of engines found on this machine (listed as "Local engine",
+//! never by product name).
 
 use std::path::{Path, PathBuf};
 
@@ -13,7 +13,7 @@ const TIMEOUT: u64 = 120;
 /// One engine Ferrodock can talk to.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Engine {
-    /// The context's name, or what the engine is ("Colima").
+    /// The context's name, or "Local engine" for a detected socket.
     pub name: String,
     /// Where it listens: `unix://…`, `npipe://…`, `tcp://…` or `ssh://…`.
     pub host: String,
@@ -120,37 +120,28 @@ fn contexts(dir: &Path, current: &str) -> Vec<Engine> {
 
 /// Sockets of other engines, where they exist.
 fn detected(home: &Path) -> Vec<Engine> {
-    let mut candidates: Vec<(String, PathBuf)> = vec![
-        ("Local engine".into(), home.join(".docker/run/docker.sock")),
-        ("Rancher Desktop".into(), home.join(".rd/docker.sock")),
-        (
-            "Podman".into(),
-            home.join(".local/share/containers/podman/machine/podman.sock"),
-        ),
+    let mut sockets: Vec<PathBuf> = vec![
+        home.join(".docker/run/docker.sock"),
+        home.join(".rd/docker.sock"),
+        home.join(".local/share/containers/podman/machine/podman.sock"),
     ];
-    // Colima keeps one folder per profile.
+    // Some engines keep one folder per profile.
     if let Ok(profiles) = std::fs::read_dir(home.join(".colima")) {
-        for profile in profiles.flatten() {
-            let name = profile.file_name().to_string_lossy().into_owned();
-            let label = if name == "default" {
-                "Colima".to_owned()
-            } else {
-                format!("Colima ({name})")
-            };
-            candidates.push((label, profile.path().join("docker.sock")));
-        }
+        sockets.extend(profiles.flatten().map(|p| p.path().join("docker.sock")));
     }
     if let Some(runtime) = std::env::var_os("XDG_RUNTIME_DIR") {
-        candidates.push((
-            "Podman".into(),
-            PathBuf::from(runtime).join("podman/podman.sock"),
-        ));
+        sockets.push(PathBuf::from(runtime).join("podman/podman.sock"));
     }
-    candidates
+    sockets
         .into_iter()
-        .filter(|(_, path)| path.exists())
-        .map(|(name, path)| Engine {
-            name,
+        .filter(|path| path.exists())
+        .enumerate()
+        .map(|(i, path)| Engine {
+            name: if i == 0 {
+                "Local engine".into()
+            } else {
+                format!("Local engine {}", i + 1)
+            },
             host: format!("unix://{}", path.display()),
             tls: None,
             current: false,
@@ -267,7 +258,7 @@ mod tests {
         std::fs::write(home.join(".colima/work/docker.sock"), "").unwrap();
         let found = detected(&home);
         assert_eq!(found.len(), 1);
-        assert_eq!(found[0].name, "Colima (work)");
+        assert_eq!(found[0].name, "Local engine");
         assert!(found[0].host.ends_with(".colima/work/docker.sock"));
         std::fs::remove_dir_all(&home).unwrap();
     }
