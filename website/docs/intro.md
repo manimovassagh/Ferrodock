@@ -8,27 +8,37 @@ title: Introduction
 
 **A fast, native desktop app for managing Docker, written entirely in Rust.**
 
-Ferrodock gives you a clean, responsive view of everything in your Docker
-Engine: containers, Compose projects, images, volumes and networks. It's a
-single native executable with no Electron, no web view and no background
-service. It talks straight to the Docker Engine API.
+Ferrodock shows everything in your Docker engine (containers, Compose
+projects, images, volumes and networks) in one clean window, and lets you
+act on it in a click. It's a single native app for macOS, Windows and
+Linux: no Electron, no web view, no background service, and no CPU used
+while idle. It's free and open source under the MIT License.
 
 ![The Ferrodock containers page](/img/containers.png)
 
-## Highlights
+## What you can do
 
-- **Containers**: start, stop, restart and remove. Filter by state, search by
-  name, image or ID.
-- **Logs and stats**: live log output, and CPU and memory charts for any
-  container.
-- **Compose**: containers grouped by project, with project-wide actions.
-- **Images, volumes, networks**: see what's in use, and clean up what isn't.
-- **Light and dark themes** that follow your system.
-- **Runs everywhere**: Windows, macOS and Linux, with its own engine
-  on Apple Silicon and Windows, a native `dockerd` or any other Docker
-  engine.
+- **Containers**: start, stop, pause, restart, rename, edit, duplicate and
+  remove; open published ports in your browser; act on many at once.
+- **Logs, stats, terminal and files**: live logs, CPU and memory charts, a
+  shell inside the container, and a file browser.
+- **Compose**: projects grouped together, started from a `compose.yaml`,
+  rebuilt service by service.
+- **Images**: search Docker Hub, pull, run, tag, push, save and load.
+- **Quick start**: popular databases and services in one click.
+- **Volumes and networks**: create, browse, connect and clean up.
+- **Disk**: see where the space goes and free it safely.
+
+## Where Docker runs
+
+On **Apple Silicon Macs**, **Windows** and **Linux**, Ferrodock can run its
+own Docker engine, so there's nothing else to install. It also connects
+to any other Docker engine you already have, local or remote.
 
 ## Next steps
 
-- [Install Ferrodock](./installation.md)
-- [Learn your way around](./usage.md)
+- [Install Ferrodock](./installation.md) and set up an engine.
+- [Learn your way around](./using/basics.md).
+- [Ferrodock's own engine](./engine.md) and
+  [connecting to other engines](./engines.md).
+- Stuck? See [Troubleshooting](./troubleshooting.md).

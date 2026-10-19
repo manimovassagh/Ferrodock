@@ -1,74 +1,73 @@
 ---
 sidebar_position: 6
-title: Releases
+title: Updates and releases
 ---
 
-# Releases and release notes
+# Updates and releases
 
-## Where to find what's new
+## Where to download
 
-- **Release notes:** every release on the
-  [Releases page](https://github.com/manimovassagh/Ferrodock/releases) lists
-  what was added, fixed and changed.
-- **Full history:** [CHANGELOG.md](https://github.com/manimovassagh/Ferrodock/blob/main/CHANGELOG.md).
+Every version is on the
+[Releases page](https://github.com/manimovassagh/Ferrodock/releases) on
+GitHub, with release notes listing what was added, fixed and changed. The
+full history is in
+[CHANGELOG.md](https://github.com/manimovassagh/Ferrodock/blob/main/CHANGELOG.md).
 
-## What a release contains
+Each release has these files:
 
 | File | For |
 |---|---|
-| `Ferrodock-<version>-macos-universal.zip` | macOS 11+, Apple Silicon and Intel |
-| `Ferrodock-<version>-windows-x64.zip` | Windows 10/11 |
-| `Ferrodock-<version>-linux-x64.tar.gz` | Linux x64 |
+| `Ferrodock-<version>-macos-universal.dmg` | macOS 11+, Apple Silicon and Intel |
+| `Ferrodock-<version>-macos-universal.zip` | The same app, as a zip |
+| `Ferrodock-<version>-windows-x64.zip` | Windows 10 and 11, x64 |
+| `Ferrodock-<version>-linux-x64.tar.gz` | Linux, x64 |
 | `SHA256SUMS.txt` | Checksums of all of the above |
 
-### Verifying a download
+To check a download, see [Installation](./installation.md#check-your-download).
 
-Run this in the folder you downloaded to:
+## Updating in the app
+
+Ferrodock checks for a new version when it starts. When there is one,
+**Update to x.y.z** appears at the bottom of the sidebar. Hover it for the
+release notes, and click it to update:
+
+1. The new build for your platform downloads in the background.
+2. It's checked against the release's `SHA256SUMS.txt`, and refused if it
+   doesn't match.
+3. It replaces the installed app in place: the whole `Ferrodock.app` on
+   macOS, the executable on Windows and Linux.
+4. Click **Restart to update** to switch to it.
+
+In **Settings → Updates** you can check by hand with **Check now**, or turn
+off **Check for updates when Ferrodock starts**. Ferrodock only ever offers
+stable releases, never pre-releases.
+
+## Updating with Homebrew
+
+If you installed with Homebrew, you can also update with:
 
 ```bash
-shasum -a 256 -c SHA256SUMS.txt --ignore-missing   # macOS
-sha256sum -c SHA256SUMS.txt --ignore-missing       # Linux
+brew upgrade --cask ferrodock
 ```
 
-On Windows, run `Get-FileHash .\Ferrodock-<version>-windows-x64.zip` in
-PowerShell and compare the hash with the line in `SHA256SUMS.txt`.
+This keeps Homebrew's records in step; Settings reminds you of it when
+Ferrodock was installed this way.
 
 ## Version numbers
 
 Ferrodock follows [Semantic Versioning](https://semver.org):
 
-| Change | Before 1.0 | From 1.0 |
-|---|---|---|
-| Bug fixes | patch (0.3.0 → 0.3.1) | patch (1.2.0 → 1.2.1) |
-| New features | minor (0.3.1 → 0.4.0) | minor (1.2.1 → 1.3.0) |
-| Breaking changes | minor, marked **breaking** | major (1.3.0 → 2.0.0) |
+| Change | Example |
+|---|---|
+| Bug fixes | patch: 1.13.1 → 1.13.2 |
+| New features | minor: 1.13.2 → 1.14.0 |
+| Breaking changes | major: 1.14.0 → 2.0.0 |
 
-**Pre-releases** such as `1.0.0-rc.1` are marked as pre-releases on GitHub,
-and are never shown as the latest version.
+**Pre-releases**, such as `2.0.0-rc.1`, are marked as pre-releases on
+GitHub. They're never shown as the latest version, and the in-app updater
+never offers them.
 
-## How a release is made
+## Making a release
 
-Releases are automated with [release-plz](https://release-plz.dev) and
-GitHub Actions:
-
-```mermaid
-flowchart LR
-    A["PR merged into main<br/>(feat: … / fix: …)"] --> B["Release PR updated<br/>version + changelog"]
-    B -->|merge| C["Tag vX.Y.Z +<br/>draft release"]
-    C --> D["Build macOS,<br/>Windows, Linux"]
-    D --> E["Attach binaries +<br/>SHA256SUMS.txt"]
-    E --> F["Release<br/>published"]
-```
-
-1. Pull requests are squash-merged with
-   [Conventional Commit](https://www.conventionalcommits.org) titles
-   (`feat: …`, `fix: …`). The title becomes the changelog entry.
-2. release-plz keeps a **release PR** open with the next version and its
-   changelog.
-3. Merging it tags the release and creates a draft. Every platform is
-   built, the binaries and checksums are attached, and only then is the
-   release published.
-
-Maintainers: see
-[RELEASING.md](https://github.com/manimovassagh/Ferrodock/blob/main/RELEASING.md)
-for pre-releases and rebuilding a release's downloads.
+Releases are automated. If you maintain Ferrodock, see
+[RELEASING.md](https://github.com/manimovassagh/Ferrodock/blob/main/RELEASING.md).

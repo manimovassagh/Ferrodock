@@ -61,8 +61,9 @@ const config = {
             title: "Docs",
             items: [
               { label: "Installation", to: "/docs/installation" },
-              { label: "Using Ferrodock", to: "/docs/usage" },
-              { label: "Architecture", to: "/docs/architecture" },
+              { label: "Using Ferrodock", to: "/docs/category/using-ferrodock" },
+              { label: "Ferrodock's own engine", to: "/docs/engine" },
+              { label: "Troubleshooting", to: "/docs/troubleshooting" },
             ],
           },
           {

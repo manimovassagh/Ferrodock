@@ -157,7 +157,7 @@ function Hero() {
 
 const STATS = [
   ["0%", "CPU when idle"],
-  ["~10 MB", "download"],
+  ["< 20 MB", "download"],
   ["1", "native executable"],
   ["3", "platforms"],
 ];
@@ -211,7 +211,7 @@ const FEATURES = [
   },
   {
     title: "Works with any engine",
-    text: "Ferrodock's own engine on Apple Silicon and Windows, a plain dockerd, or any other Docker engine you run. Ferrodock connects as soon as the engine is up.",
+    text: "Ferrodock's own engine on Apple Silicon Macs and Windows, a plain dockerd, or any other Docker engine you run, local or remote. Ferrodock connects as soon as the engine is up.",
     icon: icon(<><path d="M12 2v6" /><path d="M12 16v6" /><circle cx="12" cy="12" r="4" /></>),
   },
 ];
@@ -321,7 +321,7 @@ const INSTALL = {
   },
   Linux: {
     cmd: "tar -xzf Ferrodock-<version>-linux-x64.tar.gz\n./ferrodock",
-    note: "x64. Needs a running Docker Engine and access to its socket.",
+    note: "x64. Sets up its own Docker engine with one click (asks for your admin password once), or uses the one you have.",
   },
 };
 
