@@ -7,6 +7,16 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.12.0](https://github.com/manimovassagh/Ferrodock/compare/v1.11.1...v1.12.0) - 2026-10-19
+
+### Added
+
+- ferrodock-agent and the engine image for Apple Silicon
+
+### Fixed
+
+- build the VM agent as its own crate so releases work again
+
 ## [1.11.1](https://github.com/manimovassagh/Ferrodock/compare/v1.11.0...v1.11.1) - 2026-10-18
 
 ### Fixed
