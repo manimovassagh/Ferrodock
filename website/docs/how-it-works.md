@@ -43,9 +43,12 @@ inside, built only from free and open source software:
   folder with the VM.
 - **Windows**: a WSL distro. Ferrodock talks to the engine through WSL
   itself, with no network port, and offers it on a Windows named pipe.
+- **Linux** has the kernel already, so there's no VM: Ferrodock installs
+  the Docker engine as a system service, `ferrodock-engine`.
 
-Either way, the engine image is downloaded once and checked against its
-published checksum. It runs only while Ferrodock does. See
+Each time, the engine is downloaded once and checked against its published
+checksum. On a Mac and on Windows it runs only while Ferrodock does; on
+Linux it starts with your computer, as Docker does there. See
 [Ferrodock's own engine](./engine.md) for the details.
 
 ## Your data

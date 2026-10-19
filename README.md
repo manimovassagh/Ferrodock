@@ -102,8 +102,8 @@ Ferrodock.
   bind mounts just work.
 - **Windows**: a WSL distro called `ferrodock`. WSL is part of Windows; if
   it's off, run `wsl --install` once as administrator.
-- **Linux**: Ferrodock uses your system's Docker engine (the `docker`
-  service).
+- **Linux**: the Docker engine itself, as a system service. Setting it up
+  asks for your admin password once; then it starts with your computer.
 
 Already run Docker somewhere? Ferrodock connects to it through
 `DOCKER_HOST` or your Docker contexts. See

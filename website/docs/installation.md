@@ -62,10 +62,12 @@ tar -xzf Ferrodock-<version>-linux-x64.tar.gz
 ./ferrodock
 ```
 
-On Linux, Ferrodock uses your system's Docker engine. Install Docker Engine
-from your distribution or from
-[docs.docker.com](https://docs.docker.com/engine/install/), and make sure
-your user may use it, usually by being in the `docker` group:
+When Ferrodock finds no Docker engine, click **Set up Ferrodock's engine**.
+It installs the Docker engine as a system service and asks for your admin
+password once. More in [Ferrodock's own engine](./engine.md#linux).
+
+Already have Docker installed? Ferrodock uses it. Make sure your user may
+use it, usually by being in the `docker` group:
 
 ```bash
 sudo usermod -aG docker $USER   # then log out and back in

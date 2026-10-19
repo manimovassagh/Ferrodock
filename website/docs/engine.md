@@ -5,8 +5,8 @@ title: Ferrodock's own engine
 
 # Ferrodock's own engine
 
-On a Mac with Apple Silicon and on Windows, Ferrodock can run Docker by
-itself, with nothing else installed.
+On a Mac with Apple Silicon, on Windows and on Linux, Ferrodock can run
+Docker by itself, with nothing else installed.
 
 ## Setting it up
 
@@ -77,8 +77,25 @@ wsl --install
 
 ## Linux
 
-On Linux, Ferrodock uses your system's Docker engine (the `docker`
-service). See [Installation](./installation.md#linux).
+Docker runs natively on Linux, so there's no VM: Ferrodock's engine is the
+Docker engine itself, run as a system service called `ferrodock-engine`.
+
+- Setting it up downloads the engine once (about 70 MB) and asks for your
+  admin password, because the Docker engine runs as root on Linux. You're
+  asked only this once.
+- It has its own socket, `/run/ferrodock/docker.sock`, which your user can
+  use without `sudo`; its own data folder, `/var/lib/ferrodock`; and its
+  programs in `/opt/ferrodock/engine/bin`. It doesn't touch another Docker
+  installation.
+- Like Docker on Linux, it starts with your computer and keeps running
+  when you quit Ferrodock, so your containers keep running too.
+- Published ports are on `localhost`, as usual on Linux.
+- The `docker` command can use it:
+  `export DOCKER_HOST=unix:///run/ferrodock/docker.sock`.
+- Its log: `journalctl -u ferrodock-engine`.
+
+If Docker is already installed as the `docker` service, Ferrodock uses
+that instead and only offers its own engine when there's nothing else.
 
 ## Removing the engine
 
@@ -87,6 +104,8 @@ Quit Ferrodock first, so the engine is stopped.
 - **macOS:** delete the `~/.ferrodock` folder.
 - **Windows:** run `wsl --unregister ferrodock`, then delete the
   `%LOCALAPPDATA%\Ferrodock` folder.
+- **Linux:** run
+  `sudo systemctl disable --now ferrodock-engine && sudo rm -rf /etc/systemd/system/ferrodock-engine.service /opt/ferrodock /var/lib/ferrodock`.
 
 This deletes every image, container and volume in Ferrodock's engine. You
 can set it up again at any time.

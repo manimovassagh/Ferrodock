@@ -106,11 +106,7 @@ same. To turn the automatic start off, go to
 
 If Ferrodock finds no engine at all:
 
-- **Apple Silicon Mac or Windows**: click **Set up Ferrodock's engine**.
-  See [Ferrodock's own engine](./engine.md).
-- **Linux**: install Docker Engine from your distribution or from
-  [docs.docker.com](https://docs.docker.com/engine/install/), start it with
-  `sudo systemctl start docker`, and add yourself to the `docker` group
-  (`sudo usermod -aG docker $USER`, then log out and back in).
+- **Apple Silicon Mac, Windows or Linux**: click **Set up Ferrodock's
+  engine**. See [Ferrodock's own engine](./engine.md).
 - **Intel Mac**: run a Docker engine locally, or on another machine and
   connect to it [remotely](#remote-engines).

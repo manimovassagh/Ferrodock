@@ -21,7 +21,8 @@ Choose **More info → Run anyway**.
 **"Docker isn't running".**
 Ferrodock can't reach the engine. Click **Start**, or start the engine
 yourself; Ferrodock keeps trying every few seconds and connects as soon as
-it's up. On Linux: `sudo systemctl start docker`. Check that the right
+it's up. On Linux: `sudo systemctl start ferrodock-engine` for
+Ferrodock's own engine, or `sudo systemctl start docker`. Check that the right
 engine is picked in the [engine list](./engines.md#switching-engines).
 
 **"Docker won't let Ferrodock in".**

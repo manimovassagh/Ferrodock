@@ -31,10 +31,9 @@ while idle. It's free and open source under the MIT License.
 
 ## Where Docker runs
 
-On **Apple Silicon Macs** and **Windows**, Ferrodock can run its own Docker
-engine, so there's nothing else to install. On **Linux** it uses your
-system's Docker engine. It also connects to any other Docker engine you
-already have, local or remote.
+On **Apple Silicon Macs**, **Windows** and **Linux**, Ferrodock can run its
+own Docker engine, so there's nothing else to install. It also connects
+to any other Docker engine you already have, local or remote.
 
 ## Next steps
 

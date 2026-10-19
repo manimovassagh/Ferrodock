@@ -321,7 +321,7 @@ const INSTALL = {
   },
   Linux: {
     cmd: "tar -xzf Ferrodock-<version>-linux-x64.tar.gz\n./ferrodock",
-    note: "x64. Uses your system's Docker Engine; your user needs access to its socket.",
+    note: "x64. Sets up its own Docker engine with one click (asks for your admin password once), or uses the one you have.",
   },
 };
 
