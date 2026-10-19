@@ -38,11 +38,6 @@ Verify downloads with `SHA256SUMS.txt`.
 {{ changelog }}
 """
 
-# The VM agent ships inside the engine image, not on its own.
-[[package]]
-name = "ferrodock-agent"
-release = false
-
 [changelog]
 # Group commits by their Conventional Commit type. Housekeeping commits
 # don't belong in the user-facing changelog.

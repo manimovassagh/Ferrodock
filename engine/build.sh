@@ -10,7 +10,7 @@
 # Usage: engine/build.sh <kernel Image> <modules dir> <agent binary> <out dir>
 #
 # The kernel is built by engine/kernel/build.sh, the agent with
-# `cargo build -p ferrodock-agent --release --target aarch64-unknown-linux-musl`.
+# `cargo build --manifest-path agent/Cargo.toml --release --target aarch64-unknown-linux-musl`.
 set -euo pipefail
 
 kernel=$1 modules=$2 agent=$3 out=$4
