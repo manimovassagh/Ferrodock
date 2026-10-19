@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.13.1](https://github.com/manimovassagh/Ferrodock/compare/v1.13.0...v1.13.1) - 2026-10-19
+
+### Fixed
+
+- ship engine/VERSION in the crate so crates.io publishing works
+
 ## [1.13.0](https://github.com/manimovassagh/Ferrodock/compare/v1.12.0...v1.13.0) - 2026-10-19
 
 ### Added
