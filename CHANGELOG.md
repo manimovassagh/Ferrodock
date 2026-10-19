@@ -7,6 +7,17 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.14.0](https://github.com/manimovassagh/Ferrodock/compare/v1.13.2...v1.14.0) - 2026-10-19
+
+### Added
+
+- the Windows engine trusts what Windows trusts
+- Ferrodock's own engine on Windows, in a WSL distro
+
+### Fixed
+
+- use as_chunks for wsl.exe's UTF-16 output (newer clippy)
+
 ## [1.13.1](https://github.com/manimovassagh/Ferrodock/compare/v1.13.0...v1.13.1) - 2026-10-19
 
 ### Fixed
