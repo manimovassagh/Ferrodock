@@ -7,6 +7,20 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.13.0](https://github.com/manimovassagh/Ferrodock/compare/v1.12.0...v1.13.0) - 2026-10-19
+
+### Added
+
+- Ferrodock's own engine on Apple Silicon Macs
+
+### Documentation
+
+- no other engine products named; lead with Ferrodock's own engine
+
+### Fixed
+
+- never name other products in the app; share the home folder on a read-only root
+
 ## [1.12.0](https://github.com/manimovassagh/Ferrodock/compare/v1.11.1...v1.12.0) - 2026-10-19
 
 ### Added
