@@ -11,6 +11,8 @@
 
 #[cfg(target_os = "linux")]
 mod bridge;
+#[cfg(target_os = "linux")]
+mod certs;
 mod config;
 #[cfg(target_os = "linux")]
 mod engine;
@@ -21,8 +23,15 @@ mod system;
 
 #[cfg(target_os = "linux")]
 fn main() {
-    if std::env::args().any(|a| a == "--stdio") {
+    let args: Vec<String> = std::env::args().collect();
+    if args.iter().any(|a| a == "--stdio") {
         unsafe_set_path();
+        // `--certs <file>`: what the host trusts, for the engine to trust.
+        if let Some(file) = args.iter().skip_while(|a| *a != "--certs").nth(1)
+            && let Err(e) = certs::add(std::path::Path::new(file))
+        {
+            log(&format!("certificates: {e}"));
+        }
         std::thread::spawn(|| {
             let output = std::io::stdout();
             stdio::run(

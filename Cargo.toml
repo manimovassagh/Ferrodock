@@ -56,6 +56,11 @@ block2 = "0.6.2"
 dispatch2 = "0.3.1"
 libc = "0.2.191"
 
+# Ferrodock's own engine on Windows: the certificates Windows trusts go
+# to the engine too.
+[target.'cfg(all(target_os = "windows", target_arch = "x86_64"))'.dependencies]
+rustls-native-certs = "0.8.5"
+
 [build-dependencies]
 winresource = "0.1.34"
 

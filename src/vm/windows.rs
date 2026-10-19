@@ -19,6 +19,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::windows::named_pipe::{NamedPipeServer, ServerOptions};
 use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
 
+use super::wsl::{decode, linux_path, pem};
 use super::{Paths, Resources, download, mux};
 
 const DISTRO: &str = "ferrodock";
@@ -34,20 +35,6 @@ const GRACE: Duration = Duration::from_secs(20);
 /// Where each connection's data from the engine goes; None once the
 /// engine has sent everything.
 type Connections = Arc<Mutex<HashMap<u32, UnboundedSender<Option<Vec<u8>>>>>>;
-
-/// wsl.exe's output: UTF-16 by default, UTF-8 when it honours WSL_UTF8.
-fn decode(bytes: &[u8]) -> String {
-    let utf16 = bytes.len() >= 2 && bytes.iter().skip(1).step_by(2).all(|b| *b == 0);
-    if utf16 {
-        let units: Vec<u16> = bytes
-            .chunks_exact(2)
-            .map(|c| u16::from_le_bytes([c[0], c[1]]))
-            .collect();
-        String::from_utf16_lossy(&units)
-    } else {
-        String::from_utf8_lossy(bytes).into_owned()
-    }
-}
 
 /// Runs `wsl.exe` with `args` and returns what it printed.
 fn wsl(args: &[&str]) -> Result<String, String> {
@@ -87,6 +74,19 @@ pub fn install(paths: &Paths, archive: &[u8]) -> Result<(), String> {
     result.map(drop)
 }
 
+/// Writes the certificates Windows trusts to a file the agent adds to the
+/// engine's own, so pulls work behind a proxy that inspects TLS, as on
+/// many company networks. Returns where the agent finds the file.
+fn trusted_certificates(paths: &Paths) -> Option<String> {
+    let found = rustls_native_certs::load_native_certs();
+    if found.certs.is_empty() {
+        return None;
+    }
+    let file = paths.dir.join("certs.pem");
+    std::fs::write(&file, pem(found.certs.iter().map(|c| c.as_ref()))).ok()?;
+    linux_path(&file)
+}
+
 /// The running engine: the agent's wsl.exe process and the named pipes.
 pub struct Running {
     child: Mutex<Child>,
@@ -102,8 +102,13 @@ impl Running {
         let _ = wsl(&["--terminate", DISTRO]);
         let log = std::fs::File::create(&paths.console)
             .map_err(|e| format!("{}: {e}", paths.console.display()))?;
+        let mut args = vec!["-d", DISTRO, "-u", "root", "--exec", AGENT, "--stdio"];
+        let certs = trusted_certificates(paths);
+        if let Some(certs) = &certs {
+            args.extend(["--certs", certs.as_str()]);
+        }
         let mut child = Command::new("wsl.exe")
-            .args(["-d", DISTRO, "-u", "root", "--exec", AGENT, "--stdio"])
+            .args(&args)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(log)
@@ -275,17 +280,4 @@ async fn serve(
         map.remove(&id);
     }
     let _ = to_agent.send(mux::encode(id, mux::CLOSE, b""));
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn reads_wsl_output_either_way() {
-        let utf16: Vec<u8> = "ferrodock\r\n"
-            .encode_utf16()
-            .flat_map(u16::to_le_bytes)
-            .collect();
-        assert_eq!(super::decode(&utf16), "ferrodock\r\n");
-        assert_eq!(super::decode(b"ferrodock\n"), "ferrodock\n");
-    }
 }

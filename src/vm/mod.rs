@@ -22,6 +22,8 @@ use macos as platform;
 mod mux;
 #[cfg(all(engine, windows))]
 mod windows;
+#[cfg(any(all(engine, windows), test))]
+mod wsl;
 #[cfg(all(engine, windows))]
 use windows as platform;
 
