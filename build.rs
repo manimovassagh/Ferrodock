@@ -3,14 +3,15 @@
 
 fn main() {
     println!("cargo:rerun-if-changed=assets/icon.ico");
-    // `cfg(engine)`: where Ferrodock runs its own Docker engine, in a VM
-    // on Apple Silicon Macs and in a WSL distro on Windows (x86_64).
+    // `cfg(engine)`: where Ferrodock runs its own Docker engine: in a VM
+    // on Apple Silicon Macs, in a WSL distro on Windows (x86_64), and as a
+    // system service on Linux (x86_64 and arm64).
     println!("cargo::rustc-check-cfg=cfg(engine)");
     let os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
     if matches!(
         (os.as_str(), arch.as_str()),
-        ("macos", "aarch64") | ("windows", "x86_64")
+        ("macos", "aarch64") | ("windows", "x86_64") | ("linux", "x86_64" | "aarch64")
     ) {
         println!("cargo::rustc-cfg=engine");
     }

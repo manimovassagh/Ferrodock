@@ -13,12 +13,16 @@ use sha2::{Digest, Sha256};
 /// The engine image this build of Ferrodock uses.
 pub const VERSION: &str = include_str!("../../engine/VERSION");
 
-/// The image for this platform: kernel and root disk for the Mac's VM, or
-/// a root filesystem for WSL.
+/// The image for this platform: kernel and root disk for the Mac's VM, a
+/// root filesystem for WSL, or the engine's programs for Linux.
 pub const ASSET: &str = if cfg!(windows) {
     "ferrodock-engine-wsl-amd64.tar.zst"
-} else {
+} else if cfg!(target_os = "macos") {
     "ferrodock-engine-arm64.tar.zst"
+} else if cfg!(target_arch = "aarch64") {
+    "ferrodock-engine-linux-arm64.tar.zst"
+} else {
+    "ferrodock-engine-linux-amd64.tar.zst"
 };
 
 fn base_url() -> String {
@@ -80,9 +84,10 @@ pub fn decompress(archive: &[u8], path: &Path) -> Result<(), String> {
 }
 
 /// Unpacks the zstd-compressed tar into `dir`, replacing what's there
-/// only once everything is out (the Mac's kernel and root disk).
+/// only once everything is out, and `needs` is there (the Mac's kernel
+/// and root disk, or Linux's engine programs).
 #[cfg_attr(windows, allow(dead_code))]
-pub fn unpack(archive: &[u8], dir: &Path) -> Result<(), String> {
+pub fn unpack(archive: &[u8], dir: &Path, needs: &[&str]) -> Result<(), String> {
     let staging = dir.with_extension("new");
     let _ = std::fs::remove_dir_all(&staging);
     std::fs::create_dir_all(&staging).map_err(|e| e.to_string())?;
@@ -90,7 +95,7 @@ pub fn unpack(archive: &[u8], dir: &Path) -> Result<(), String> {
     tar::Archive::new(decoder)
         .unpack(&staging)
         .map_err(|e| format!("Couldn't unpack the engine: {e}"))?;
-    for file in ["kernel", "rootfs.img"] {
+    for file in needs {
         if !staging.join(file).is_file() {
             return Err(format!("The engine image has no {file}"));
         }
@@ -137,7 +142,7 @@ mod tests {
         // What a previous version left is replaced.
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("old"), "old").unwrap();
-        unpack(&archive, &dir).unwrap();
+        unpack(&archive, &dir, &["kernel", "rootfs.img"]).unwrap();
         assert_eq!(std::fs::read(dir.join("kernel")).unwrap(), b"kernel image");
         assert_eq!(std::fs::read(dir.join("rootfs.img")).unwrap(), b"root disk");
         assert!(!dir.join("old").exists());
@@ -160,7 +165,8 @@ mod tests {
                     &b""[..],
                     ruzstd::encoding::CompressionLevel::Fastest
                 ),
-                &dir
+                &dir,
+                &["kernel"]
             )
             .is_err()
         );

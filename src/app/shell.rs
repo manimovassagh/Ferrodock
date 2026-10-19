@@ -211,9 +211,14 @@ pub fn disconnected(
                     }
                     ui.add_space(6.0);
                     ui.label(
-                        RichText::new("Downloads about 200 MB once, then starts in seconds.")
-                            .size(12.0)
-                            .color(p.muted),
+                        RichText::new(if cfg!(target_os = "linux") {
+                            "Downloads about 70 MB once and asks for your admin password, \
+                             then starts with your computer."
+                        } else {
+                            "Downloads about 120 MB once, then starts in seconds."
+                        })
+                        .size(12.0)
+                        .color(p.muted),
                     );
                     ui.add_space(16.0);
                 }

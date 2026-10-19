@@ -1,9 +1,10 @@
 # Ferrodock engine: what's inside
 
-Ferrodock's engine is a small Linux system: a VM image for Apple Silicon
-Macs (`ferrodock-engine-arm64`) and a WSL distro for Windows
-(`ferrodock-engine-wsl-amd64`). Everything in it is free and open source
-software. Anyone may use it for any purpose, at no cost,
+Ferrodock's engine is the Docker engine, packed for each platform: a small
+Linux VM image for Apple Silicon Macs (`ferrodock-engine-arm64`), a WSL
+distro for Windows (`ferrodock-engine-wsl-amd64`), and the engine's own
+programs for Linux (`ferrodock-engine-linux-amd64`, `-arm64`). Everything
+in it is free and open source software. Anyone may use it for any purpose, at no cost,
 including in companies and enterprises. No license, subscription or sign-up
 is needed.
 
@@ -15,7 +16,8 @@ is needed.
 | Alpine Linux base system (BusyBox, musl, iptables, e2fsprogs and others) | Each package's own license (GPL-2.0, MIT, BSD and similar) | https://pkgs.alpinelinux.org and https://gitlab.alpinelinux.org/alpine/aports |
 
 The Docker Engine parts and the Alpine base come from the official
-`docker:dind` image (arm64 for the Mac, amd64 for Windows), unmodified.
+`docker:dind` image (arm64 for the Mac, amd64 for Windows), unmodified. The
+Linux image has only the Docker Engine programs from that same image.
 `packages.txt` lists every Alpine package in an image with its version and
 license. It ships with each release as `ferrodock-engine-arm64.packages.txt`
 and `ferrodock-engine-wsl-amd64.packages.txt`, and inside each image at
