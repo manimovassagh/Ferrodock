@@ -35,7 +35,7 @@ tar = "0.4.46"
 vt100 = "0.16.2"
 ureq = "3.4.2"
 ruzstd = "0.9.1"
-tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros", "time", "fs", "process", "io-util"] }
+tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros", "time", "fs", "process", "io-util", "net", "sync"] }
 
 # Contexts over SSH run the system's ssh, which bollard supports on Unix.
 [target.'cfg(unix)'.dependencies]

@@ -52,6 +52,9 @@ Installed with Homebrew? Nothing to do: the cask allows the app for you.
 1. Download `Ferrodock-<version>-windows-x64.zip` and unzip it.
 2. Run **Ferrodock.exe**. If SmartScreen appears, choose
    **More info → Run anyway**.
+3. Click **Set up Ferrodock's engine**. Ferrodock runs Docker in WSL,
+   which is part of Windows. If WSL isn't turned on yet, run
+   `wsl --install` once in a terminal opened as administrator, and restart.
 
 ### Linux
 

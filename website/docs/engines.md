@@ -5,9 +5,9 @@ title: Connecting to Docker
 
 # Connecting to Docker
 
-On Apple Silicon Macs, Ferrodock can run its own engine, so there is
-nothing else to install. Otherwise it connects to any Docker engine you
-already run.
+On Apple Silicon Macs and on Windows, Ferrodock can run its own engine,
+so there is nothing else to install. It also connects to any Docker
+engine you already run.
 
 Ferrodock connects to the platform's default Docker endpoint:
 

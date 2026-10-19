@@ -11,7 +11,15 @@ use std::thread;
 
 pub use machine::Machine;
 
-use super::{Paths, Resources};
+use super::{Paths, Resources, download};
+
+/// Size of the data disk (sparse: it only takes what's used).
+const DATA_DISK: u64 = 128 * 1024 * 1024 * 1024;
+
+/// Unpacks the downloaded image: the kernel and the root disk.
+pub fn install(paths: &Paths, archive: &[u8]) -> Result<(), String> {
+    download::unpack(archive, &paths.image)
+}
 
 /// Copies one way, then tells the other side nothing more comes.
 fn pipe(mut from: UnixStream, mut to: UnixStream) {
@@ -47,6 +55,11 @@ pub struct Running {
 impl Running {
     /// Boots the VM and opens `paths.socket` for Docker clients.
     pub fn start(paths: &Paths, resources: &Resources) -> Result<Self, String> {
+        if !paths.data.exists() {
+            std::fs::File::create(&paths.data)
+                .and_then(|f| f.set_len(DATA_DISK))
+                .map_err(|e| format!("{}: {e}", paths.data.display()))?;
+        }
         let machine = Arc::new(Machine::new(paths, resources)?);
         machine.start()?;
         // A socket left from a run that didn't end cleanly.
