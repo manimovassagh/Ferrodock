@@ -201,21 +201,21 @@ impl EngineStarter {
                 },
             };
         }
-        let name = || {
-            Self::starter(store, settings)
-                .map(|s| s.name())
-                .unwrap_or_else(|| "Docker".into())
-        };
+        self.app_offer(Self::starter(store, settings))
+    }
+
+    /// What to offer when the engine's own app or service starts it.
+    fn app_offer(&self, starter: Option<Starter>) -> Offer {
         if let Some((_, name)) = &self.started {
             return Offer::Starting(name.clone());
         }
         if let Some(error) = &self.error {
             return Offer::Failed {
-                name: name(),
+                name: starter.map_or_else(|| "Docker".into(), |s| s.name()),
                 error: error.clone(),
             };
         }
-        match Self::starter(store, settings) {
+        match starter {
             Some(starter) => Offer::Start(starter.name()),
             None => Offer::Nothing,
         }
@@ -236,16 +236,39 @@ mod tests {
             tried_at_launch: false,
             provider_checked: false,
         };
-        let store = Store::new();
-        let settings = Settings::default();
         assert_eq!(
-            starter.offer(&store, &settings),
+            starter.app_offer(None),
             Offer::Starting("the Docker engine".into())
         );
         starter.finished(Err("no VM".into()));
         assert!(matches!(
-            starter.offer(&store, &settings),
+            starter.app_offer(None),
             Offer::Failed { error, .. } if error == "no VM"
         ));
+        starter.error = None;
+        assert_eq!(
+            starter.app_offer(Some(Starter::Service)),
+            Offer::Start("the Docker service".into())
+        );
+    }
+
+    /// With no other engine to start, Ferrodock offers its own where it
+    /// has one.
+    #[test]
+    fn offers_its_own_engine_when_there_is_nothing_else() {
+        let starter = EngineStarter {
+            builtin: vm::Engine::new(),
+            repaint: None,
+            started: None,
+            error: None,
+            tried_at_launch: false,
+            provider_checked: false,
+        };
+        let offer = starter.offer(&Store::new(), &Settings::default());
+        if vm::SUPPORTED {
+            assert!(matches!(offer, Offer::SetUp | Offer::Start(_)), "{offer:?}");
+        } else {
+            assert_eq!(offer, Offer::Nothing);
+        }
     }
 }

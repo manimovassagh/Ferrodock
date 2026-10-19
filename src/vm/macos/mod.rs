@@ -18,7 +18,7 @@ const DATA_DISK: u64 = 128 * 1024 * 1024 * 1024;
 
 /// Unpacks the downloaded image: the kernel and the root disk.
 pub fn install(paths: &Paths, archive: &[u8]) -> Result<(), String> {
-    download::unpack(archive, &paths.image)
+    download::unpack(archive, &paths.image, &["kernel", "rootfs.img"])
 }
 
 /// Copies one way, then tells the other side nothing more comes.

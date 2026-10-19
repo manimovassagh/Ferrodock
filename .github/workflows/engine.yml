@@ -3,8 +3,9 @@ name: Engine
 # Builds Ferrodock's engine images: for Apple Silicon, our arm64 kernel,
 # the Docker engine and ferrodock-agent, packed as kernel + rootfs.img (on
 # a native arm64 runner, so nothing is emulated); for Windows, the Docker
-# engine and ferrodock-agent as a root filesystem WSL imports. Then
-# publishes both, once per engine/VERSION.
+# engine and ferrodock-agent as a root filesystem WSL imports; for Linux,
+# the Docker engine's programs (amd64 and arm64). Then publishes them all,
+# once per engine/VERSION.
 
 on:
   push:
@@ -102,21 +103,48 @@ jobs:
             ferrodock-engine-wsl-amd64.tar.zst.sha256
             ferrodock-engine-wsl-amd64.packages.txt
 
+  linux:
+    name: Build the engine image (Linux, ${{ matrix.arch }})
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Tools
+        run: sudo apt-get update && sudo apt-get install -y zstd
+      - name: Image
+        run: |
+          engine/linux/build.sh ${{ matrix.arch }} out
+          mv out/ferrodock-engine-linux-${{ matrix.arch }}.tar.zst .
+          sha256sum ferrodock-engine-linux-${{ matrix.arch }}.tar.zst | tee ferrodock-engine-linux-${{ matrix.arch }}.tar.zst.sha256
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ferrodock-engine-linux-${{ matrix.arch }}
+          path: |
+            ferrodock-engine-linux-${{ matrix.arch }}.tar.zst
+            ferrodock-engine-linux-${{ matrix.arch }}.tar.zst.sha256
+
   # Ferrodock downloads the image of the version in engine/VERSION from
   # the release engine-v<version>. A pre-release, so it never shows as the
   # app's latest release (the updater and Homebrew use that).
   publish:
     name: Publish (main only, once per version)
     if: github.event_name != 'pull_request'
-    needs: [image, wsl]
+    needs: [image, wsl, linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v7
+      # Not "assets": that's the app's own folder in the repository.
       - uses: actions/download-artifact@v8
         with:
-          path: assets
+          path: engine-release
           merge-multiple: true
       - name: Publish
         env:
@@ -124,7 +152,7 @@ jobs:
         run: |
           version=$(tr -d '[:space:]' < engine/VERSION)
           tag="engine-v$version"
-          cd assets
+          cd engine-release
           if gh release view "$tag" >/dev/null 2>&1; then
             # Already out: only add what it doesn't have yet. The images
             # themselves never change once published.
@@ -135,6 +163,6 @@ jobs:
           else
             gh release create "$tag" --prerelease --latest=false \
               --title "Ferrodock engine $version" \
-              --notes "The images of Ferrodock's own Docker engine: a Linux VM for Apple Silicon Macs (arm64) and a WSL distro for Windows (wsl-amd64). Ferrodock downloads the one it needs by itself; there's no need to get them by hand. Built from engine/ and agent/ at ${{ github.sha }}. Free and open source: see NOTICE.md for what's inside, its licenses and sources." \
+              --notes "The images of Ferrodock's own Docker engine: a Linux VM for Apple Silicon Macs (arm64), a WSL distro for Windows (wsl-amd64), and the Docker engine's programs for Linux (linux-amd64, linux-arm64). Ferrodock downloads the one it needs by itself; there's no need to get them by hand. Built from engine/ and agent/ at ${{ github.sha }}. Free and open source: see NOTICE.md for what's inside, its licenses and sources." \
               *
           fi

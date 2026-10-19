@@ -8,12 +8,19 @@
 //!   `%LOCALAPPDATA%\Ferrodock`. Ferrodock carries the engine's socket
 //!   over the distro's standard input and output, and offers it as the
 //!   named pipe `\\.\pipe\ferrodock_engine`.
+//! - On Linux, where Docker runs natively, it's the Docker engine as a
+//!   system service, `ferrodock-engine`, set up once with the user's
+//!   admin password. Its socket is `/run/ferrodock/docker.sock`.
 //!
 //! The image (built in this repository's `engine/`) is downloaded on
 //! first use.
 
 #[cfg(any(engine, test))]
 pub mod download;
+#[cfg(all(engine, target_os = "linux"))]
+mod linux;
+#[cfg(all(engine, target_os = "linux"))]
+use linux as platform;
 #[cfg(all(engine, target_os = "macos"))]
 mod macos;
 #[cfg(all(engine, target_os = "macos"))]
@@ -32,6 +39,11 @@ use std::sync::{Arc, Mutex};
 
 /// How the engine shows up in the engine list.
 pub const NAME: &str = "Ferrodock";
+/// Linux: where the engine's programs are installed, its service and its
+/// socket.
+pub const LINUX_PROGRAMS: &str = "/opt/ferrodock/engine/bin";
+pub const LINUX_SERVICE: &str = "/etc/systemd/system/ferrodock-engine.service";
+pub const LINUX_SOCKET: &str = "/run/ferrodock/docker.sock";
 /// The virtiofs tag the home folder is shared under.
 #[cfg(all(engine, target_os = "macos"))]
 pub const SHARE_TAG: &str = "home";
@@ -88,6 +100,12 @@ impl Paths {
         if cfg!(windows) {
             return self.distro.join("ext4.vhdx").is_file();
         }
+        if cfg!(target_os = "linux") {
+            return std::path::Path::new(LINUX_SERVICE).is_file()
+                && std::path::Path::new(LINUX_PROGRAMS)
+                    .join("dockerd")
+                    .is_file();
+        }
         self.kernel.is_file() && self.rootfs.is_file()
     }
 
@@ -95,6 +113,9 @@ impl Paths {
     pub fn host(&self) -> String {
         if cfg!(windows) {
             return PIPE.into();
+        }
+        if cfg!(target_os = "linux") {
+            return format!("unix://{LINUX_SOCKET}");
         }
         format!("unix://{}", self.socket.display())
     }
@@ -191,7 +212,7 @@ impl Engine {
             Self::set(
                 &self.state,
                 State::Failed(
-                    "Ferrodock's engine needs a Mac with Apple Silicon or Windows".into(),
+                    "Ferrodock's engine needs a Mac with Apple Silicon, Windows or Linux".into(),
                 ),
             );
             return;
@@ -280,7 +301,12 @@ mod tests {
     #[cfg(unix)]
     fn keeps_everything_in_one_folder() {
         let paths = Paths::under(PathBuf::from("/Users/me/.ferrodock"));
-        assert_eq!(paths.host(), "unix:///Users/me/.ferrodock/docker.sock");
+        let host = if cfg!(target_os = "linux") {
+            "unix:///run/ferrodock/docker.sock"
+        } else {
+            "unix:///Users/me/.ferrodock/docker.sock"
+        };
+        assert_eq!(paths.host(), host);
         assert_eq!(
             paths.kernel,
             PathBuf::from("/Users/me/.ferrodock/engine/kernel")
