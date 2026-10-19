@@ -5,16 +5,11 @@ title: Installation
 
 # Installation
 
-On Apple Silicon Macs, Ferrodock can run its own engine, so there is
-nothing else to install. Otherwise it connects to any Docker engine you
-already run, such as a native `dockerd`.
-
-## Download a release
-
-Get the latest build from the
+Ferrodock runs on macOS 11 or newer (Apple Silicon and Intel), Windows 10
+and 11 (x64), and Linux (x64). Downloads are on the
 [Releases page](https://github.com/manimovassagh/Ferrodock/releases/latest).
 
-### macOS
+## macOS
 
 The quickest way is [Homebrew](https://brew.sh):
 
@@ -23,12 +18,10 @@ brew tap manimovassagh/ferrodock https://github.com/manimovassagh/Ferrodock
 brew install --cask ferrodock
 ```
 
-`brew upgrade --cask ferrodock` picks up new releases. To install by hand
-instead:
+To install by hand instead:
 
 1. Download `Ferrodock-<version>-macos-universal.dmg` (a `.zip` is also
-   available). It runs natively on both Apple Silicon and Intel Macs,
-   macOS 11 or newer.
+   available). One app runs natively on both Apple Silicon and Intel.
 2. Open the DMG and drag **Ferrodock.app** to **Applications**.
 3. Ferrodock isn't notarized by Apple yet, so macOS blocks the first launch.
    Allow it once, either from a terminal:
@@ -43,11 +36,15 @@ instead:
 
 On macOS 14 and older, **right-click the app → Open** also works. If macOS
 says the app "is damaged", run the `xattr` command above; it means the same
-thing.
+thing. Installed with Homebrew? Nothing to do: the cask allows the app for
+you.
 
-Installed with Homebrew? Nothing to do: the cask allows the app for you.
+**Docker engine:** on an Apple Silicon Mac, click **Set up Ferrodock's
+engine** on first launch. See [Ferrodock's own engine](./engine.md). On an
+Intel Mac, Ferrodock connects to a Docker engine you already run; see
+[Connecting to other engines](./engines.md).
 
-### Windows
+## Windows
 
 1. Download `Ferrodock-<version>-windows-x64.zip` and unzip it.
 2. Run **Ferrodock.exe**. If SmartScreen appears, choose
@@ -56,15 +53,39 @@ Installed with Homebrew? Nothing to do: the cask allows the app for you.
    which is part of Windows. If WSL isn't turned on yet, run
    `wsl --install` once in a terminal opened as administrator, and restart.
 
-### Linux
+More in [Ferrodock's own engine](./engine.md#windows).
+
+## Linux
 
 ```bash
 tar -xzf Ferrodock-<version>-linux-x64.tar.gz
 ./ferrodock
 ```
 
-Your user needs access to the Docker socket, usually by being in the `docker`
-group.
+On Linux, Ferrodock uses your system's Docker engine. Install Docker Engine
+from your distribution or from
+[docs.docker.com](https://docs.docker.com/engine/install/), and make sure
+your user may use it, usually by being in the `docker` group:
+
+```bash
+sudo usermod -aG docker $USER   # then log out and back in
+```
+
+If the engine isn't running when Ferrodock opens, Ferrodock starts the
+`docker` service for you (it may ask for your password).
+
+## Check your download
+
+Every release has a `SHA256SUMS.txt`. Run this in the folder you downloaded
+to:
+
+```bash
+shasum -a 256 -c SHA256SUMS.txt --ignore-missing   # macOS
+sha256sum -c SHA256SUMS.txt --ignore-missing       # Linux
+```
+
+On Windows, run `Get-FileHash .\Ferrodock-<version>-windows-x64.zip` in
+PowerShell and compare the hash with the line in `SHA256SUMS.txt`.
 
 ## Build from source
 
@@ -80,25 +101,26 @@ cd Ferrodock
 cargo run --release
 ```
 
-On macOS, `packaging/macos/bundle.sh` builds a universal `Ferrodock.app` in
+`cargo install ferrodock` installs the latest release from crates.io. On
+macOS, `packaging/macos/bundle.sh` builds a universal `Ferrodock.app` in
 `dist/`.
 
 ## Updating
 
-Ferrodock checks for a new version when it starts. When one is available,
-**Update to x.y.z** appears at the bottom of the sidebar. Hover it for the
-release notes, and click it to update:
+Ferrodock checks for new versions itself and updates in one click. See
+[Updates and releases](./releases.md).
 
-1. The new build for your platform downloads in the background.
-2. It's checked against the release's `SHA256SUMS.txt`, and refused if
-   anything doesn't match.
-3. It replaces the installed app in place (the whole `Ferrodock.app` on
-   macOS).
-4. Click **Restart to update** to switch to it.
+## Uninstalling
 
-You can also check by hand, or turn the automatic check off, in
-**Settings → Updates**. Ferrodock only ever offers stable releases, never
-pre-releases.
+If you turned on **Open Ferrodock when you log in**, turn it off in
+Settings first. Then:
 
-If you installed with Homebrew, `brew upgrade --cask ferrodock` works too.
+- **macOS:** quit Ferrodock and move **Ferrodock.app** to the Trash, or run
+  `brew uninstall --cask ferrodock`.
+- **Windows:** quit Ferrodock (from its icon in the notification area) and
+  delete the folder you unzipped it to.
+- **Linux:** delete the `ferrodock` executable.
 
+If you set up Ferrodock's own engine, it keeps its images, containers and
+volumes separately. [Removing the engine](./engine.md#removing-the-engine)
+explains how to delete them too.

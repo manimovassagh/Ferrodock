@@ -1,50 +1,38 @@
 ---
-sidebar_position: 7
+sidebar_position: 9
 title: Contributing
 ---
 
 # Contributing
 
-Bug reports, ideas and pull requests are welcome. Open an issue on
-[GitHub](https://github.com/manimovassagh/Ferrodock/issues/new/choose).
+Ferrodock is open source, and bug reports, ideas and pull requests are
+welcome.
 
-## Checks
+- **Found a bug or have an idea?**
+  [Open an issue](https://github.com/manimovassagh/Ferrodock/issues/new/choose).
+  For bugs, include your OS, your Docker engine and the Ferrodock version.
+- **Want to change something?** The
+  [contributing guide](https://github.com/manimovassagh/Ferrodock/blob/main/CONTRIBUTING.md)
+  covers the development setup, the checks CI runs, the code layout and how
+  to title pull requests.
+- **Found a security issue?** Please report it privately, as described in
+  [SECURITY.md](https://github.com/manimovassagh/Ferrodock/blob/main/SECURITY.md).
 
-CI runs these on every pull request:
+To work on Ferrodock you need [Rust](https://rustup.rs) 1.95 or newer:
 
 ```bash
-cargo fmt --check
-cargo clippy --all-targets -- -D warnings
-cargo test
+git clone https://github.com/manimovassagh/Ferrodock.git
+cd Ferrodock
+cargo run
 ```
 
-`cargo test -- --include-ignored` also runs the tests that talk to your local
-Docker Engine.
+## Improving these docs
 
-## Guidelines
-
-- Keep modules focused on one job. Pages never talk to Docker directly.
-- Anything that deletes data must ask for confirmation first.
-- Add unit tests for logic that isn't pure drawing.
-- Title pull requests with [Conventional Commits](https://www.conventionalcommits.org)
-  (`feat: …`, `fix: …`). PRs are squash-merged, and the title becomes the
-  changelog entry.
-
-## Releases
-
-Releases are automated. release-plz keeps a release PR open with the next
-version and changelog. Merging it tags the release, builds every platform,
-attaches the binaries and checksums, and publishes it. See
-[RELEASING.md](https://github.com/manimovassagh/Ferrodock/blob/main/RELEASING.md).
-
-See [CONTRIBUTING.md](https://github.com/manimovassagh/Ferrodock/blob/main/CONTRIBUTING.md)
-for the full guide.
-
-## Building these docs
+The site lives in the `website/` folder of the repository, and every page
+has an **Edit this page** link at the bottom. To preview your changes:
 
 ```bash
 cd website
 npm ci
 npm start        # live preview at http://localhost:3000/Ferrodock/
-npm run build    # static site in website/build
 ```
