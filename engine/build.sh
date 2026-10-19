@@ -48,6 +48,14 @@ echo 'RESOLV_CONF="/run/resolv.conf"' >"$root/etc/udhcpc/udhcpc.conf"
 echo ferrodock >"$root/etc/hostname"
 mkdir -p "$root/data" "$root/Users" "$root/var/lib/docker" "$root/var/lib/containerd"
 
+echo "==> notice and package list"
+mkdir -p "$root/usr/share/ferrodock"
+cp "$(dirname "$0")/NOTICE.md" "$root/usr/share/ferrodock/NOTICE.md"
+# Every Alpine package in the image, with its version and license.
+awk -F: '/^P:/{p=$2} /^V:/{v=$2} /^L:/{print p, v, $2}' \
+    "$root/lib/apk/db/installed" | sort >"$out/packages.txt"
+cp "$out/packages.txt" "$root/usr/share/ferrodock/packages.txt"
+
 echo "==> rootfs.img"
 size_mb=$(($(du -sm "$root" | cut -f1) * 13 / 10 + 64))
 rm -f "$out/rootfs.img"

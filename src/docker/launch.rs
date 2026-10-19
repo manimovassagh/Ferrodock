@@ -14,14 +14,8 @@ use std::process::Command;
 pub enum Starter {
     /// A macOS app (its `.app` folder), opened in the background.
     App(PathBuf),
-    /// `colima start` for a Colima profile.
-    Colima { binary: PathBuf, profile: String },
-    /// A program to launch (the engine's app on Windows).
-    Program(PathBuf),
     /// The `docker` system service (Linux).
     Service,
-    /// The engine app's user service (Linux).
-    UserService,
 }
 
 impl Starter {
@@ -35,7 +29,7 @@ impl Starter {
     }
 
     /// Starts it. Returns once it's asked to start; the engine may take a
-    /// while longer to answer (Colima waits until its VM is up).
+    /// while longer to answer.
     pub fn run(&self) -> Result<(), String> {
         let status = |command: &mut Command| {
             command.status().map_err(|e| e.to_string()).and_then(|s| {
@@ -47,66 +41,17 @@ impl Starter {
         let result = match self {
             // -g: don't bring it to the front; -j: launch it hidden.
             Starter::App(app) => status(Command::new("/usr/bin/open").arg("-gj").arg(app)),
-            Starter::Colima { binary, profile } => {
-                let mut command = Command::new(binary);
-                command.args(["start", "--profile", profile]);
-                // Colima calls Lima and docker, which live next to it.
-                if let Some(dir) = binary.parent() {
-                    command.env("PATH", with_path(dir));
-                }
-                status(&mut command)
-            }
-            Starter::Program(program) => Command::new(program)
-                .spawn()
-                .map(drop)
-                .map_err(|e| e.to_string()),
             Starter::Service => status(Command::new("systemctl").args(["start", "docker"]))
                 // Without permission, ask for it the graphical way.
                 .or_else(|_| status(Command::new("pkexec").args(["systemctl", "start", "docker"]))),
-            Starter::UserService => {
-                status(Command::new("systemctl").args(["--user", "start", "docker-desktop"]))
-            }
         };
         result.map_err(|e| format!("Couldn't start {}: {e}", self.name()))
     }
 }
 
-/// `PATH` with `dir` in front.
-fn with_path(dir: &Path) -> std::ffi::OsString {
-    let mut paths = vec![dir.to_path_buf()];
-    if let Some(path) = std::env::var_os("PATH") {
-        paths.extend(std::env::split_paths(&path));
-    }
-    std::env::join_paths(paths).unwrap_or_default()
-}
-
 /// The socket file of a `unix://` host.
 fn socket_path(host: &str) -> Option<PathBuf> {
     host.strip_prefix("unix://").map(PathBuf::from)
-}
-
-/// The Colima profile whose socket `host` is, if it is one.
-fn colima_profile(host: &str) -> Option<String> {
-    let path = socket_path(host)?;
-    let mut parts = path.components().rev().skip(1);
-    let profile = parts.next()?.as_os_str().to_string_lossy().into_owned();
-    let parent = parts.next()?.as_os_str().to_string_lossy().into_owned();
-    (parent == ".colima").then_some(profile)
-}
-
-/// The first of `names` found in the usual install folders or on `PATH`.
-/// Apps started from the Dock don't get the shell's `PATH`, so Homebrew's
-/// folders are checked by hand.
-fn find_binary(name: &str) -> Option<PathBuf> {
-    let mut dirs = vec![
-        PathBuf::from("/opt/homebrew/bin"),
-        PathBuf::from("/usr/local/bin"),
-        PathBuf::from("/usr/bin"),
-    ];
-    if let Some(path) = std::env::var_os("PATH") {
-        dirs.extend(std::env::split_paths(&path));
-    }
-    dirs.into_iter().map(|d| d.join(name)).find(|p| p.is_file())
 }
 
 /// What an app or folder name boils down to for matching:
@@ -160,33 +105,16 @@ fn app_named(hints: &[String]) -> Option<PathBuf> {
 /// context) on this machine. `remembered` is the app found by
 /// [`provider_app`] while it was last running.
 pub fn starter(host: &str, engine: &str, remembered: Option<&str>) -> Option<Starter> {
-    if let Some(profile) = colima_profile(host) {
-        return find_binary("colima").map(|binary| Starter::Colima { binary, profile });
-    }
     if cfg!(target_os = "macos") {
         let remembered = remembered.map(PathBuf::from).filter(|app| app.is_dir());
-        if let Some(app) = remembered.or_else(|| app_named(&hints(host, engine))) {
-            return Some(Starter::App(app));
-        }
-        return find_binary("colima").map(|binary| Starter::Colima {
-            binary,
-            profile: "default".into(),
-        });
+        return remembered
+            .or_else(|| app_named(&hints(host, engine)))
+            .map(Starter::App);
     }
     if cfg!(windows) {
-        let base = std::env::var_os("ProgramFiles")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from(r"C:\Program Files"));
-        let program = base.join(r"Docker\Docker\Docker Desktop.exe");
-        return program.is_file().then_some(Starter::Program(program));
+        return None;
     }
-    // Linux: the engine app's user service, or the system service.
-    let user_app = std::env::var_os("HOME")
-        .map(|h| PathBuf::from(h).join(".docker/desktop"))
-        .is_some_and(|p| p.is_dir());
-    if user_app && host.contains(".docker/desktop") {
-        return Some(Starter::UserService);
-    }
+    // Linux: the system service.
     let units = [
         "/etc/systemd/system/docker.service",
         "/lib/systemd/system/docker.service",
@@ -235,7 +163,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn finds_the_app_and_colima_profile() {
+    fn finds_the_app() {
         assert_eq!(
             outermost_app(Path::new(
                 "/Applications/Some Engine.app/Contents/Frameworks/Helper.app/Contents/MacOS/helper"
@@ -243,11 +171,6 @@ mod tests {
             Some(Path::new("/Applications/Some Engine.app"))
         );
         assert_eq!(outermost_app(Path::new("/usr/bin/dockerd")), None);
-        assert_eq!(
-            colima_profile("unix:///Users/me/.colima/work/docker.sock").as_deref(),
-            Some("work")
-        );
-        assert_eq!(colima_profile("unix:///var/run/docker.sock"), None);
         let app = Starter::App(PathBuf::from("/Applications/Some Engine.app"));
         assert_eq!(app.name(), "the Docker engine");
         assert_eq!(normalized("Some Engine.app"), normalized(".some-engine"));

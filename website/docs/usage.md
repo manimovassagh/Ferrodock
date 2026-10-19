@@ -323,15 +323,16 @@ The list has:
 - **default**, and every **Docker context** (`docker context ls`), whether
   it uses a local socket, a remote `tcp://` host with TLS, or `ssh://`
   (macOS and Linux).
-- Your Docker contexts and other local engines it finds on this machine
-  (shown as **Local engine**).
+- **Ferrodock**, its own engine (Apple Silicon Macs), once it's set up.
+- A Docker socket in `~/.docker/run`, if there is one (shown as **Local
+  engine**).
 
 ### Ferrodock's own engine
 
 On a Mac with Apple Silicon, Ferrodock can run Docker by itself, with
 nothing else installed. When it finds no engine, click **Set up
 Ferrodock's engine**. It downloads a small Linux VM with the Docker engine
-once (about 200 MB), then starts it through Apple's own virtualization, at
+once (about 120 MB), then starts it through Apple's own virtualization, at
 native speed. From then on it starts with Ferrodock.
 
 - Everything lives in `~/.ferrodock`: the engine image, its data disk
@@ -350,7 +351,6 @@ When Ferrodock opens and the engine isn't running, it starts it for you
 
 - **macOS**: the app that runs your engine (Ferrodock recognises it from
   the engine's Docker context or socket, or remembers it from last time).
-- **Windows**: the engine's app.
 - **Linux**: the `docker` service (it may ask for your password).
 
 If Ferrodock finds no engine at all, it offers its own on Apple Silicon

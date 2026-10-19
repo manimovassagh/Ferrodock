@@ -1,6 +1,6 @@
-//! Docker engines to connect to: the Docker CLI's contexts, plus the
-//! sockets of engines found on this machine (listed as "Local engine",
-//! never by product name).
+//! Docker engines to connect to: Ferrodock's own, the Docker CLI's
+//! contexts, and a Docker socket found in the user's Docker folder (listed
+//! as "Local engine").
 
 use std::path::{Path, PathBuf};
 
@@ -118,35 +118,18 @@ fn contexts(dir: &Path, current: &str) -> Vec<Engine> {
     list
 }
 
-/// Sockets of other engines, where they exist.
+/// The Docker socket in the user's own Docker folder, if there's one.
 fn detected(home: &Path) -> Vec<Engine> {
-    let mut sockets: Vec<PathBuf> = vec![
-        home.join(".docker/run/docker.sock"),
-        home.join(".rd/docker.sock"),
-        home.join(".local/share/containers/podman/machine/podman.sock"),
-    ];
-    // Some engines keep one folder per profile.
-    if let Ok(profiles) = std::fs::read_dir(home.join(".colima")) {
-        sockets.extend(profiles.flatten().map(|p| p.path().join("docker.sock")));
+    let socket = home.join(".docker/run/docker.sock");
+    if !socket.exists() {
+        return Vec::new();
     }
-    if let Some(runtime) = std::env::var_os("XDG_RUNTIME_DIR") {
-        sockets.push(PathBuf::from(runtime).join("podman/podman.sock"));
-    }
-    sockets
-        .into_iter()
-        .filter(|path| path.exists())
-        .enumerate()
-        .map(|(i, path)| Engine {
-            name: if i == 0 {
-                "Local engine".into()
-            } else {
-                format!("Local engine {}", i + 1)
-            },
-            host: format!("unix://{}", path.display()),
-            tls: None,
-            current: false,
-        })
-        .collect()
+    vec![Engine {
+        name: "Local engine".into(),
+        host: format!("unix://{}", socket.display()),
+        tls: None,
+        current: false,
+    }]
 }
 
 /// Every engine to offer: the default, the CLI's contexts, and detected
@@ -228,7 +211,7 @@ mod tests {
         std::fs::create_dir_all(&meta).unwrap();
         std::fs::write(
             meta.join("meta.json"),
-            r#"{"Name":"colima","Endpoints":{"docker":{"Host":"unix:///x/docker.sock"}}}"#,
+            r#"{"Name":"work","Endpoints":{"docker":{"Host":"unix:///x/docker.sock"}}}"#,
         )
         .unwrap();
         let remote = dir.join("contexts/meta/def456");
@@ -245,21 +228,21 @@ mod tests {
         }
         let list = contexts(&dir, "prod");
         assert_eq!(list.len(), 2);
-        assert_eq!(list[0].name, "colima");
-        assert!(list[0].tls.is_none() && !list[0].current);
-        assert!(list[1].tls.is_some() && list[1].current);
+        assert_eq!(list[0].name, "prod");
+        assert!(list[0].tls.is_some() && list[0].current);
+        assert!(list[1].tls.is_none() && !list[1].current);
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
     fn detects_sockets() {
         let home = temp("home");
-        std::fs::create_dir_all(home.join(".colima/work")).unwrap();
-        std::fs::write(home.join(".colima/work/docker.sock"), "").unwrap();
+        std::fs::create_dir_all(home.join(".docker/run")).unwrap();
+        std::fs::write(home.join(".docker/run/docker.sock"), "").unwrap();
         let found = detected(&home);
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].name, "Local engine");
-        assert!(found[0].host.ends_with(".colima/work/docker.sock"));
+        assert!(found[0].host.ends_with(".docker/run/docker.sock"));
         std::fs::remove_dir_all(&home).unwrap();
     }
 
@@ -271,10 +254,10 @@ mod tests {
             tls: None,
             current,
         };
-        let list = vec![engine("default", false), engine("colima", true)];
+        let list = vec![engine("default", false), engine("work", true)];
         assert_eq!(pick(&list, Some("default")).unwrap().name, "default");
-        assert_eq!(pick(&list, Some("gone")).unwrap().name, "colima");
-        assert_eq!(pick(&list, None).unwrap().name, "colima");
+        assert_eq!(pick(&list, Some("gone")).unwrap().name, "work");
+        assert_eq!(pick(&list, None).unwrap().name, "work");
         assert!(engine("x", false).supported() == cfg!(unix));
     }
 }
