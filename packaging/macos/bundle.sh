@@ -20,8 +20,9 @@ sed "s/__VERSION__/$version/g" packaging/macos/Info.plist > "$app/Contents/Info.
 cp assets/icon.icns "$app/Contents/Resources/icon.icns"
 
 # Ad-hoc signature: required for Apple Silicon. Not notarized, so the first
-# launch has to be allowed once (see README).
-codesign --force --deep --sign - "$app"
+# launch has to be allowed once (see README). The entitlement lets
+# Ferrodock run its own engine's VM.
+codesign --force --deep --sign - --entitlements packaging/macos/ferrodock.entitlements "$app"
 
 ditto -c -k --keepParent "$app" "dist/Ferrodock-$version-macos-universal.zip"
 

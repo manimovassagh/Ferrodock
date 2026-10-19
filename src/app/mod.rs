@@ -110,7 +110,7 @@ impl FerrodockApp {
             updater,
             tray: tray::Tray::new(&cc.egui_ctx),
             quitting: false,
-            engine_starter: Default::default(),
+            engine_starter: engine_start::EngineStarter::new(&cc.egui_ctx),
         }
         .started(&cc.egui_ctx)
     }
@@ -442,10 +442,19 @@ impl eframe::App for FerrodockApp {
         eframe::set_value(storage, settings::STORAGE_KEY, &self.settings);
     }
 
+    /// Ferrodock's own engine runs inside Ferrodock: shut it down cleanly.
+    fn on_exit(&mut self) {
+        self.engine_starter.builtin.stop();
+    }
+
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.handle_responses(ui.ctx());
-        self.engine_starter
-            .update(&self.store, &self.settings, &self.worker);
+        if let Some(engine) = self
+            .engine_starter
+            .update(&self.store, &self.settings, &self.worker)
+        {
+            self.switch_engine(engine);
+        }
         self.handle_tray(ui.ctx());
         self.store
             .recent_compose
@@ -496,6 +505,8 @@ impl eframe::App for FerrodockApp {
 
         let mut intents = Vec::new();
         let mut refresh = false;
+        // Ferrodock's own engine, when starting it means switching to it.
+        let mut switch_to = None;
         let page = &mut self.pages[self.active];
 
         if page.has_selection(&self.store) {
@@ -540,8 +551,11 @@ impl eframe::App for FerrodockApp {
                     match shell::disconnected(ui, p, reason, &offer) {
                         Some(shell::Click::Retry) => refresh = true,
                         Some(shell::Click::Start) => {
-                            self.engine_starter
-                                .start(&self.store, &self.settings, &self.worker)
+                            switch_to = self.engine_starter.start(
+                                &self.store,
+                                &self.settings,
+                                &self.worker,
+                            );
                         }
                         None => {}
                     }
@@ -559,6 +573,9 @@ impl eframe::App for FerrodockApp {
         self.sync_watch();
         if refresh {
             self.refresh();
+        }
+        if let Some(engine) = switch_to {
+            self.switch_engine(engine);
         }
         table::clear_step(ui.ctx());
         self.show_confirmation(ui, p);

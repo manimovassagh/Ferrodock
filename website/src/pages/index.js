@@ -211,7 +211,7 @@ const FEATURES = [
   },
   {
     title: "Works with any engine",
-    text: "Colima, Rancher Desktop, a plain dockerd, or any other Docker engine. Ferrodock connects as soon as the engine is up.",
+    text: "Ferrodock's own engine on Apple Silicon, a plain dockerd, or any other Docker engine you run. Ferrodock connects as soon as the engine is up.",
     icon: icon(<><path d="M12 2v6" /><path d="M12 16v6" /><circle cx="12" cy="12" r="4" /></>),
   },
 ];

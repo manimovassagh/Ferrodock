@@ -54,7 +54,30 @@ pub fn kernel_filesystems() -> Result<(), String> {
     Ok(())
 }
 
-/// A folder the host shares over virtiofs, at `path`.
+/// The top folder of `path`: "/Users/me" → "/Users".
+pub fn top(path: &str) -> Option<String> {
+    let first = path.trim_start_matches('/').split('/').next()?;
+    (!first.is_empty()).then(|| format!("/{first}"))
+}
+
+/// A folder the host shares over virtiofs, at `path` (the same path as
+/// on the host, such as /Users/me).
 pub fn share(tag: &str, path: &str) -> Result<(), String> {
+    if std::fs::create_dir_all(path).is_err() {
+        // The root is read-only: put scratch space on the top folder so
+        // the mount point can be made.
+        let top = top(path).ok_or_else(|| format!("can't share at {path}"))?;
+        mount("tmpfs", &top, "tmpfs", libc::MS_NOSUID | libc::MS_NODEV)?;
+    }
     mount(tag, path, "virtiofs", 0)
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn finds_the_top_folder() {
+        assert_eq!(super::top("/Users/me").as_deref(), Some("/Users"));
+        assert_eq!(super::top("/home").as_deref(), Some("/home"));
+        assert_eq!(super::top("/"), None);
+    }
 }
