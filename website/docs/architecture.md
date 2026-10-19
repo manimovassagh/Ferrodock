@@ -18,6 +18,8 @@ src/
 ├── main.rs            window setup
 ├── docker/            Docker Engine API, one file per resource (no UI code)
 ├── worker/            background thread: Docker calls, log and stats streams
+├── vm/                Ferrodock's own engine: download, Apple Virtualization VM
+├── update/            in-app updates from GitHub releases
 ├── theme/             colour palettes, widget styling, fonts
 └── app/
     ├── mod.rs         wires the store, the shell and the pages together
@@ -27,7 +29,16 @@ src/
     ├── components/    table, details pane, dialogs, charts, toasts
     ├── shell.rs       shared page header and "Docker isn't running" screen
     └── sidebar.rs
+agent/                 first process inside the engine's Linux VM (own crate)
+engine/                builds the engine image: kernel config, root filesystem
 ```
+
+Ferrodock's own engine is a small Linux VM, run through Apple's
+Virtualization framework. `engine/` builds its image on CI: a kernel and a
+read-only root disk with the Docker engine and `ferrodock-agent`. The agent
+mounts the disks and the shared home folder, brings up the network, runs
+`dockerd` and offers its socket over vsock. On the Mac, `vm/` passes
+`~/.ferrodock/docker.sock` through to it.
 
 ## How data flows
 

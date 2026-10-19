@@ -223,4 +223,7 @@ Created and maintained by **Mani Movassagh**
 ## License
 
 Ferrodock is released under the [MIT License](LICENSE). It's free to use for
-personal, commercial and organisational projects.
+personal, commercial and organisational projects, with no account,
+subscription or fee. Every dependency is under a permissive open source
+license, checked in CI. Ferrodock's own engine is built only from free and
+open source software: see [engine/NOTICE.md](engine/NOTICE.md).

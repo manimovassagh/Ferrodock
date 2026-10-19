@@ -26,6 +26,19 @@ jobs:
       - run: cargo clippy --manifest-path agent/Cargo.toml --all-targets -- -D warnings
       - run: cargo test --manifest-path agent/Cargo.toml
 
+  # Ferrodock stays free for anyone, companies included: only the
+  # permissive licenses in deny.toml are allowed in dependencies.
+  licenses:
+    name: Licenses
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+      - run: cargo deny check licenses
+      - run: cargo deny --manifest-path agent/Cargo.toml --config deny.toml check licenses
+
   build:
     name: Build (${{ matrix.os }})
     strategy:

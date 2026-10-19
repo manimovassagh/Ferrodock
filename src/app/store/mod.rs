@@ -435,13 +435,9 @@ mod tests {
         let mut store = Store::new();
         store.apply(Response::Containers(vec![container("web", "", &[], &[])]));
         store.pending.insert("web-id".into(), Action::Stop);
-        store.engine = Some("colima".into());
+        store.engine = Some("work".into());
         store.apply(Response::Disconnected("gone".into()));
-        assert_eq!(
-            store.engine.as_deref(),
-            Some("colima"),
-            "the engine is kept"
-        );
+        assert_eq!(store.engine.as_deref(), Some("work"), "the engine is kept");
         assert!(store.containers.is_empty());
         assert!(store.pending.is_empty());
         assert!(matches!(store.connection, Connection::Disconnected { .. }));
