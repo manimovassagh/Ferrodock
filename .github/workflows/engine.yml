@@ -27,6 +27,8 @@ jobs:
         with:
           targets: aarch64-unknown-linux-musl
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: agent
       - name: Tools
         run: sudo apt-get update && sudo apt-get install -y flex bison bc libssl-dev libelf-dev e2fsprogs zstd musl-tools
 
@@ -46,11 +48,11 @@ jobs:
         run: test -f kernel-out/Image || engine/kernel/build.sh linux base.config kernel-out
 
       - name: Agent
-        run: cargo build -p ferrodock-agent --release --target aarch64-unknown-linux-musl
+        run: cargo build --manifest-path agent/Cargo.toml --release --target aarch64-unknown-linux-musl
       - name: Image
         run: |
           engine/build.sh kernel-out/Image kernel-out/modules \
-            target/aarch64-unknown-linux-musl/release/ferrodock-agent out
+            agent/target/aarch64-unknown-linux-musl/release/ferrodock-agent out
           tar --sparse -C out -cf - kernel rootfs.img | zstd -19 -T0 > ferrodock-engine-arm64.tar.zst
           sha256sum ferrodock-engine-arm64.tar.zst | tee ferrodock-engine-arm64.tar.zst.sha256
           cp kernel-out/config ferrodock-engine-arm64.kernel-config
