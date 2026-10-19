@@ -1,0 +1,13 @@
+[package]
+name = "ferrodock-agent"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+authors = ["Mani Movassagh"]
+repository = "https://github.com/manimovassagh/Ferrodock"
+license = "MIT"
+description = "Runs inside Ferrodock's Linux VM: boots it, keeps the Docker engine running and carries its socket to the host."
+publish = false
+
+[dependencies]
+libc = "0.2.191"

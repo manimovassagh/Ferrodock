@@ -1,0 +1,63 @@
+name: Engine
+
+# Builds Ferrodock's engine image for Apple Silicon: our arm64 kernel, the
+# Docker engine, and ferrodock-agent, packed as kernel + rootfs.img. Runs
+# on a native arm64 runner, so nothing is emulated or cross-compiled.
+
+on:
+  push:
+    branches: [main]
+    paths: ["agent/**", "engine/**", ".github/workflows/engine.yml"]
+  pull_request:
+    paths: ["agent/**", "engine/**", ".github/workflows/engine.yml"]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  # LinuxKit's kernel: its source and config are the base for ours.
+  KERNEL_IMAGE: linuxkit/kernel:6.12.59
+
+jobs:
+  image:
+    name: Build the engine image (arm64)
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-linux-musl
+      - uses: Swatinem/rust-cache@v2
+      - name: Tools
+        run: sudo apt-get update && sudo apt-get install -y flex bison bc libssl-dev libelf-dev e2fsprogs zstd musl-tools
+
+      - name: Kernel source and base config
+        run: |
+          id=$(docker create "$KERNEL_IMAGE" /x)
+          docker cp "$id:/linux.tar.xz" .
+          docker cp "$id:/kernel-dev.tar" .
+          docker rm "$id"
+          tar -xJf linux.tar.xz
+          tar -xf kernel-dev.tar --wildcards '*/linux-headers-*/.config' -O > base.config
+      - uses: actions/cache@v5
+        with:
+          path: kernel-out
+          key: kernel-${{ env.KERNEL_IMAGE }}-${{ hashFiles('engine/kernel/**') }}
+      - name: Kernel
+        run: test -f kernel-out/Image || engine/kernel/build.sh linux base.config kernel-out
+
+      - name: Agent
+        run: cargo build -p ferrodock-agent --release --target aarch64-unknown-linux-musl
+      - name: Image
+        run: |
+          engine/build.sh kernel-out/Image kernel-out/modules \
+            target/aarch64-unknown-linux-musl/release/ferrodock-agent out
+          tar --sparse -C out -cf - kernel rootfs.img | zstd -19 -T0 > ferrodock-engine-arm64.tar.zst
+          sha256sum ferrodock-engine-arm64.tar.zst | tee ferrodock-engine-arm64.tar.zst.sha256
+          cp kernel-out/config ferrodock-engine-arm64.kernel-config
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ferrodock-engine-arm64
+          path: |
+            ferrodock-engine-arm64.tar.zst
+            ferrodock-engine-arm64.tar.zst.sha256
+            ferrodock-engine-arm64.kernel-config
