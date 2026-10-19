@@ -27,7 +27,7 @@ body:
     id: engine
     attributes:
       label: Docker engine
-      placeholder: e.g. Colima 0.8, Docker Engine 28
+      placeholder: e.g. Ferrodock's engine, or Docker Engine 28
   - type: textarea
     id: extra
     attributes:

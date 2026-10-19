@@ -5,6 +5,10 @@ title: Connecting to Docker
 
 # Connecting to Docker
 
+On Apple Silicon Macs, Ferrodock can run its own engine, so there is
+nothing else to install. Otherwise it connects to any Docker engine you
+already run.
+
 Ferrodock connects to the platform's default Docker endpoint:
 
 | Platform | Default |
@@ -18,17 +22,14 @@ To use a different engine, set `DOCKER_HOST` before starting Ferrodock:
 # If your engine doesn't use the default socket
 DOCKER_HOST=unix://$HOME/.docker/run/docker.sock ferrodock
 
-# Colima
-DOCKER_HOST=unix://$HOME/.colima/default/docker.sock ferrodock
-
-# Rancher Desktop (macOS)
-DOCKER_HOST=unix://$HOME/.rd/docker.sock ferrodock
+# Ferrodock's own engine (Apple Silicon)
+DOCKER_HOST=unix://$HOME/.ferrodock/docker.sock ferrodock
 ```
 
 To launch the macOS app bundle with a custom host:
 
 ```bash
-DOCKER_HOST=unix://$HOME/.colima/default/docker.sock \
+DOCKER_HOST=unix://$HOME/.docker/run/docker.sock \
   /Applications/Ferrodock.app/Contents/MacOS/ferrodock
 ```
 

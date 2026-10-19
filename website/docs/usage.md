@@ -323,8 +323,8 @@ The list has:
 - **default**, and every **Docker context** (`docker context ls`), whether
   it uses a local socket, a remote `tcp://` host with TLS, or `ssh://`
   (macOS and Linux).
-- Engines found on this machine: **Colima** (every
-  profile), **Rancher Desktop** and **Podman**.
+- Your Docker contexts and other local engines it finds on this machine
+  (shown as **Local engine**).
 
 ### Ferrodock's own engine
 
@@ -345,12 +345,11 @@ native speed. From then on it starts with Ferrodock.
 
 ### Starting the engine
 
-When Ferrodock opens and the engine isn't running, it starts it for you and
-connects once it's up:
+When Ferrodock opens and the engine isn't running, it starts it for you
+("Starting the Docker engine…") and connects once it's up:
 
 - **macOS**: the app that runs your engine (Ferrodock recognises it from
-  the engine's Docker context or socket, or remembers it from last time),
-  otherwise Colima.
+  the engine's Docker context or socket, or remembers it from last time).
 - **Windows**: the engine's app.
 - **Linux**: the `docker` service (it may ask for your password).
 

@@ -5,8 +5,9 @@ title: Installation
 
 # Installation
 
-Ferrodock needs a running Docker engine, such as Colima,
-Rancher Desktop or a native `dockerd`.
+On Apple Silicon Macs, Ferrodock can run its own engine, so there is
+nothing else to install. Otherwise it connects to any Docker engine you
+already run, such as a native `dockerd`.
 
 ## Download a release
 

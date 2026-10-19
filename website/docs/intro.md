@@ -24,8 +24,8 @@ service. It talks straight to the Docker Engine API.
 - **Compose**: containers grouped by project, with project-wide actions.
 - **Images, volumes, networks**: see what's in use, and clean up what isn't.
 - **Light and dark themes** that follow your system.
-- **Runs everywhere**: Windows, macOS and Linux, against Colima,
-  Rancher Desktop, a native `dockerd` or any other Docker engine.
+- **Runs everywhere**: Windows, macOS and Linux, with its own engine
+  on Apple Silicon, a native `dockerd` or any other Docker engine.
 
 ## Next steps
 
