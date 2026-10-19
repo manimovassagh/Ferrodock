@@ -1,14 +1,31 @@
-//! Ferrodock's own Docker engine: a small Linux VM with the Docker engine
-//! inside, so nothing else needs to be installed (#114).
+//! Ferrodock's own Docker engine: a small Linux system with the Docker
+//! engine inside, so nothing else needs to be installed (#114).
 //!
-//! It runs on Apple Silicon Macs, through Apple's Virtualization
-//! framework. The image (kernel and root filesystem, built in this
-//! repository's `engine/`) is downloaded on first use. Everything lives in
-//! `~/.ferrodock`, and the engine's socket is `~/.ferrodock/docker.sock`.
+//! - On Apple Silicon Macs it's a VM, through Apple's Virtualization
+//!   framework. Everything lives in `~/.ferrodock`, and the engine's
+//!   socket is `~/.ferrodock/docker.sock`.
+//! - On Windows it's a WSL distro called `ferrodock`, kept in
+//!   `%LOCALAPPDATA%\Ferrodock`. Ferrodock carries the engine's socket
+//!   over the distro's standard input and output, and offers it as the
+//!   named pipe `\\.\pipe\ferrodock_engine`.
+//!
+//! The image (built in this repository's `engine/`) is downloaded on
+//! first use.
 
+#[cfg(any(engine, test))]
 pub mod download;
-#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+#[cfg(all(engine, target_os = "macos"))]
 mod macos;
+#[cfg(all(engine, target_os = "macos"))]
+use macos as platform;
+#[cfg(any(all(engine, windows), test))]
+mod mux;
+#[cfg(all(engine, windows))]
+mod windows;
+#[cfg(any(all(engine, windows), test))]
+mod wsl;
+#[cfg(all(engine, windows))]
+use windows as platform;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -16,16 +33,14 @@ use std::sync::{Arc, Mutex};
 /// How the engine shows up in the engine list.
 pub const NAME: &str = "Ferrodock";
 /// The virtiofs tag the home folder is shared under.
-#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+#[cfg(all(engine, target_os = "macos"))]
 pub const SHARE_TAG: &str = "home";
 /// Where the agent in the VM offers the engine's socket.
-#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+#[cfg(all(engine, target_os = "macos"))]
 pub const VSOCK_PORT: u32 = 2375;
-/// Size of the data disk (sparse: it only takes what's used).
-const DATA_DISK: u64 = 128 * 1024 * 1024 * 1024;
 
 /// Whether this machine can run the engine.
-pub const SUPPORTED: bool = cfg!(all(target_os = "macos", target_arch = "aarch64"));
+pub const SUPPORTED: bool = cfg!(engine);
 
 /// Where everything is.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -38,7 +53,9 @@ pub struct Paths {
     /// Images, containers and volumes.
     pub data: PathBuf,
     pub socket: PathBuf,
-    /// The VM's console: the agent's and the kernel's messages.
+    /// The WSL distro's disk and files (Windows).
+    pub distro: PathBuf,
+    /// The engine's log: the agent's and the kernel's messages.
     pub console: PathBuf,
 }
 
@@ -50,6 +67,7 @@ impl Paths {
             rootfs: image.join("rootfs.img"),
             data: dir.join("data.img"),
             socket: dir.join("docker.sock"),
+            distro: dir.join("wsl"),
             console: dir.join("console.log"),
             image,
             dir,
@@ -57,19 +75,33 @@ impl Paths {
     }
 
     pub fn default() -> Option<Self> {
+        if cfg!(windows) {
+            return std::env::var_os("LOCALAPPDATA")
+                .map(|dir| Self::under(PathBuf::from(dir).join("Ferrodock")));
+        }
         std::env::var_os("HOME").map(|home| Self::under(PathBuf::from(home).join(".ferrodock")))
     }
 
-    /// Whether the image is downloaded.
+    /// Whether the engine is set up: the image downloaded, or on Windows
+    /// the distro imported into WSL.
     pub fn installed(&self) -> bool {
+        if cfg!(windows) {
+            return self.distro.join("ext4.vhdx").is_file();
+        }
         self.kernel.is_file() && self.rootfs.is_file()
     }
 
     /// The Docker host clients connect to.
     pub fn host(&self) -> String {
+        if cfg!(windows) {
+            return PIPE.into();
+        }
         format!("unix://{}", self.socket.display())
     }
 }
+
+/// The named pipe Ferrodock offers the engine on, on Windows.
+pub const PIPE: &str = "npipe:////./pipe/ferrodock_engine";
 
 /// What the VM gets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -92,6 +124,7 @@ impl Default for Resources {
 
 /// Where the engine is at.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(not(engine), allow(dead_code))]
 pub enum State {
     NotInstalled,
     Downloading { done: u64, total: Option<u64> },
@@ -112,8 +145,8 @@ impl State {
 pub struct Engine {
     paths: Option<Paths>,
     state: Arc<Mutex<State>>,
-    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-    running: Arc<Mutex<Option<macos::Running>>>,
+    #[cfg(engine)]
+    running: Arc<Mutex<Option<platform::Running>>>,
 }
 
 impl Engine {
@@ -126,7 +159,7 @@ impl Engine {
         Self {
             paths,
             state: Arc::new(Mutex::new(state)),
-            #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+            #[cfg(engine)]
             running: Arc::default(),
         }
     }
@@ -157,38 +190,38 @@ impl Engine {
         if !SUPPORTED {
             Self::set(
                 &self.state,
-                State::Failed("Ferrodock's engine needs a Mac with Apple Silicon".into()),
+                State::Failed(
+                    "Ferrodock's engine needs a Mac with Apple Silicon or Windows".into(),
+                ),
             );
             return;
         }
         let state = self.state.clone();
-        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        #[cfg(engine)]
         let running = self.running.clone();
         std::thread::spawn(move || {
             let result = (|| {
                 std::fs::create_dir_all(&paths.dir).map_err(|e| e.to_string())?;
-                if !paths.installed() {
-                    download::install(&paths.image, |done, total| {
-                        Self::set(&state, State::Downloading { done, total });
-                        repaint();
-                    })?;
-                }
-                if !paths.data.exists() {
-                    std::fs::File::create(&paths.data)
-                        .and_then(|f| f.set_len(DATA_DISK))
-                        .map_err(|e| format!("{}: {e}", paths.data.display()))?;
-                }
-                Self::set(&state, State::Starting);
-                repaint();
-                #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+                #[cfg(engine)]
                 {
-                    let engine = macos::Running::start(&paths, &resources)?;
+                    if !paths.installed() {
+                        let archive = download::fetch(|done, total| {
+                            Self::set(&state, State::Downloading { done, total });
+                            repaint();
+                        })?;
+                        Self::set(&state, State::Starting);
+                        repaint();
+                        platform::install(&paths, &archive)?;
+                    }
+                    Self::set(&state, State::Starting);
+                    repaint();
+                    let engine = platform::Running::start(&paths, &resources)?;
                     if let Ok(mut slot) = running.lock() {
                         *slot = Some(engine);
                     }
                     Ok::<(), String>(())
                 }
-                #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
+                #[cfg(not(engine))]
                 {
                     let _ = resources;
                     Err("unsupported".to_owned())
@@ -207,7 +240,7 @@ impl Engine {
 
     /// Shuts the engine down (waits up to a few seconds).
     pub fn stop(&self) {
-        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        #[cfg(engine)]
         if let Some(engine) = self.running.lock().ok().and_then(|mut slot| slot.take()) {
             engine.stop();
         }
@@ -224,13 +257,13 @@ impl Engine {
 
     /// Whether the VM still runs (it may have stopped by itself).
     pub fn check(&self) {
-        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        #[cfg(engine)]
         if self.state() == State::Running {
             let alive = self
                 .running
                 .lock()
                 .ok()
-                .and_then(|slot| slot.as_ref().map(macos::Running::is_running))
+                .and_then(|slot| slot.as_ref().map(platform::Running::is_running))
                 .unwrap_or(false);
             if !alive {
                 Self::set(&self.state, State::Failed("The engine stopped".into()));
@@ -244,6 +277,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(unix)]
     fn keeps_everything_in_one_folder() {
         let paths = Paths::under(PathBuf::from("/Users/me/.ferrodock"));
         assert_eq!(paths.host(), "unix:///Users/me/.ferrodock/docker.sock");
@@ -254,5 +288,14 @@ mod tests {
         assert!(!paths.installed());
         let r = Resources::default();
         assert!((2..=8).contains(&r.cpus));
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn offers_the_engine_on_a_named_pipe() {
+        let paths = Paths::under(PathBuf::from(r"C:\Users\me\AppData\Local\Ferrodock"));
+        assert_eq!(paths.host(), PIPE);
+        assert!(paths.distro.ends_with("wsl"));
+        assert!(!paths.installed());
     }
 }

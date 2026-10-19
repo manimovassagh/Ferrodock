@@ -211,7 +211,7 @@ const FEATURES = [
   },
   {
     title: "Works with any engine",
-    text: "Ferrodock's own engine on Apple Silicon, a plain dockerd, or any other Docker engine you run. Ferrodock connects as soon as the engine is up.",
+    text: "Ferrodock's own engine on Apple Silicon and Windows, a plain dockerd, or any other Docker engine you run. Ferrodock connects as soon as the engine is up.",
     icon: icon(<><path d="M12 2v6" /><path d="M12 16v6" /><circle cx="12" cy="12" r="4" /></>),
   },
 ];
@@ -317,7 +317,7 @@ const INSTALL = {
   macOS: { cmd: BREW, note: "Or download the DMG and drag Ferrodock to Applications. It isn't notarized yet, so allow it once in System Settings → Privacy & Security → Open Anyway." },
   Windows: {
     cmd: "# Download Ferrodock-<version>-windows-x64.zip, unzip it and run:\n.\\Ferrodock.exe",
-    note: "Windows 10 and 11 (x64). If SmartScreen appears, choose More info → Run anyway.",
+    note: "Windows 10 and 11 (x64). Runs its own Docker engine through WSL. If SmartScreen appears, choose More info → Run anyway.",
   },
   Linux: {
     cmd: "tar -xzf Ferrodock-<version>-linux-x64.tar.gz\n./ferrodock",

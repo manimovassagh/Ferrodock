@@ -1,6 +1,9 @@
 //! Getting the engine image: downloaded from the project's releases on
-//! first use, checked against its published SHA-256, and unpacked into
-//! the engine folder.
+//! first use, checked against its published SHA-256, and unpacked: on a
+//! Mac the kernel and root disk, on Windows the distro's files for WSL.
+
+// Tested everywhere, used only where there's an engine.
+#![cfg_attr(not(engine), allow(dead_code))]
 
 use std::io::Read;
 use std::path::Path;
@@ -10,7 +13,13 @@ use sha2::{Digest, Sha256};
 /// The engine image this build of Ferrodock uses.
 pub const VERSION: &str = include_str!("../../engine/VERSION");
 
-const ASSET: &str = "ferrodock-engine-arm64.tar.zst";
+/// The image for this platform: kernel and root disk for the Mac's VM, or
+/// a root filesystem for WSL.
+pub const ASSET: &str = if cfg!(windows) {
+    "ferrodock-engine-wsl-amd64.tar.zst"
+} else {
+    "ferrodock-engine-arm64.tar.zst"
+};
 
 fn base_url() -> String {
     format!(
@@ -26,8 +35,9 @@ pub fn parse_checksum(line: &str) -> Option<String> {
 }
 
 /// Downloads the image, calling `progress` with (done, total) bytes, and
-/// unpacks `kernel` and `rootfs.img` into `dir`.
-pub fn install(dir: &Path, mut progress: impl FnMut(u64, Option<u64>)) -> Result<(), String> {
+/// checks it against its published checksum. The image is still
+/// zstd-compressed.
+pub fn fetch(mut progress: impl FnMut(u64, Option<u64>)) -> Result<Vec<u8>, String> {
     let get = |url: &str| ureq::get(url).call().map_err(|e| format!("{url}: {e}"));
     let checksum = get(&format!("{}/{ASSET}.sha256", base_url()))?
         .body_mut()
@@ -54,11 +64,24 @@ pub fn install(dir: &Path, mut progress: impl FnMut(u64, Option<u64>)) -> Result
     if actual != expected {
         return Err("The engine download is damaged (checksum mismatch). Try again.".into());
     }
-    unpack(&archive, dir)
+    Ok(archive)
+}
+
+/// Uncompresses the image into the file at `path` (on Windows, the tar
+/// that WSL imports as the distro).
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn decompress(archive: &[u8], path: &Path) -> Result<(), String> {
+    let mut decoder =
+        ruzstd::decoding::StreamingDecoder::new(archive).map_err(|e| e.to_string())?;
+    let mut file = std::fs::File::create(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    std::io::copy(&mut decoder, &mut file)
+        .map(drop)
+        .map_err(|e| format!("Couldn't unpack the engine: {e}"))
 }
 
 /// Unpacks the zstd-compressed tar into `dir`, replacing what's there
-/// only once everything is out.
+/// only once everything is out (the Mac's kernel and root disk).
+#[cfg_attr(windows, allow(dead_code))]
 pub fn unpack(archive: &[u8], dir: &Path) -> Result<(), String> {
     let staging = dir.with_extension("new");
     let _ = std::fs::remove_dir_all(&staging);
@@ -118,6 +141,17 @@ mod tests {
         assert_eq!(std::fs::read(dir.join("kernel")).unwrap(), b"kernel image");
         assert_eq!(std::fs::read(dir.join("rootfs.img")).unwrap(), b"root disk");
         assert!(!dir.join("old").exists());
+        // Or just uncompressed, as WSL takes it.
+        let tar = dir.with_extension("tar");
+        decompress(&archive, &tar).unwrap();
+        assert_eq!(
+            tar::Archive::new(std::fs::File::open(&tar).unwrap())
+                .entries()
+                .unwrap()
+                .count(),
+            2
+        );
+        std::fs::remove_file(&tar).unwrap();
         std::fs::remove_dir_all(&dir).unwrap();
         // An archive without the kernel is refused.
         assert!(

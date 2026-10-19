@@ -329,20 +329,36 @@ The list has:
 
 ### Ferrodock's own engine
 
-On a Mac with Apple Silicon, Ferrodock can run Docker by itself, with
-nothing else installed. When it finds no engine, click **Set up
-Ferrodock's engine**. It downloads a small Linux VM with the Docker engine
-once (about 120 MB), then starts it through Apple's own virtualization, at
-native speed. From then on it starts with Ferrodock.
+On a Mac with Apple Silicon and on Windows, Ferrodock can run Docker by
+itself, with nothing else installed. When it finds no engine, click **Set
+up Ferrodock's engine**. It downloads the engine once (about 120 MB), then
+starts it. From then on it starts with Ferrodock, and stops when you quit
+Ferrodock. It shows up as **Ferrodock** in the engine list.
+
+**On a Mac** the engine is a small Linux VM, run through Apple's own
+virtualization at native speed.
 
 - Everything lives in `~/.ferrodock`: the engine image, its data disk
   (images, containers and volumes; it only takes the space it uses) and
   its log, `console.log`.
 - Your home folder is shared with the engine at the same path, so bind
   mounts such as `-v ~/project:/app` work as you'd expect.
-- It shows up as **Ferrodock** in the engine list. The `docker` command
-  can use it too: `export DOCKER_HOST=unix://$HOME/.ferrodock/docker.sock`.
-- It stops when you quit Ferrodock.
+- The `docker` command can use it too:
+  `export DOCKER_HOST=unix://$HOME/.ferrodock/docker.sock`.
+
+**On Windows** the engine is a WSL distro called `ferrodock`. WSL is part
+of Windows; if it isn't turned on yet, run `wsl --install` once as an
+administrator.
+
+- Everything lives in `%LOCALAPPDATA%\Ferrodock`: the distro's disk
+  (images, containers and volumes) and the engine's log, `console.log`.
+- Ferrodock talks to the engine privately, through WSL itself: no network
+  port is opened.
+- The `docker` command works with no setup when nothing else serves
+  Docker's usual pipe; otherwise point it at Ferrodock's:
+  `docker context create ferrodock --docker host=npipe:////./pipe/ferrodock_engine`.
+- Your drives are in the engine under `/mnt`, so for bind mounts use paths
+  such as `-v /mnt/c/Users/me/project:/app`.
 
 ### Starting the engine
 

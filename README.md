@@ -41,9 +41,9 @@ brew tap manimovassagh/ferrodock https://github.com/manimovassagh/Ferrodock
 brew install --cask ferrodock
 ```
 
-On Apple Silicon Macs, Ferrodock can run its own engine, so there is
-nothing else to install. Otherwise it connects to any Docker engine you
-already run, such as a native `dockerd`.
+On Apple Silicon Macs and on Windows, Ferrodock runs its own engine, so
+there is nothing else to install. It also connects to any Docker engine
+you already run, such as a native `dockerd`.
 
 Every release also has a `SHA256SUMS.txt`. To check that a download is
 intact, run this in the folder you downloaded to:

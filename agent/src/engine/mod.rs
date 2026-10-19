@@ -1,6 +1,7 @@
 //! Keeping the Docker engine running.
 
 use std::process::Command;
+use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::time::{Duration, Instant};
 
 use crate::config::Config;
@@ -11,6 +12,12 @@ pub const SOCKET: &str = "/var/run/docker.sock";
 
 /// Restarts come no faster than this, so a broken engine doesn't spin.
 const BACKOFF: Duration = Duration::from_secs(2);
+/// How long the engine gets to stop its containers when asked to stop.
+const GRACE: Duration = Duration::from_secs(15);
+
+/// The running engine's process, and whether it's being stopped for good.
+static ENGINE: AtomicI32 = AtomicI32::new(0);
+static STOPPING: AtomicBool = AtomicBool::new(false);
 
 fn start() -> Option<u32> {
     let log_file = std::fs::File::create("/var/log/dockerd.log").ok();
@@ -24,6 +31,7 @@ fn start() -> Option<u32> {
     match command.spawn() {
         Ok(child) => {
             log(&format!("engine started (pid {})", child.id()));
+            ENGINE.store(child.id() as i32, Ordering::SeqCst);
             Some(child.id())
         }
         Err(e) => {
@@ -49,6 +57,9 @@ pub fn supervise(_config: &Config, pid1: bool) -> ! {
             continue;
         } else {
             log(&format!("engine stopped (status {status})"));
+            if STOPPING.load(Ordering::SeqCst) {
+                std::process::exit(0);
+            }
         }
         let since = started.elapsed();
         if since < BACKOFF {
@@ -61,4 +72,19 @@ pub fn supervise(_config: &Config, pid1: bool) -> ! {
             std::process::exit(1);
         }
     }
+}
+
+/// Stops the engine for good, letting it shut its containers down, and
+/// then the agent: [`supervise`] exits once the engine is gone.
+pub fn stop() {
+    STOPPING.store(true, Ordering::SeqCst);
+    let pid = ENGINE.load(Ordering::SeqCst);
+    if pid > 0 {
+        log("stopping the engine");
+        // SAFETY: plain kill on our own child.
+        unsafe { libc::kill(pid, libc::SIGTERM) };
+    }
+    std::thread::sleep(GRACE);
+    log("the engine didn't stop in time");
+    std::process::exit(0);
 }

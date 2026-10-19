@@ -35,7 +35,7 @@ tar = "0.4.46"
 vt100 = "0.16.2"
 ureq = "3.4.2"
 ruzstd = "0.9.1"
-tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros", "time", "fs", "process", "io-util"] }
+tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros", "time", "fs", "process", "io-util", "net", "sync"] }
 
 # Contexts over SSH run the system's ssh, which bollard supports on Unix.
 [target.'cfg(unix)'.dependencies]
@@ -55,6 +55,11 @@ objc2-virtualization = "0.3.2"
 block2 = "0.6.2"
 dispatch2 = "0.3.1"
 libc = "0.2.191"
+
+# Ferrodock's own engine on Windows: the certificates Windows trusts go
+# to the engine too.
+[target.'cfg(all(target_os = "windows", target_arch = "x86_64"))'.dependencies]
+rustls-native-certs = "0.8.5"
 
 [build-dependencies]
 winresource = "0.1.34"
