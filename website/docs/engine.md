@@ -38,6 +38,9 @@ download is about 120 MB.
 - Your home folder is shared with the engine at the same path, so bind
   mounts such as `-v ~/project:/app` work as you'd expect. Folders outside
   your home folder aren't shared.
+- Published ports are on `localhost`: after `docker run -p 8080:80 nginx`,
+  http://localhost:8080 opens it, as on Linux. Ferrodock passes on TCP
+  ports while it runs; UDP ports are only reachable from inside the engine.
 - The `docker` command can use it too:
 
   ```bash
