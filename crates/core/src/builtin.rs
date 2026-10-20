@@ -6,6 +6,8 @@ use std::path::PathBuf;
 
 /// How the engine shows up in the engine list.
 pub const NAME: &str = "Ferrodock";
+/// The Docker CLI context that points at it, for `docker context use`.
+pub const CONTEXT: &str = "ferrodock";
 /// Linux: where the engine's programs are installed, its service and its
 /// socket.
 pub const LINUX_PROGRAMS: &str = "/opt/ferrodock/engine/bin";
@@ -38,6 +40,8 @@ pub struct Paths {
     pub distro: PathBuf,
     /// The engine's log: the agent's and the kernel's messages.
     pub console: PathBuf,
+    /// The version of the image set up (`engine/VERSION` when it was).
+    pub version: PathBuf,
 }
 
 impl Paths {
@@ -50,6 +54,7 @@ impl Paths {
             socket: dir.join("docker.sock"),
             distro: dir.join("wsl"),
             console: dir.join("console.log"),
+            version: dir.join("engine-version"),
             image,
             dir,
         }

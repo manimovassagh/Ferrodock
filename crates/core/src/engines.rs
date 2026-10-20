@@ -53,7 +53,7 @@ impl Engine {
 }
 
 /// The Docker CLI's config folder.
-fn docker_dir() -> Option<PathBuf> {
+pub fn docker_dir() -> Option<PathBuf> {
     if let Some(dir) = std::env::var_os("DOCKER_CONFIG") {
         return Some(PathBuf::from(dir));
     }
@@ -165,9 +165,20 @@ pub fn engines() -> Vec<Engine> {
     if let Some(engine) = builtin_engine()
         && crate::builtin::Paths::locate().is_some_and(|p| p.installed())
     {
-        list.push(engine);
+        add_builtin(&mut list, engine);
     }
     list
+}
+
+/// Adds Ferrodock's own engine in place of the contexts that point at it
+/// (such as the `ferrodock` one it registers), so it's listed once.
+fn add_builtin(list: &mut Vec<Engine>, mut engine: Engine) {
+    list.retain(|e| {
+        let same = e.name != "default" && e.host == engine.host;
+        engine.current |= same && e.current;
+        !same
+    });
+    list.push(engine);
 }
 
 /// Ferrodock's own engine (#114), where this machine can run it.
@@ -259,5 +270,26 @@ mod tests {
         assert_eq!(pick(&list, Some("gone")).unwrap().name, "work");
         assert_eq!(pick(&list, None).unwrap().name, "work");
         assert!(engine("x", false).supported() == cfg!(unix));
+    }
+
+    #[test]
+    fn lists_its_own_engine_once() {
+        let engine = |name: &str, host: &str, current| Engine {
+            name: name.into(),
+            host: host.into(),
+            tls: None,
+            current,
+        };
+        let own = "unix:///Users/me/.ferrodock/docker.sock";
+        let mut list = vec![
+            engine("default", "unix:///var/run/docker.sock", false),
+            engine("ferrodock", own, true),
+            engine("work", "tcp://10.0.0.5:2376", false),
+        ];
+        add_builtin(&mut list, engine("Ferrodock", own, false));
+        let names: Vec<&str> = list.iter().map(|e| e.name.as_str()).collect();
+        assert_eq!(names, ["default", "work", "Ferrodock"]);
+        // The context was the CLI's current one, so Ferrodock's engine is.
+        assert!(list[2].current);
     }
 }

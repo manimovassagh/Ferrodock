@@ -16,7 +16,9 @@ for this computer, ready to copy, including the MCP setup for your AI tool.
 
 Both use the same engine as Ferrodock: `DOCKER_HOST` when it's set, else
 Ferrodock's own engine when it runs, else your current Docker context. Pick
-another with `--engine NAME`; `fdock engine` lists them.
+another with `--engine NAME`; `fdock engine` lists them. The `docker`
+command itself can use Ferrodock's engine with `docker context use
+ferrodock` (see [Ferrodock's own engine](./engine.md)).
 
 ## Getting them
 

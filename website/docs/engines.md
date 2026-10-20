@@ -36,7 +36,9 @@ The list has:
 - **default**: `DOCKER_HOST`, or the platform's default shown above.
 - Every **Docker context** (`docker context ls`), whether it uses a local
   socket, a remote `tcp://` host with TLS, or `ssh://`.
-- **Ferrodock**, its own engine, once it's set up.
+- **Ferrodock**, its own engine, once it's set up. The `ferrodock` context
+  that points at it isn't listed twice; when it's your current context,
+  Ferrodock's engine is the one picked.
 - **Local engine**: a Docker socket in `~/.docker/run`, if there is one and
   no context points at it already.
 
