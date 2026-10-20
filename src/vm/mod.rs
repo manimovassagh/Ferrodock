@@ -27,6 +27,8 @@ mod macos;
 use macos as platform;
 #[cfg(any(all(engine, windows), test))]
 mod mux;
+#[cfg(any(all(engine, target_os = "macos"), test))]
+mod ports;
 #[cfg(all(engine, windows))]
 mod windows;
 #[cfg(any(all(engine, windows), test))]

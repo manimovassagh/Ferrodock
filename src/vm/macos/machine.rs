@@ -17,14 +17,14 @@ use objc2_foundation::{NSArray, NSError, NSFileHandle, NSString, NSURL};
 use objc2_virtualization::{
     VZDirectorySharingDeviceConfiguration, VZDiskImageStorageDeviceAttachment,
     VZEntropyDeviceConfiguration, VZFileHandleSerialPortAttachment, VZLinuxBootLoader,
-    VZMemoryBalloonDeviceConfiguration, VZNATNetworkDeviceAttachment, VZNetworkDeviceConfiguration,
-    VZSerialPortConfiguration, VZSharedDirectory, VZSingleDirectoryShare,
-    VZSocketDeviceConfiguration, VZStorageDeviceConfiguration, VZVirtioBlockDeviceConfiguration,
-    VZVirtioConsoleDeviceSerialPortConfiguration, VZVirtioEntropyDeviceConfiguration,
-    VZVirtioFileSystemDeviceConfiguration, VZVirtioNetworkDeviceConfiguration,
-    VZVirtioSocketConnection, VZVirtioSocketDevice, VZVirtioSocketDeviceConfiguration,
-    VZVirtioTraditionalMemoryBalloonDeviceConfiguration, VZVirtualMachine,
-    VZVirtualMachineConfiguration, VZVirtualMachineState,
+    VZMACAddress, VZMemoryBalloonDeviceConfiguration, VZNATNetworkDeviceAttachment,
+    VZNetworkDeviceConfiguration, VZSerialPortConfiguration, VZSharedDirectory,
+    VZSingleDirectoryShare, VZSocketDeviceConfiguration, VZStorageDeviceConfiguration,
+    VZVirtioBlockDeviceConfiguration, VZVirtioConsoleDeviceSerialPortConfiguration,
+    VZVirtioEntropyDeviceConfiguration, VZVirtioFileSystemDeviceConfiguration,
+    VZVirtioNetworkDeviceConfiguration, VZVirtioSocketConnection, VZVirtioSocketDevice,
+    VZVirtioSocketDeviceConfiguration, VZVirtioTraditionalMemoryBalloonDeviceConfiguration,
+    VZVirtualMachine, VZVirtualMachineConfiguration, VZVirtualMachineState,
 };
 
 use crate::vm::{Paths, Resources, SHARE_TAG, VSOCK_PORT};
@@ -216,6 +216,14 @@ fn configuration(
 
         let network = VZVirtioNetworkDeviceConfiguration::new();
         network.setAttachment(Some(VZNATNetworkDeviceAttachment::new().as_super()));
+        // A card address of our own, to find the VM's address by (see
+        // `vm::ports`).
+        if let Some(mac) = VZMACAddress::initWithString(
+            VZMACAddress::alloc(),
+            &NSString::from_str(&crate::vm::ports::mac_address(&paths.dir)),
+        ) {
+            network.setMACAddress(&mac);
+        }
         let networks: Vec<Retained<VZNetworkDeviceConfiguration>> =
             vec![Retained::into_super(network)];
         config.setNetworkDevices(&NSArray::from_retained_slice(&networks));

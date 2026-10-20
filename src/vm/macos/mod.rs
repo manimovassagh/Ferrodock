@@ -6,11 +6,12 @@ mod machine;
 use std::io::{Read, Write};
 use std::net::Shutdown;
 use std::os::unix::net::{UnixListener, UnixStream};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 pub use machine::Machine;
 
+use super::ports::{Forwarder, mac_address};
 use super::{Paths, Resources, download};
 
 /// Size of the data disk (sparse: it only takes what's used).
@@ -47,9 +48,11 @@ fn join(client: UnixStream, engine: UnixStream) {
     let _ = up.join();
 }
 
-/// The running engine: the VM and the socket on the Mac.
+/// The running engine: the VM, the socket on the Mac, and the containers'
+/// ports on `localhost`.
 pub struct Running {
     machine: Arc<Machine>,
+    ports: Mutex<Option<Forwarder>>,
 }
 
 impl Running {
@@ -81,7 +84,11 @@ impl Running {
                 }
             })
             .map_err(|e| e.to_string())?;
-        Ok(Self { machine })
+        let ports = Forwarder::start(paths.host(), mac_address(&paths.dir))?;
+        Ok(Self {
+            machine,
+            ports: Mutex::new(Some(ports)),
+        })
     }
 
     pub fn is_running(&self) -> bool {
@@ -90,6 +97,9 @@ impl Running {
 
     /// Shuts the guest down, and stops it hard if it takes too long.
     pub fn stop(&self) {
+        if let Some(ports) = self.ports.lock().ok().and_then(|mut p| p.take()) {
+            ports.stop();
+        }
         self.machine.request_stop();
         for _ in 0..50 {
             if !self.machine.running() {
