@@ -114,7 +114,10 @@ function CopyButton({ text }) {
   );
 }
 
-function Window({ src, alt, className }) {
+// `animation` plays instead of `src` unless the visitor prefers reduced motion.
+function Window({ src, alt, className, animation }) {
+  const image = <img src={useBaseUrl(src)} alt={alt} loading="lazy" />;
+  const animationUrl = useBaseUrl(animation ?? src);
   return (
     <div className={clsx(styles.window, className)}>
       <div className={styles.windowBar}>
@@ -122,7 +125,18 @@ function Window({ src, alt, className }) {
         <span />
         <span />
       </div>
-      <img src={useBaseUrl(src)} alt={alt} loading="lazy" />
+      {animation ? (
+        <picture>
+          <source
+            srcSet={animationUrl}
+            type="image/webp"
+            media="(prefers-reduced-motion: no-preference)"
+          />
+          {image}
+        </picture>
+      ) : (
+        image
+      )}
     </div>
   );
 }
@@ -152,7 +166,12 @@ function Hero() {
           <Link href={RELEASES}>All downloads and checksums</Link> ·{" "}
           <Link to="/docs/installation">Installation guide</Link>
         </p>
-        <Window src="/img/containers.png" alt="Ferrodock showing a list of containers" className={styles.heroShot} />
+        <Window
+          src="/img/containers.png"
+          animation="/img/demo.webp"
+          alt="Ferrodock showing containers grouped by Compose project, a container's live logs and stats, the command palette and Quick start"
+          className={styles.heroShot}
+        />
       </div>
     </header>
   );
