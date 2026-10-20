@@ -409,6 +409,57 @@
 
 /* ---------- Why ---------- */
 
+.compareWrap {
+  overflow-x: auto;
+  max-width: 64rem;
+  margin: 0 auto;
+}
+
+.compare {
+  display: table;
+  width: 100%;
+  /* Narrow screens scroll it sideways rather than squeeze the columns. */
+  min-width: 46rem;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.compare th,
+.compare td {
+  padding: 0.75rem 1rem;
+  text-align: center;
+  border: none;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.compare tr {
+  background: none;
+  border: none;
+}
+
+.compare tbody th {
+  text-align: left;
+  font-weight: 600;
+}
+
+.compare .compareUs {
+  background: color-mix(in srgb, var(--ifm-color-primary) 10%, transparent);
+  font-weight: 700;
+}
+
+.compare .compareYes {
+  color: var(--ifm-color-success-dark);
+  font-weight: 700;
+}
+
+.compareNote {
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-600);
+  max-width: 44rem;
+  margin: 1.5rem auto 0;
+}
+
 .whyGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

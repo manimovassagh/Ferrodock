@@ -4,9 +4,9 @@
 
 # Ferrodock
 
-**Docker, at native speed.**<br>
-A fast, free desktop app for your containers, images, volumes and networks,<br>
-written entirely in Rust. For macOS, Windows and Linux.
+**The native Docker desktop. Written in Rust.**<br>
+One free app for macOS, Windows and Linux, with its own Docker engine built in:<br>
+containers, images, volumes, networks and Compose, plus a CLI and an MCP server for AI tools.
 
 [![Release](https://img.shields.io/github/v/release/manimovassagh/Ferrodock?display_name=tag&sort=semver)](https://github.com/manimovassagh/Ferrodock/releases/latest)
 [![CI](https://github.com/manimovassagh/Ferrodock/actions/workflows/ci.yml/badge.svg)](https://github.com/manimovassagh/Ferrodock/actions/workflows/ci.yml)
@@ -26,10 +26,12 @@ written entirely in Rust. For macOS, Windows and Linux.
 
 </div>
 
-Ferrodock is a single native app: no Electron, no web view, no background
-service, and no CPU used while idle. It talks straight to the Docker Engine
-API, and on Macs, Windows and Linux it can even run **its own Docker
-engine**, so there's nothing else to install.
+Ferrodock is a single native app: no Electron, no web view, and no CPU used
+while idle. It brings **its own Docker engine** on every platform (a
+lightweight VM on Macs, a WSL distro on Windows, a service on Linux), so
+there's nothing else to install, and your images, Compose files and
+`docker` commands keep working. Already run Docker? Ferrodock connects to
+that instead.
 
 ## Highlights
 
@@ -91,6 +93,21 @@ updates itself: when a new version is out, click **Update to x.y.z** in the side
 The [installation guide](https://manimovassagh.github.io/Ferrodock/docs/installation)
 has the details for each platform.
 
+## How it compares
+
+| | Ferrodock | Docker Desktop | OrbStack | Rancher Desktop | Podman Desktop |
+| --- | --- | --- | --- | --- | --- |
+| Free for companies | ✅ | Paid above 250 employees or $10M revenue | Paid for commercial use | ✅ | ✅ |
+| macOS, Windows and Linux | ✅ | ✅ | macOS only | ✅ | ✅ |
+| App built with | Rust, native | Electron | Swift, native | Electron | Electron |
+| Docker engine included | ✅ | ✅ | ✅ | ✅ | Podman |
+| Open source | ✅ MIT | ❌ | ❌ | ✅ Apache-2.0 | ✅ Apache-2.0 |
+| CLI and MCP server for AI tools, built in | ✅ | MCP Toolkit | ❌ | ❌ | ❌ |
+
+As of October 2026; check each project's site for its current terms. Where
+others are ahead: OrbStack has years of tuning behind its Mac file sharing
+and networking, and Docker Desktop has the largest ecosystem of extensions.
+
 ## Ferrodock's own engine
 
 When Ferrodock finds no Docker engine, click **Set up Ferrodock's engine**.
@@ -126,8 +143,8 @@ Ferrodock comes with two more programs, built on the same Rust core:
   claude mcp add ferrodock -- ferrodock-mcp
   ```
 
-Homebrew puts both on your PATH; the Windows zip and Linux tarball have them
-next to Ferrodock. See [Command line and AI tools](https://manimovassagh.github.io/Ferrodock/docs/cli-and-mcp).
+Ferrodock puts both on your PATH: by itself on Windows and Linux, and with
+one click under **CLI & MCP** in the sidebar on macOS (Homebrew does it too). See [Command line and AI tools](https://manimovassagh.github.io/Ferrodock/docs/cli-and-mcp).
 
 ## Documentation
 
