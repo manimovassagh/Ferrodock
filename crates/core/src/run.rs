@@ -216,6 +216,21 @@ impl DockerClient {
         Ok(created.id)
     }
 
+    /// Runs a Quick start template with `choices`, pulling its image first
+    /// when it isn't here. Returns the container's ID.
+    pub async fn run_template(
+        &self,
+        template: &super::Template,
+        choices: &super::Choices,
+        progress: impl FnMut(PullProgress),
+    ) -> Result<String, String> {
+        let image = template.reference(choices);
+        if !self.has_image(&image).await {
+            self.pull(&image, progress).await?;
+        }
+        self.run(&template.spec(choices)).await
+    }
+
     /// Whether `image` (a reference like `nginx:alpine`, or an ID) is here.
     pub async fn has_image(&self, image: &str) -> bool {
         self.docker.inspect_image(image).await.is_ok()

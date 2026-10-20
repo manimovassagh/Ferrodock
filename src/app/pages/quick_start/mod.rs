@@ -33,18 +33,12 @@ pub fn running<'a>(store: &'a Store, template: &Template) -> Option<&'a Containe
 /// Whether a host port is free: no container publishes it and nothing on
 /// this machine listens on it.
 fn port_free(store: &Store, port: u16) -> bool {
-    let published = store
-        .containers
-        .iter()
-        .flat_map(|c| &c.ports)
-        .any(|p| p.public == Some(port));
-    !published && std::net::TcpListener::bind(("127.0.0.1", port)).is_ok()
+    crate::docker::port_free(&store.containers, port)
 }
 
 /// Settings for a run of `template` that don't clash with what's there.
 pub fn defaults(store: &Store, template: &Template) -> Choices {
-    let names: Vec<&str> = store.containers.iter().map(|c| c.name.as_str()).collect();
-    template.defaults(&names, |port| port_free(store, port))
+    template.defaults_for(&store.containers)
 }
 
 impl Page for QuickStartPage {

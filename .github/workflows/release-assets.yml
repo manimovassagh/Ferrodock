@@ -165,8 +165,8 @@ jobs:
             exit 0
           fi
           version=${TAG#v}
-          # The shared crates first: the app depends on them.
-          for crate in ferrodock-core ferrodock; do
+          # The shared crate first: the app and the CLI depend on it.
+          for crate in ferrodock-core ferrodock-cli ferrodock; do
             if curl -fsS -A "ferrodock-release (github.com/manimovassagh/Ferrodock)" \
                 "https://crates.io/api/v1/crates/$crate/$version" > /dev/null; then
               echo "$crate $version is already on crates.io."

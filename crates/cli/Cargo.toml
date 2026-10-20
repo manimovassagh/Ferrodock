@@ -1,0 +1,25 @@
+[package]
+name = "ferrodock-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+homepage.workspace = true
+description = "fdock: Ferrodock on the command line. Containers, images, logs and Quick start templates on any Docker engine, with compact JSON for scripts and AI tools."
+readme = "README.md"
+keywords = ["docker", "containers", "cli"]
+categories = ["command-line-utilities", "development-tools"]
+
+[[bin]]
+name = "fdock"
+path = "src/main.rs"
+
+[dependencies]
+ferrodock-core.workspace = true
+clap = { version = "4.6.7", features = ["derive"] }
+futures-util.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
