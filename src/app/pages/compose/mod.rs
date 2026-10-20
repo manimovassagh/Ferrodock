@@ -5,6 +5,8 @@
 mod logs;
 mod up;
 
+pub use up::{pick_compose_file, up_op};
+
 use eframe::egui::{self, Color32, RichText};
 
 use crate::app::components::icons::Icon;
@@ -277,7 +279,11 @@ impl Page for ComposePage {
     }
 
     fn commands(&self, store: &Store) -> Vec<Command> {
-        let mut list = Vec::new();
+        let mut list = vec![Command {
+            label: "Open a Compose file…".into(),
+            detail: "docker compose up -d".into(),
+            run: CommandRun::Intents(vec![Intent::OpenComposeFile]),
+        }];
         for project in &store.projects {
             let status = format!(
                 "Compose project · {}/{} running",

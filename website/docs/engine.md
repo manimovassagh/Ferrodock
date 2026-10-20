@@ -34,6 +34,7 @@ download is about 120 MB.
   (images, containers and volumes; it only takes the space it uses) and the
   engine's log, `console.log`.
 - The VM gets half your CPU cores (between 2 and 8) and 4 GB of memory.
+  Change that in [Settings → Ferrodock's engine](./using/settings.md#ferrodocks-engine).
 - Your home folder is shared with the engine at the same path, so bind
   mounts such as `-v ~/project:/app` work as you'd expect. Folders outside
   your home folder aren't shared.

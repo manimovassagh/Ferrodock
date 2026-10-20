@@ -16,13 +16,26 @@ pub(super) fn is_compose_file(path: &Path) -> bool {
         .is_some_and(|e| e.eq_ignore_ascii_case("yaml") || e.eq_ignore_ascii_case("yml"))
 }
 
-/// Starts `docker compose up` for `file`.
-pub(super) fn up(ctx: &mut PageCtx, file: &Path) {
-    ctx.request(Intent::Compose(ComposeOp::Run {
+/// `docker compose up` for `file`.
+pub fn up_op(file: &Path) -> ComposeOp {
+    ComposeOp::Run {
         job: next_job(),
         target: ComposeTarget::from_file(file),
         action: ComposeAction::Up,
-    }));
+    }
+}
+
+/// Starts `docker compose up` for `file`.
+pub(super) fn up(ctx: &mut PageCtx, file: &Path) {
+    ctx.request(Intent::Compose(up_op(file)));
+}
+
+/// Asks for a Compose file with the system's file picker.
+pub fn pick_compose_file() -> Option<PathBuf> {
+    rfd::FileDialog::new()
+        .set_title("Open a Compose file")
+        .add_filter("Compose file", &["yaml", "yml"])
+        .pick_file()
 }
 
 /// The path box, the recent files and the drop target.
@@ -72,6 +85,13 @@ pub(super) fn bar(ui: &mut egui::Ui, ctx: &mut PageCtx, path: &mut String) {
             .on_hover_text("docker compose up -d")
             .on_disabled_hover_text("Enter the path of a Compose file on this computer");
         let entered = field.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+        if widgets::button(ui, Icon::Folder, "Open…")
+            .on_hover_text("Pick a Compose file and run docker compose up -d")
+            .clicked()
+            && let Some(file) = pick_compose_file()
+        {
+            up(ctx, &file);
+        }
         // The button names the field for screen readers.
         field.labelled_by(start.id);
         if ok && (start.clicked() || entered) {

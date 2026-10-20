@@ -405,6 +405,12 @@ impl FerrodockApp {
                 }
             }
             Intent::ClearSearch => self.search.clear(),
+            Intent::OpenComposeFile => {
+                if let Some(file) = pages::pick_compose_file() {
+                    self.handle_intent(Intent::OpenPage("Compose"));
+                    self.handle_intent(Intent::Compose(pages::up_op(&file)));
+                }
+            }
             Intent::Inspect(resource, id) => {
                 self.store.inspection = None;
                 self.store.inspecting = Some(id.clone());
@@ -581,7 +587,13 @@ impl eframe::App for FerrodockApp {
         self.show_confirmation(ui, p);
         self.show_palette(ui, p);
         if self.show_settings {
-            self.show_settings = settings::show(ui, p, &mut self.settings, &self.updater);
+            self.show_settings = settings::show(
+                ui,
+                p,
+                &mut self.settings,
+                &self.updater,
+                &self.engine_starter.builtin,
+            );
         }
         if self.show_help {
             let titles: Vec<&'static str> = self.pages.iter().map(|page| page.title()).collect();

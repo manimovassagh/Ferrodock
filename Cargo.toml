@@ -62,6 +62,8 @@ vt100 = "0.16.2"
 ureq = "3.4.2"
 ruzstd = "0.9.1"
 tokio.workspace = true
+# The system's file picker; on Linux through the desktop portal, no GTK.
+rfd = { version = "0.17.2", default-features = false, features = ["xdg-portal"] }
 
 # Contexts over SSH run the system's ssh, which bollard supports on Unix.
 [target.'cfg(unix)'.dependencies]

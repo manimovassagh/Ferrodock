@@ -13,6 +13,8 @@ pub(in crate::app) mod quick_start;
 pub(super) mod run_dialog;
 mod volumes;
 
+pub use compose::{pick_compose_file, up_op};
+
 use eframe::egui;
 
 use super::components::icons::Icon;

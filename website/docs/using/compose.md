@@ -23,9 +23,10 @@ stopped) or **Stopped**.
 
 ## Starting a project
 
-To start a project that isn't running yet, paste the path of its
-`compose.yaml` in the box at the top of the page and click **Up**, or drop
-the file on the window. The output of `docker compose` shows while it
+To start a project that isn't running yet, click **Open…** at the top of
+the page and pick its `compose.yaml`, paste the file's path in the box and
+click **Up**, or drop the file on the window. **Open a Compose file…** in
+the command palette (⌘K, Ctrl+K on Windows and Linux) does the same. The output of `docker compose` shows while it
 works. Projects you started this way are listed under **Recent**, for
 one-click restarts.
 
