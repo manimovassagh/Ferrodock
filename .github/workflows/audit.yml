@@ -1,0 +1,24 @@
+name: Audit
+
+# Advisories are published after the code that's affected, so the
+# dependencies are checked every week too, not only when they change.
+# A failure here means: update the crate, or note why in deny.toml.
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  advisories:
+    name: Advisories
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+      - run: cargo deny check advisories
+      - run: cargo deny --manifest-path agent/Cargo.toml --config deny.toml check advisories

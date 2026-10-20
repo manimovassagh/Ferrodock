@@ -28,20 +28,31 @@ cargo fmt
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace                        # unit tests
 cargo test --workspace -- --include-ignored   # also tests against your local Docker Engine
+cargo deny check licenses advisories          # permissive licenses, no known vulnerabilities
 ```
+
+The guest agent is its own crate, outside the workspace: if you change
+`agent/`, run the same with `--manifest-path agent/Cargo.toml`.
 
 ## Code layout
 
 | Path | What lives there |
 |---|---|
 | `crates/core/` | `ferrodock-core`: the Docker Engine API, one file per resource. No UI code; shared with the CLI and the MCP server. |
+| `crates/cli/` | `fdock`, the command line. |
+| `crates/mcp/` | `ferrodock-mcp`, the MCP server for AI tools. |
 | `src/vm/` | Ferrodock's own engine: the Mac VM, the Windows WSL distro, the Linux service. |
 | `src/worker/` | Background thread that runs Docker calls and streams. |
 | `src/app/store/` | Everything currently known about the engine. |
 | `src/app/page.rs` | The `Page` trait every sidebar section implements. |
 | `src/app/pages/` | One module per page. |
 | `src/app/components/` | Reusable widgets: table, details pane, dialogs, charts. |
+| `src/update/` | The in-app updater. |
 | `src/theme/` | Colours, widget styling and fonts. |
+| `agent/` | The guest agent inside the engine's Linux VM (its own crate, built for musl). |
+| `engine/` | Scripts that build the engine images, published as `engine-v*` releases. |
+| `skills/` | Agent Skills: instructions AI assistants follow to install and connect Ferrodock. |
+| `website/` | The docs site and landing page (Docusaurus). |
 
 Some guidelines:
 
@@ -53,6 +64,18 @@ Some guidelines:
 - Add a unit test for any logic that isn't pure drawing.
 - Write commit messages in plain English: a short summary line, then the
   why.
+
+## Reviews
+
+[CODEOWNERS](.github/CODEOWNERS) asks the maintainer for a review on every
+pull request. Changes to what ships to people's machines (the engine, the
+guest agent, the updater, the release workflows) get a closer look, so
+explain in the description what they change and how you tested it.
+
+## Security
+
+Please don't report security problems in a public issue or pull request:
+see [SECURITY.md](SECURITY.md) for how to report them privately.
 
 ## Pull request titles
 

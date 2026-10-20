@@ -1,0 +1,16 @@
+# Who reviews what. GitHub asks these people for a review on every pull
+# request that touches the matching files; with branch protection's
+# "Require review from Code Owners", their approval is needed to merge.
+# Later lines win over earlier ones.
+
+*                       @manimovassagh
+
+# What ships to people's machines, or decides what does: the engine and
+# its guest agent, the updater, and the release and engine pipelines.
+/engine/                @manimovassagh
+/agent/                 @manimovassagh
+/src/vm/                @manimovassagh
+/src/update/            @manimovassagh
+/.github/               @manimovassagh
+/deny.toml              @manimovassagh
+/SECURITY.md            @manimovassagh

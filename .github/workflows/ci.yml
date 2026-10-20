@@ -60,9 +60,11 @@ jobs:
       - run: cargo test --manifest-path agent/Cargo.toml
 
   # Ferrodock stays free for anyone, companies included: only the
-  # permissive licenses in deny.toml are allowed in dependencies.
+  # permissive licenses in deny.toml are allowed in dependencies. No
+  # dependency may have a known vulnerability either (audit.yml also
+  # checks every week, for advisories published since).
   licenses:
-    name: Licenses
+    name: Licenses and advisories
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
@@ -71,8 +73,8 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-deny
-      - run: cargo deny check licenses
-      - run: cargo deny --manifest-path agent/Cargo.toml --config deny.toml check licenses
+      - run: cargo deny check licenses advisories
+      - run: cargo deny --manifest-path agent/Cargo.toml --config deny.toml check licenses advisories
 
   build:
     name: Build (${{ matrix.os }})

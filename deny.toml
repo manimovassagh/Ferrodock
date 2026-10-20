@@ -1,6 +1,7 @@
 # Ferrodock stays free for anyone to use, companies included: every
 # dependency must be under one of these permissive licenses. CI runs
-# `cargo deny check licenses` for the app and for the agent.
+# `cargo deny check licenses advisories` for the app and for the agent,
+# and again every week so new advisories show up without a code change.
 
 [graph]
 targets = [
@@ -32,4 +33,17 @@ allow = [
     "CDLA-Permissive-2.0",
     "OFL-1.1",
     "Ubuntu-font-1.0",
+]
+
+[advisories]
+version = 2
+# Known vulnerabilities always fail. These crates are only unmaintained,
+# deep in the window and tray libraries, with no maintained release to
+# move to yet; drop each one once its parent crate moves on.
+ignore = [
+    { id = "RUSTSEC-2024-0370", reason = "proc-macro-error, via gtk 0.18 (tray-icon on Linux)" },
+    { id = "RUSTSEC-2026-0192", reason = "ttf-parser, via ab_glyph in winit's Wayland decorations" },
+    { id = "RUSTSEC-2026-0370", reason = "zvariant, via accesskit's Linux screen reader support" },
+    { id = "RUSTSEC-2026-0371", reason = "zbus_names, via accesskit's Linux screen reader support" },
+    { id = "RUSTSEC-2026-0372", reason = "zvariant_derive, via accesskit's Linux screen reader support" },
 ]

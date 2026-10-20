@@ -9,6 +9,17 @@ updates:
     groups:
       rust-dependencies:
         patterns: ["*"]
+  # The guest agent that runs inside the engine's VM: its own crate and
+  # lockfile, outside the workspace.
+  - package-ecosystem: cargo
+    directory: /agent
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      agent-dependencies:
+        patterns: ["*"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
