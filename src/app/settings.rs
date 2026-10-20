@@ -184,177 +184,179 @@ pub fn show(
             ui.label(RichText::new("Settings").size(18.0).strong().color(p.text));
             ui.add_space(14.0);
 
-            heading(ui, p, "Appearance");
-            egui::Grid::new("settings-grid")
-                .num_columns(2)
-                .spacing([18.0, 12.0])
-                .show(ui, |ui| {
-                    ui.label(RichText::new("Theme").color(p.muted));
-                    ui.horizontal(|ui| {
-                        for (theme, label) in [
-                            (Theme::Light, "Light"),
-                            (Theme::Dark, "Dark"),
-                            (Theme::System, "System"),
-                        ] {
-                            let on = settings.editor_theme.is_none() && settings.theme == theme;
-                            if ui.selectable_label(on, label).clicked() {
-                                settings.theme = theme;
-                                settings.editor_theme = None;
+            widgets::dialog_body(ui, |ui| {
+                heading(ui, p, "Appearance");
+                egui::Grid::new("settings-grid")
+                    .num_columns(2)
+                    .spacing([18.0, 12.0])
+                    .show(ui, |ui| {
+                        ui.label(RichText::new("Theme").color(p.muted));
+                        ui.horizontal(|ui| {
+                            for (theme, label) in [
+                                (Theme::Light, "Light"),
+                                (Theme::Dark, "Dark"),
+                                (Theme::System, "System"),
+                            ] {
+                                let on = settings.editor_theme.is_none() && settings.theme == theme;
+                                if ui.selectable_label(on, label).clicked() {
+                                    settings.theme = theme;
+                                    settings.editor_theme = None;
+                                }
+                            }
+                        });
+                        ui.end_row();
+
+                        ui.label(RichText::new("Density").color(p.muted));
+                        ui.horizontal(|ui| {
+                            ui.selectable_value(
+                                &mut settings.density,
+                                Density::Comfortable,
+                                "Comfortable",
+                            );
+                            ui.selectable_value(&mut settings.density, Density::Compact, "Compact");
+                        });
+                        ui.end_row();
+
+                        ui.label(RichText::new("Interface size").color(p.muted));
+                        // The slider shows percent; the setting is a factor.
+                        let mut percent = (settings.scale * 100.0).round();
+                        let slider = egui::Slider::new(
+                            &mut percent,
+                            Settings::MIN_SCALE * 100.0..=Settings::MAX_SCALE * 100.0,
+                        )
+                        .step_by(5.0)
+                        .suffix("%");
+                        // Apply when the drag ends, so the slider doesn't move
+                        // under the pointer while the whole window rescales.
+                        let response = ui.add(slider);
+                        if response.drag_stopped() || (response.changed() && !response.dragged()) {
+                            settings.scale = percent / 100.0;
+                        }
+                        ui.end_row();
+                    });
+
+                ui.add_space(14.0);
+                ui.label(RichText::new("Editor themes").color(p.muted));
+                ui.add_space(6.0);
+                egui::Grid::new("editor-themes")
+                    .num_columns(3)
+                    .spacing([12.0, 10.0])
+                    .show(ui, |ui| {
+                        for (i, editor) in crate::theme::EDITOR_THEMES.iter().enumerate() {
+                            let on = settings.editor_theme.as_deref() == Some(editor.id);
+                            if theme_swatch(ui, p, editor, on).clicked() {
+                                settings.editor_theme = Some(editor.id.to_owned());
+                            }
+                            if i % 3 == 2 {
+                                ui.end_row();
                             }
                         }
                     });
-                    ui.end_row();
-
-                    ui.label(RichText::new("Density").color(p.muted));
-                    ui.horizontal(|ui| {
-                        ui.selectable_value(
-                            &mut settings.density,
-                            Density::Comfortable,
-                            "Comfortable",
-                        );
-                        ui.selectable_value(&mut settings.density, Density::Compact, "Compact");
-                    });
-                    ui.end_row();
-
-                    ui.label(RichText::new("Interface size").color(p.muted));
-                    // The slider shows percent; the setting is a factor.
-                    let mut percent = (settings.scale * 100.0).round();
-                    let slider = egui::Slider::new(
-                        &mut percent,
-                        Settings::MIN_SCALE * 100.0..=Settings::MAX_SCALE * 100.0,
-                    )
-                    .step_by(5.0)
-                    .suffix("%");
-                    // Apply when the drag ends, so the slider doesn't move
-                    // under the pointer while the whole window rescales.
-                    let response = ui.add(slider);
-                    if response.drag_stopped() || (response.changed() && !response.dragged()) {
-                        settings.scale = percent / 100.0;
-                    }
-                    ui.end_row();
-                });
-
-            ui.add_space(14.0);
-            ui.label(RichText::new("Editor themes").color(p.muted));
-            ui.add_space(6.0);
-            egui::Grid::new("editor-themes")
-                .num_columns(3)
-                .spacing([12.0, 10.0])
-                .show(ui, |ui| {
-                    for (i, editor) in crate::theme::EDITOR_THEMES.iter().enumerate() {
-                        let on = settings.editor_theme.as_deref() == Some(editor.id);
-                        if theme_swatch(ui, p, editor, on).clicked() {
-                            settings.editor_theme = Some(editor.id.to_owned());
-                        }
-                        if i % 3 == 2 {
-                            ui.end_row();
-                        }
-                    }
-                });
-            ui.add_space(18.0);
-            heading(ui, p, "Notifications");
-            ui.checkbox(
-                &mut settings.notify_crashes,
-                "Tell me when a container crashes, even when Ferrodock is in the background",
-            );
-
-            ui.add_space(18.0);
-            heading(ui, p, "Startup");
-            ui.checkbox(
-                &mut settings.start_engine,
-                "Start the Docker engine when Ferrodock opens, if it isn't running",
-            );
-            let before = settings.launch_at_login;
-            ui.checkbox(
-                &mut settings.launch_at_login,
-                "Open Ferrodock when you log in",
-            );
-            let error_id = egui::Id::unique("launch-at-login-error");
-            if settings.launch_at_login != before
-                && let Err(e) = crate::app::autostart::set(settings.launch_at_login)
-            {
-                settings.launch_at_login = before;
-                ui.data_mut(|d| d.insert_temp(error_id, e));
-            }
-            if let Some(error) = ui.data(|d| d.get_temp::<String>(error_id)) {
-                ui.label(RichText::new(format!("Couldn't change it: {error}")).color(p.danger));
-            }
-            if vm::SUPPORTED && engine.state() != vm::State::NotInstalled {
                 ui.add_space(18.0);
-                heading(ui, p, "Ferrodock's engine");
-                engine_section(ui, p, settings, engine);
-            }
-            if crate::app::tray::Tray::SUPPORTED {
-                ui.add_space(18.0);
-                let place = if cfg!(target_os = "macos") {
-                    "Menu bar"
-                } else {
-                    "Notification area"
-                };
-                heading(ui, p, place);
+                heading(ui, p, "Notifications");
                 ui.checkbox(
-                    &mut settings.close_to_tray,
-                    "Keep running there when the window is closed",
+                    &mut settings.notify_crashes,
+                    "Tell me when a container crashes, even when Ferrodock is in the background",
                 );
-            }
 
-            ui.add_space(18.0);
-            heading(ui, p, "Updates");
-            ui.checkbox(
-                &mut settings.check_updates,
-                "Check for updates when Ferrodock starts",
-            );
-            ui.horizontal(|ui| {
-                let status = updater.status();
-                let (text, color) = match &status {
-                    Status::Idle => (String::new(), p.muted),
-                    Status::Checking => ("Checking…".into(), p.muted),
-                    Status::UpToDate => ("Ferrodock is up to date.".into(), p.muted),
-                    Status::Available(a) => {
-                        (format!("Version {} is available.", a.version), p.text)
-                    }
-                    Status::Downloading { version, .. } => {
-                        (format!("Downloading {version}…"), p.muted)
-                    }
-                    Status::Ready { version, .. } => (
-                        format!("Version {version} is installed. Restart to use it."),
-                        p.text,
-                    ),
-                    Status::Failed(e) => (e.clone(), p.danger),
-                };
-                if let Status::Available(available) = status {
-                    if widgets::primary_button(ui, "Update now").clicked() {
-                        updater.install(available);
-                    }
-                } else if ui.button("Check now").clicked() {
-                    updater.check();
+                ui.add_space(18.0);
+                heading(ui, p, "Startup");
+                ui.checkbox(
+                    &mut settings.start_engine,
+                    "Start the Docker engine when Ferrodock opens, if it isn't running",
+                );
+                let before = settings.launch_at_login;
+                ui.checkbox(
+                    &mut settings.launch_at_login,
+                    "Open Ferrodock when you log in",
+                );
+                let error_id = egui::Id::unique("launch-at-login-error");
+                if settings.launch_at_login != before
+                    && let Err(e) = crate::app::autostart::set(settings.launch_at_login)
+                {
+                    settings.launch_at_login = before;
+                    ui.data_mut(|d| d.insert_temp(error_id, e));
                 }
-                ui.label(RichText::new(text).color(color));
-            });
-            if crate::update::installed_with_homebrew() {
-                ui.label(
-                    RichText::new(
-                        "Installed with Homebrew: `brew upgrade --cask ferrodock` works too.",
-                    )
-                    .size(12.0)
-                    .color(p.muted),
-                );
-            }
+                if let Some(error) = ui.data(|d| d.get_temp::<String>(error_id)) {
+                    ui.label(RichText::new(format!("Couldn't change it: {error}")).color(p.danger));
+                }
+                if vm::SUPPORTED && engine.state() != vm::State::NotInstalled {
+                    ui.add_space(18.0);
+                    heading(ui, p, "Ferrodock's engine");
+                    engine_section(ui, p, settings, engine);
+                }
+                if crate::app::tray::Tray::SUPPORTED {
+                    ui.add_space(18.0);
+                    let place = if cfg!(target_os = "macos") {
+                        "Menu bar"
+                    } else {
+                        "Notification area"
+                    };
+                    heading(ui, p, place);
+                    ui.checkbox(
+                        &mut settings.close_to_tray,
+                        "Keep running there when the window is closed",
+                    );
+                }
 
-            ui.add_space(18.0);
-            heading(ui, p, "About");
-            ui.label(
-                RichText::new(format!("Ferrodock {}", env!("CARGO_PKG_VERSION"))).color(p.text),
-            );
-            ui.horizontal(|ui| {
-                ui.hyperlink_to("Website", "https://manimovassagh.github.io/Ferrodock/");
-                ui.label(RichText::new("·").color(p.muted));
-                ui.hyperlink_to("GitHub", "https://github.com/manimovassagh/Ferrodock");
-                ui.label(RichText::new("·").color(p.muted));
-                ui.hyperlink_to(
-                    "Report a problem",
-                    "https://github.com/manimovassagh/Ferrodock/issues/new/choose",
+                ui.add_space(18.0);
+                heading(ui, p, "Updates");
+                ui.checkbox(
+                    &mut settings.check_updates,
+                    "Check for updates when Ferrodock starts",
                 );
+                ui.horizontal(|ui| {
+                    let status = updater.status();
+                    let (text, color) = match &status {
+                        Status::Idle => (String::new(), p.muted),
+                        Status::Checking => ("Checking…".into(), p.muted),
+                        Status::UpToDate => ("Ferrodock is up to date.".into(), p.muted),
+                        Status::Available(a) => {
+                            (format!("Version {} is available.", a.version), p.text)
+                        }
+                        Status::Downloading { version, .. } => {
+                            (format!("Downloading {version}…"), p.muted)
+                        }
+                        Status::Ready { version, .. } => (
+                            format!("Version {version} is installed. Restart to use it."),
+                            p.text,
+                        ),
+                        Status::Failed(e) => (e.clone(), p.danger),
+                    };
+                    if let Status::Available(available) = status {
+                        if widgets::primary_button(ui, "Update now").clicked() {
+                            updater.install(available);
+                        }
+                    } else if ui.button("Check now").clicked() {
+                        updater.check();
+                    }
+                    ui.label(RichText::new(text).color(color));
+                });
+                if crate::update::installed_with_homebrew() {
+                    ui.label(
+                        RichText::new(
+                            "Installed with Homebrew: `brew upgrade --cask ferrodock` works too.",
+                        )
+                        .size(12.0)
+                        .color(p.muted),
+                    );
+                }
+
+                ui.add_space(18.0);
+                heading(ui, p, "About");
+                ui.label(
+                    RichText::new(format!("Ferrodock {}", env!("CARGO_PKG_VERSION"))).color(p.text),
+                );
+                ui.horizontal(|ui| {
+                    ui.hyperlink_to("Website", "https://manimovassagh.github.io/Ferrodock/");
+                    ui.label(RichText::new("·").color(p.muted));
+                    ui.hyperlink_to("GitHub", "https://github.com/manimovassagh/Ferrodock");
+                    ui.label(RichText::new("·").color(p.muted));
+                    ui.hyperlink_to(
+                        "Report a problem",
+                        "https://github.com/manimovassagh/Ferrodock/issues/new/choose",
+                    );
+                });
             });
 
             ui.add_space(18.0);

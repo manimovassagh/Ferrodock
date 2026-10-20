@@ -354,6 +354,32 @@ pub fn danger_button(ui: &mut egui::Ui, p: &Palette, label: &str) -> Response {
     )
 }
 
+/// Space kept between a dialog and the window's edges.
+const DIALOG_MARGIN: f32 = 24.0;
+
+/// A dialog's body, between its title and its buttons, in a scroll area
+/// that keeps the whole dialog within the window, with a margin. The body
+/// scrolls when the window is too small for it; the title and buttons stay
+/// put.
+pub fn dialog_body<R>(ui: &mut egui::Ui, add: impl FnOnce(&mut egui::Ui) -> R) -> R {
+    let id = ui.scope_id().with("dialog-body");
+    let room = ui.ctx().content_rect().height() - 2.0 * DIALOG_MARGIN;
+    // Everything around the body (frame, title, buttons) is as tall as it
+    // was last frame.
+    let dialog = ui.ctx().memory(|m| m.area_rect(ui.layer_id().id));
+    let around = match (dialog, ui.data(|d| d.get_temp::<f32>(id))) {
+        (Some(dialog), Some(body)) => dialog.height() - body,
+        _ => 0.0,
+    };
+    let output = egui::ScrollArea::vertical()
+        .id_salt(id)
+        .max_height((room - around).max(60.0))
+        .auto_shrink([false, true])
+        .show(ui, add);
+    ui.data_mut(|d| d.insert_temp(id, output.inner_rect.height()));
+    output.inner
+}
+
 /// Shown when a list has nothing in it: an icon, a title, a hint and an
 /// optional button. Returns true when the button was clicked.
 pub fn empty_state(

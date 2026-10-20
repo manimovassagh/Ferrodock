@@ -224,59 +224,61 @@ pub fn show(ui: &mut egui::Ui, p: &Palette) -> bool {
             );
             ui.add_space(14.0);
 
-            heading(ui, p, "COMMAND LINE: FDOCK");
-            ui.label(
-                RichText::new(
-                    "Containers, logs, Quick start and more from a terminal. Add --json for \
+            widgets::dialog_body(ui, |ui| {
+                heading(ui, p, "COMMAND LINE: FDOCK");
+                ui.label(
+                    RichText::new(
+                        "Containers, logs, Quick start and more from a terminal. Add --json for \
                      scripts.",
-                )
-                .color(p.text),
-            );
-            ui.add_space(8.0);
-            cli_status(ui, p);
-            ui.add_space(8.0);
-            command_row(ui, p, "fdock ps");
-            ui.add_space(4.0);
-            command_row(ui, p, "fdock quickstart postgres");
+                    )
+                    .color(p.text),
+                );
+                ui.add_space(8.0);
+                cli_status(ui, p);
+                ui.add_space(8.0);
+                command_row(ui, p, "fdock ps");
+                ui.add_space(4.0);
+                command_row(ui, p, "fdock quickstart postgres");
 
-            ui.add_space(12.0);
-            heading(ui, p, "AI TOOLS: FERRODOCK-MCP");
-            ui.label(
-                RichText::new(
-                    "An MCP server, so AI coding tools can see your containers and start, stop \
+                ui.add_space(12.0);
+                heading(ui, p, "AI TOOLS: FERRODOCK-MCP");
+                ui.label(
+                    RichText::new(
+                        "An MCP server, so AI coding tools can see your containers and start, stop \
                      or run them for you. Add --read-only to let them look without changing \
                      anything.",
-                )
-                .color(p.text),
-            );
-            ui.add_space(6.0);
-            let picked_id = egui::Id::unique("ferrodock-integrations-tool");
-            let mut picked = ui
-                .ctx()
-                .data(|d| d.get_temp::<usize>(picked_id))
-                .unwrap_or(0)
-                .min(TOOLS.len() - 1);
-            ui.horizontal_wrapped(|ui| {
-                for (i, tool) in TOOLS.iter().enumerate() {
-                    if ui.selectable_label(i == picked, tool.name).clicked() {
-                        picked = i;
+                    )
+                    .color(p.text),
+                );
+                ui.add_space(6.0);
+                let picked_id = egui::Id::unique("ferrodock-integrations-tool");
+                let mut picked = ui
+                    .ctx()
+                    .data(|d| d.get_temp::<usize>(picked_id))
+                    .unwrap_or(0)
+                    .min(TOOLS.len() - 1);
+                ui.horizontal_wrapped(|ui| {
+                    for (i, tool) in TOOLS.iter().enumerate() {
+                        if ui.selectable_label(i == picked, tool.name).clicked() {
+                            picked = i;
+                        }
+                    }
+                });
+                ui.ctx().data_mut(|d| d.insert_temp(picked_id, picked));
+                ui.add_space(6.0);
+                match (TOOLS[picked].setup)("ferrodock-mcp") {
+                    Setup::Command(command) => command_row(ui, p, &command),
+                    Setup::Config { file, json } => {
+                        ui.label(
+                            RichText::new(format!("Add this to {file}:"))
+                                .size(12.0)
+                                .color(p.muted),
+                        );
+                        ui.add_space(2.0);
+                        command_row(ui, p, &json);
                     }
                 }
             });
-            ui.ctx().data_mut(|d| d.insert_temp(picked_id, picked));
-            ui.add_space(6.0);
-            match (TOOLS[picked].setup)("ferrodock-mcp") {
-                Setup::Command(command) => command_row(ui, p, &command),
-                Setup::Config { file, json } => {
-                    ui.label(
-                        RichText::new(format!("Add this to {file}:"))
-                            .size(12.0)
-                            .color(p.muted),
-                    );
-                    ui.add_space(2.0);
-                    command_row(ui, p, &json);
-                }
-            }
 
             ui.add_space(16.0);
             ui.horizontal(|ui| {
