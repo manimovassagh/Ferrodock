@@ -122,9 +122,9 @@ function Hero() {
       <div className="container">
         <p className={styles.eyebrow}>Ferrodock vs. the alternatives</p>
         <h1 className={styles.title}>
-          Free for your whole team.
+          Free for your whole team
           <br />
-          <span className={styles.accent}>A fraction of the download.</span>
+          <span className={styles.accent}>A fraction of the download</span>
         </h1>
         <p className={styles.lead}>
           What it costs, what you download and what it uses, side by side. Every number here is

@@ -4,7 +4,7 @@
 
 # Ferrodock
 
-**The native container app. Written in Rust.**<br>
+**The native container app, written in Rust**<br>
 One free app for macOS, Windows and Linux, with its own Docker engine built in:<br>
 containers, images, volumes, networks and Compose, plus a CLI and an MCP server for AI tools.
 

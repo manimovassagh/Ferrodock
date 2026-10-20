@@ -137,9 +137,9 @@ function Hero() {
         <img className={styles.heroLogo} src={useBaseUrl("/img/logo.png")} alt="" />
         <p className={styles.eyebrow}>Free · Open source · macOS, Windows and Linux</p>
         <h1 className={styles.title}>
-          The native container app.
+          The native container app
           <br />
-          <span className={styles.accent}>Written in Rust.</span>
+          <span className={styles.accent}>Written in Rust</span>
         </h1>
         <p className={styles.subtitle}>
           One fast, lightweight app for your containers, images, volumes and networks, with its
@@ -432,7 +432,7 @@ function FinalCta() {
     <section className={styles.final}>
       <div className={styles.glow} aria-hidden />
       <div className="container">
-        <h2>Free, open source, and fast.</h2>
+        <h2>Free, open source, and fast</h2>
         <p>Download Ferrodock for your computer, or star it on GitHub to follow along.</p>
         <DownloadCards downloads={downloads} platform={platform} dark />
         <div className={styles.ctas} style={{ marginTop: "1.5rem" }}>
