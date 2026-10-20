@@ -137,7 +137,7 @@ function Hero() {
         <img className={styles.heroLogo} src={useBaseUrl("/img/logo.png")} alt="" />
         <p className={styles.eyebrow}>Free · Open source · macOS, Windows and Linux</p>
         <h1 className={styles.title}>
-          The native Docker desktop.
+          The native container app.
           <br />
           <span className={styles.accent}>Written in Rust.</span>
         </h1>
@@ -346,7 +346,8 @@ function Compare() {
         <p className={styles.compareNote}>
           As of October 2026; check each project's site for its current terms. Where others are
           ahead: OrbStack has years of tuning behind its Mac file sharing and networking, and Docker
-          Desktop has the largest ecosystem of extensions.
+          Desktop has the largest ecosystem of extensions.{" "}
+          <Link to="/compare">Prices, download sizes and memory, side by side →</Link>
         </p>
       </div>
     </section>
@@ -447,7 +448,7 @@ function FinalCta() {
 export default function Home() {
   return (
     <Layout
-      title="The native Docker desktop, written in Rust"
+      title="The native container app, written in Rust"
       description="Ferrodock is a free, open-source desktop app for Docker on macOS, Windows and Linux, written in Rust, with its own Docker engine, a CLI and an MCP server for AI tools."
     >
       <main className={styles.page}>
