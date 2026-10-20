@@ -48,27 +48,37 @@ systemctl daemon-reload
 systemctl enable --now ferrodock-engine.service
 "#;
 
+/// Run as root: stops the service, deletes its data (images, containers,
+/// volumes), and starts it again, empty. The data folder is the
+/// `--data-root` in [`SETUP`]; folders mounted inside it are left alone.
+const RESET: &str = "set -eu
+systemctl stop ferrodock-engine.service
+rm -rf --one-file-system /var/lib/ferrodock
+systemctl start ferrodock-engine.service
+";
+
 /// Runs `program` as root through pkexec, which asks for the password.
-fn as_root(program: &str, args: &[&str]) -> Result<(), String> {
+/// `doing` says what for, in errors: "Setting up the engine".
+fn as_root(doing: &str, program: &str, args: &[&str]) -> Result<(), String> {
     let status = Command::new("pkexec")
         .arg(program)
         .args(args)
         .status()
         .map_err(|_| {
-            "Ferrodock needs your admin password to set up its engine, but this system \
-             has no pkexec (polkit) to ask for it."
-                .to_owned()
+            format!(
+                "{doing} needs your admin password, but this system has no pkexec (polkit) \
+                 to ask for it."
+            )
         })?;
     match status.code() {
         Some(0) => Ok(()),
         // pkexec: the password dialog was dismissed, or not allowed.
-        Some(126) | Some(127) => Err(
-            "Ferrodock's engine needs your admin password once, to run the Docker engine. \
-             Click Set up again to enter it."
-                .into(),
-        ),
+        Some(126) | Some(127) => Err(format!(
+            "{doing} needs your admin password: the Docker engine runs as root. \
+             Try again to enter it."
+        )),
         _ => Err(format!(
-            "Setting up the engine failed ({status}). `journalctl -u {SERVICE}` has the details."
+            "{doing} failed ({status}). `journalctl -u {SERVICE}` has the details."
         )),
     }
 }
@@ -86,6 +96,7 @@ pub fn install(paths: &Paths, archive: &[u8]) -> Result<(), String> {
     std::fs::write(&script, SETUP).map_err(|e| format!("{}: {e}", script.display()))?;
     let programs = paths.image.join("bin");
     let result = as_root(
+        "Setting up the engine",
         "/bin/sh",
         &[
             &script.to_string_lossy(),
@@ -99,17 +110,27 @@ pub fn install(paths: &Paths, archive: &[u8]) -> Result<(), String> {
     result
 }
 
+/// Stops the service, deletes its data and starts it again.
+pub fn reset(_paths: &Paths) -> Result<(), String> {
+    as_root("Resetting the engine", "/bin/sh", &["-c", RESET])
+}
+
 /// The engine's service. It keeps running when Ferrodock quits.
 pub struct Running;
 
 impl Running {
+    /// The service, when it runs already (it starts with the computer).
+    pub fn find() -> Option<Self> {
+        Path::new(LINUX_SOCKET).exists().then_some(Self)
+    }
+
     pub fn start(_paths: &Paths, _resources: &Resources) -> Result<Self, String> {
         let active = Command::new("systemctl")
             .args(["is-active", "--quiet", SERVICE])
             .status()
             .is_ok_and(|s| s.success());
         if !active {
-            as_root("systemctl", &["start", SERVICE])?;
+            as_root("Starting the engine", "systemctl", &["start", SERVICE])?;
         }
         // `is_running` goes by the socket, so be sure it's there.
         for _ in 0..300 {
@@ -130,6 +151,12 @@ impl Running {
     /// Nothing to do: like Docker on Linux, the engine keeps running for
     /// the containers on it.
     pub fn stop(&self) {}
+
+    /// Stopped from Settings: the service stays down until it's started
+    /// again, or the computer restarts.
+    pub fn shut_down(&self) -> Result<(), String> {
+        as_root("Stopping the engine", "systemctl", &["stop", SERVICE])
+    }
 }
 
 #[cfg(test)]
@@ -140,5 +167,12 @@ mod tests {
         assert!(setup.contains(&format!("unix://{}", super::LINUX_SOCKET)));
         assert!(setup.contains(ferrodock_core::builtin::LINUX_PROGRAMS));
         assert!(setup.contains(ferrodock_core::builtin::LINUX_SERVICE));
+    }
+
+    #[test]
+    fn resets_the_data_the_service_keeps() {
+        assert!(super::SETUP.contains("--data-root /var/lib/ferrodock "));
+        assert!(super::RESET.contains("rm -rf --one-file-system /var/lib/ferrodock\n"));
+        assert!(super::RESET.contains("start ferrodock-engine.service"));
     }
 }

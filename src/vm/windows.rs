@@ -74,6 +74,18 @@ pub fn install(paths: &Paths, archive: &[u8]) -> Result<(), String> {
     result.map(drop)
 }
 
+/// Unregisters the distro, which deletes its disk: every image, container
+/// and volume. The next start downloads and imports it again.
+pub fn reset(paths: &Paths) -> Result<(), String> {
+    // Fails when it isn't registered (a reset that didn't finish): fine,
+    // as long as its disk is gone.
+    let unregistered = wsl(&["--unregister", DISTRO]);
+    if paths.installed() {
+        return unregistered.map(drop);
+    }
+    Ok(())
+}
+
 /// Writes the certificates Windows trusts to a file the agent adds to the
 /// engine's own, so pulls work behind a proxy that inspects TLS, as on
 /// many company networks. Returns where the agent finds the file.
@@ -189,6 +201,12 @@ impl Running {
             .lock()
             .map(|mut c| matches!(c.try_wait(), Ok(None)))
             .unwrap_or(false)
+    }
+
+    /// Stopped from Settings: the same as when Ferrodock quits.
+    pub fn shut_down(&self) -> Result<(), String> {
+        self.stop();
+        Ok(())
     }
 
     /// Stops the engine, giving its containers time to shut down, then

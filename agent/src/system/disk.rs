@@ -24,7 +24,8 @@ fn formatted(device: &str) -> Result<bool, String> {
     Ok(has_ext4(&start))
 }
 
-/// Formats `device` if it's blank, mounts it, and points the engine's
+/// Formats `device` if it's blank, mounts it, grows its filesystem to
+/// fill it, and points the engine's
 /// state folders at it.
 pub fn mount_data(device: &str) -> Result<(), String> {
     if !formatted(device)? {
@@ -32,6 +33,11 @@ pub fn mount_data(device: &str) -> Result<(), String> {
         super::run("mkfs.ext4", &["-q", "-F", "-L", "ferrodock-data", device])?;
     }
     mount(device, DATA, "ext4", libc::MS_NOATIME)?;
+    // The disk grows when a bigger size is picked in Ferrodock: grow the
+    // filesystem to match (online; nothing to do when it fits already).
+    if let Err(e) = super::run("resize2fs", &[device]) {
+        log(&format!("growing {device}: {e}"));
+    }
     for name in ["docker", "containerd"] {
         let stored = format!("{DATA}/{name}");
         let used = format!("/var/lib/{name}");

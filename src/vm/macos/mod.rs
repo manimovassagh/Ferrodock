@@ -14,12 +14,38 @@ pub use machine::Machine;
 use super::ports::{Forwarder, mac_address};
 use super::{Paths, Resources, download};
 
-/// Size of the data disk (sparse: it only takes what's used).
-const DATA_DISK: u64 = 128 * 1024 * 1024 * 1024;
-
 /// Unpacks the downloaded image: the kernel and the root disk.
 pub fn install(paths: &Paths, archive: &[u8]) -> Result<(), String> {
     download::unpack(archive, &paths.image, &["kernel", "rootfs.img"])
+}
+
+/// Deletes the data disk: every image, container and volume. The next
+/// start makes a new, empty one.
+pub fn reset(paths: &Paths) -> Result<(), String> {
+    match std::fs::remove_file(&paths.data) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => {
+            Err(format!("{}: {e}", paths.data.display()))
+        }
+        _ => Ok(()),
+    }
+}
+
+/// Makes the data disk, or grows it to `gib` (sparse: it only takes
+/// what's used). It never shrinks: the data on it would be lost. The
+/// agent grows the filesystem on it to match when the VM boots.
+fn data_disk(paths: &Paths, gib: u64) -> Result<(), String> {
+    let failed = |e: std::io::Error| format!("{}: {e}", paths.data.display());
+    let disk = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(&paths.data)
+        .map_err(failed)?;
+    let size = gib * 1024 * 1024 * 1024;
+    if disk.metadata().map_err(failed)?.len() < size {
+        disk.set_len(size).map_err(failed)?;
+    }
+    Ok(())
 }
 
 /// Copies one way, then tells the other side nothing more comes.
@@ -58,11 +84,7 @@ pub struct Running {
 impl Running {
     /// Boots the VM and opens `paths.socket` for Docker clients.
     pub fn start(paths: &Paths, resources: &Resources) -> Result<Self, String> {
-        if !paths.data.exists() {
-            std::fs::File::create(&paths.data)
-                .and_then(|f| f.set_len(DATA_DISK))
-                .map_err(|e| format!("{}: {e}", paths.data.display()))?;
-        }
+        data_disk(paths, resources.disk_gib)?;
         let machine = Arc::new(Machine::new(paths, resources)?);
         machine.start()?;
         // A socket left from a run that didn't end cleanly.
@@ -93,6 +115,12 @@ impl Running {
 
     pub fn is_running(&self) -> bool {
         self.machine.running()
+    }
+
+    /// Stopped from Settings: the same as when Ferrodock quits.
+    pub fn shut_down(&self) -> Result<(), String> {
+        self.stop();
+        Ok(())
     }
 
     /// Shuts the guest down, and stops it hard if it takes too long.

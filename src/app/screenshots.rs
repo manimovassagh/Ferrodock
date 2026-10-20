@@ -646,3 +646,23 @@ fn screenshots_of_themes() {
     h.run_steps(4);
     save(&mut h, "theme-settings");
 }
+
+/// Settings → Ferrodock's engine with the engine running, and the
+/// question before resetting it. Nothing is clicked that changes it.
+#[test]
+#[ignore]
+fn screenshots_of_engine_settings() {
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(2));
+    set_theme(&mut h, Theme::Light);
+    h.state()
+        .engine_starter
+        .builtin
+        .pretend(crate::vm::State::Running);
+    h.state_mut().show_settings = true;
+    h.run_steps(4);
+    save(&mut h, "engine-settings");
+    click(&mut h, "Reset engine…");
+    h.run_steps(4);
+    save(&mut h, "engine-reset");
+}

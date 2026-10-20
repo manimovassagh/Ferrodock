@@ -33,8 +33,10 @@ download is about 120 MB.
 - Everything lives in `~/.ferrodock`: the engine image, its data disk
   (images, containers and volumes; it only takes the space it uses) and the
   engine's log, `console.log`.
-- The VM gets half your CPU cores (between 2 and 8) and 4 GB of memory.
-  Change that in [Settings → Ferrodock's engine](./using/settings.md#ferrodocks-engine).
+- The VM gets half your CPU cores (between 2 and 8), 4 GB of memory and a
+  128 GB disk. Change that in [Settings → Ferrodock's engine](./using/settings.md#ferrodocks-engine).
+  The disk can grow (32 to 256 GB) without losing anything; making it
+  smaller takes a reset, which empties it.
 - Your home folder is shared with the engine at the same path, so bind
   mounts such as `-v ~/project:/app` work as you'd expect. Folders outside
   your home folder aren't shared.
@@ -100,6 +102,15 @@ Docker engine itself, run as a system service called `ferrodock-engine`.
 
 If Docker is already installed as the `docker` service, Ferrodock uses
 that instead and only offers its own engine when there's nothing else.
+
+## Starting, stopping and resetting
+
+[Settings → Ferrodock's engine](./using/settings.md#ferrodocks-engine) has
+**Start engine** / **Stop engine**, **Restart engine** (macOS and Windows)
+and **Reset engine…**, which deletes every image, container and volume in
+the engine and starts it again, empty, as on first use. On Windows a reset
+downloads the engine again; on Linux stopping and resetting ask for your
+admin password.
 
 ## Removing the engine
 

@@ -4,7 +4,10 @@
 use eframe::egui::{self, CornerRadius, Frame, Margin, RichText, Stroke, ThemePreference};
 use serde::{Deserialize, Serialize};
 
+use super::components::confirm::{self, Choice};
 use super::components::{table, widgets};
+use super::page::{Confirmation, TypedCheck};
+use crate::docker::RESET_WORD;
 use crate::theme::Palette;
 use crate::update::{Status, Updater};
 use crate::vm;
@@ -57,10 +60,11 @@ pub struct Settings {
     /// The app that served the engine when it last ran (macOS), to start
     /// it again.
     pub engine_app: Option<String>,
-    /// CPUs and memory for Ferrodock's engine (macOS); None is the
-    /// default share.
+    /// CPUs, memory and disk size for Ferrodock's engine (macOS); None is
+    /// the default.
     pub engine_cpus: Option<u32>,
     pub engine_memory_mib: Option<u64>,
+    pub engine_disk_gib: Option<u64>,
     /// Ferrodock opens when the user logs in. Read from the system at
     /// start, never saved: the system's login items are the record.
     #[serde(skip)]
@@ -83,6 +87,7 @@ impl Default for Settings {
             engine_app: None,
             engine_cpus: None,
             engine_memory_mib: None,
+            engine_disk_gib: None,
             launch_at_login: false,
         }
     }
@@ -102,8 +107,8 @@ impl Settings {
         self.recent_compose.truncate(Self::RECENT);
     }
 
-    /// What Ferrodock's engine gets: the chosen CPUs and memory, within
-    /// what this computer has.
+    /// What Ferrodock's engine gets: the chosen CPUs, memory and disk,
+    /// within what this computer has.
     pub fn resources(&self) -> vm::Resources {
         let (default, most) = (vm::Resources::default(), vm::Resources::most());
         vm::Resources {
@@ -112,6 +117,10 @@ impl Settings {
                 .engine_memory_mib
                 .unwrap_or(default.memory_mib)
                 .clamp(1024, most.memory_mib.max(1024)),
+            disk_gib: self
+                .engine_disk_gib
+                .unwrap_or(default.disk_gib)
+                .clamp(vm::DISK_GIB[0], most.disk_gib),
         }
     }
 
@@ -357,17 +366,85 @@ pub fn show(
     if *settings != before {
         settings.apply(ui.ctx());
     }
-    !(close || modal.should_close())
+    let open = !(close || modal.should_close());
+    reset_dialog(ui, p, settings, engine, open);
+    open
 }
 
-/// Ferrodock's own engine: how it's doing, what it gets (macOS), a
-/// restart and its log.
+/// Where the open "Reset engine?" dialog keeps its state.
+fn reset_id() -> egui::Id {
+    egui::Id::unique("ferrodock-engine-reset")
+}
+
+/// Asks before resetting the engine, over the Settings dialog, and
+/// resets it on a yes. Closing Settings drops the question.
+fn reset_dialog(
+    ui: &mut egui::Ui,
+    p: &Palette,
+    settings: &Settings,
+    engine: &vm::Engine,
+    open: bool,
+) {
+    let Some(mut confirmation) = ui.data(|d| d.get_temp::<Confirmation>(reset_id())) else {
+        return;
+    };
+    let choice = if open {
+        confirm::show(ui, p, &mut confirmation)
+    } else {
+        Some(Choice::Cancel)
+    };
+    match choice {
+        Some(Choice::Confirm) => {
+            ui.data_mut(|d| d.remove::<Confirmation>(reset_id()));
+            engine.reset(settings.resources(), repaint(ui));
+        }
+        Some(Choice::Cancel) => ui.data_mut(|d| d.remove::<Confirmation>(reset_id())),
+        // Keep what was typed so far.
+        None => {
+            ui.data_mut(|d| d.insert_temp(reset_id(), confirmation));
+        }
+    }
+}
+
+/// The "Reset engine?" question: what's deleted, said plainly.
+fn reset_confirmation() -> Confirmation {
+    let how = if cfg!(windows) {
+        "Its WSL distro, ferrodock, is removed and set up again, which downloads the engine \
+         again."
+    } else if cfg!(target_os = "linux") {
+        "Its data folder, /var/lib/ferrodock, is deleted. This asks for your admin password."
+    } else {
+        "Its disk, ~/.ferrodock/data.img, is deleted and made again, empty, at the size \
+         chosen above."
+    };
+    Confirmation {
+        title: "Reset Ferrodock's engine?".into(),
+        message: format!(
+            "This stops the engine and deletes everything in it: all containers, images, \
+             volumes (and the data in them), networks and build cache. Then it starts again, \
+             empty, as on first use.\n\n{how}\n\nThis can't be undone."
+        ),
+        action_label: "Reset engine".into(),
+        typed: Some(TypedCheck::new(RESET_WORD)),
+        ..Default::default()
+    }
+}
+
+/// Wakes the UI as the engine's state changes.
+fn repaint(ui: &egui::Ui) -> impl Fn() + Send + Sync + 'static {
+    let ctx = ui.ctx().clone();
+    move || ctx.request_repaint()
+}
+
+/// Ferrodock's own engine: how it's doing, what it gets (macOS), start,
+/// stop, restart and reset, and its log.
 fn engine_section(ui: &mut egui::Ui, p: &Palette, settings: &mut Settings, engine: &vm::Engine) {
     let state = engine.state();
     let (text, color) = match &state {
         vm::State::Running => ("Running".to_owned(), p.text),
         vm::State::Stopped | vm::State::NotInstalled => ("Stopped".to_owned(), p.muted),
         vm::State::Starting => ("Starting…".to_owned(), p.muted),
+        vm::State::Stopping => ("Stopping…".to_owned(), p.muted),
         vm::State::Downloading { .. } => ("Downloading…".to_owned(), p.muted),
         vm::State::Failed(e) => (e.clone(), p.danger),
     };
@@ -398,19 +475,54 @@ fn engine_section(ui: &mut egui::Ui, p: &Palette, settings: &mut Settings, engin
                     settings.engine_memory_mib = (mib != default.memory_mib).then_some(mib);
                 }
                 ui.end_row();
+
+                ui.label(RichText::new("Disk").color(p.muted));
+                ui.horizontal(|ui| {
+                    for gib in vm::DISK_GIB {
+                        if ui
+                            .selectable_label(chosen.disk_gib == gib, format!("{gib} GB"))
+                            .clicked()
+                        {
+                            settings.engine_disk_gib = (gib != default.disk_gib).then_some(gib);
+                        }
+                    }
+                });
+                ui.end_row();
             });
-        if engine.resources().is_some_and(|given| given != chosen) {
-            ui.label(
-                RichText::new("Restart the engine to use the new settings.")
-                    .size(12.0)
-                    .color(p.muted),
-            );
+        // The disk never shrinks: that would lose what's on it.
+        let note = match engine.disk_gib() {
+            Some(now) if chosen.disk_gib < now => Some(format!(
+                "The disk is {now} GB and only grows: reset the engine to start over with a \
+                 smaller one."
+            )),
+            _ if engine.resources().is_some_and(|given| given != chosen) => {
+                Some("Restart the engine to use the new settings.".to_owned())
+            }
+            _ => None,
+        };
+        if let Some(note) = note {
+            ui.label(RichText::new(note).size(12.0).color(p.muted));
         }
     }
     ui.horizontal(|ui| {
-        if vm::Engine::RESTARTS && !state.busy() && ui.button("Restart engine").clicked() {
-            let ctx = ui.ctx().clone();
-            engine.restart(settings.resources(), move || ctx.request_repaint());
+        match state {
+            vm::State::Running => {
+                if ui.button("Stop engine").clicked() {
+                    engine.shut_down(repaint(ui));
+                }
+                if vm::Engine::RESTARTS && ui.button("Restart engine").clicked() {
+                    engine.restart(settings.resources(), repaint(ui));
+                }
+            }
+            vm::State::Stopped | vm::State::NotInstalled | vm::State::Failed(_) => {
+                if ui.button("Start engine").clicked() {
+                    engine.start(settings.resources(), repaint(ui));
+                }
+            }
+            vm::State::Starting | vm::State::Stopping | vm::State::Downloading { .. } => {}
+        }
+        if !state.busy() && ui.button("Reset engine…").clicked() {
+            ui.data_mut(|d| d.insert_temp(reset_id(), reset_confirmation()));
         }
         if let Some(log) = engine.log()
             && ui.button("Open log").clicked()
@@ -539,10 +651,13 @@ mod tests {
         assert_eq!(s.resources(), vm::Resources::default());
         s.engine_cpus = Some(10_000);
         s.engine_memory_mib = Some(1);
+        s.engine_disk_gib = Some(1);
         let r = s.resources();
         assert_eq!(r.cpus, vm::Resources::most().cpus);
         assert_eq!(r.memory_mib, 1024);
+        assert_eq!(r.disk_gib, vm::DISK_GIB[0]);
         let old: Settings = serde_json::from_str("{}").unwrap();
         assert_eq!(old.engine_cpus, None);
+        assert_eq!(old.resources().disk_gib, 128);
     }
 }

@@ -46,32 +46,41 @@ pub const SHARE_TAG: &str = "home";
 #[cfg(all(engine, target_os = "macos"))]
 pub const VSOCK_PORT: u32 = 2375;
 
+/// The sizes the VM's data disk can be, in GB.
+pub const DISK_GIB: [u64; 4] = [32, 64, 128, 256];
+
 /// What the VM gets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Resources {
     pub cpus: u32,
     pub memory_mib: u64,
+    /// The data disk. It's sparse, so it only takes what's used, and it
+    /// only ever grows: a smaller size needs a reset.
+    pub disk_gib: u64,
 }
 
 impl Default for Resources {
-    /// Half the CPUs (2 to 8) and 4 GB: enough for typical development
-    /// stacks; unused memory goes back to macOS.
+    /// Half the CPUs (2 to 8), 4 GB and a 128 GB disk: enough for typical
+    /// development stacks; unused memory goes back to macOS.
     fn default() -> Self {
         let cpus = std::thread::available_parallelism().map_or(4, |n| n.get() as u32);
         Self {
             cpus: (cpus / 2).clamp(2, 8),
             memory_mib: 4096,
+            disk_gib: 128,
         }
     }
 }
 
 impl Resources {
-    /// The most the VM can be given: every CPU, and the Mac's memory.
+    /// The most the VM can be given: every CPU, the Mac's memory and the
+    /// largest disk.
     pub fn most() -> Self {
         let cpus = std::thread::available_parallelism().map_or(4, |n| n.get() as u32);
         Self {
             cpus,
             memory_mib: physical_memory_mib().unwrap_or(16 * 1024),
+            disk_gib: DISK_GIB[DISK_GIB.len() - 1],
         }
     }
 }
@@ -104,16 +113,24 @@ fn physical_memory_mib() -> Option<u64> {
 #[cfg_attr(not(engine), allow(dead_code))]
 pub enum State {
     NotInstalled,
-    Downloading { done: u64, total: Option<u64> },
+    Downloading {
+        done: u64,
+        total: Option<u64>,
+    },
     Stopped,
     Starting,
     Running,
+    /// Shutting down, or for a reset, deleting its data too.
+    Stopping,
     Failed(String),
 }
 
 impl State {
     pub fn busy(&self) -> bool {
-        matches!(self, State::Downloading { .. } | State::Starting)
+        matches!(
+            self,
+            State::Downloading { .. } | State::Starting | State::Stopping
+        )
     }
 }
 
@@ -135,13 +152,24 @@ impl Engine {
             Some(p) if p.installed() => State::Stopped,
             _ => State::NotInstalled,
         };
-        Self {
+        let engine = Self {
             paths,
             state: Arc::new(Mutex::new(state)),
             given: Arc::default(),
             #[cfg(engine)]
             running: Arc::default(),
+        };
+        // On Linux the service starts with the computer: it may run already.
+        #[cfg(all(engine, target_os = "linux"))]
+        if engine.state() == State::Stopped
+            && let Some(found) = platform::Running::find()
+        {
+            Self::set(&engine.state, State::Running);
+            if let Ok(mut slot) = engine.running.lock() {
+                *slot = Some(found);
+            }
         }
+        engine
     }
 
     pub fn state(&self) -> State {
@@ -155,6 +183,12 @@ impl Engine {
         if let Ok(mut s) = state.lock() {
             *s = value;
         }
+    }
+
+    /// Shows the engine as `state`, for screenshots.
+    #[cfg(test)]
+    pub fn pretend(&self, state: State) {
+        Self::set(&self.state, state);
     }
 
     /// Downloads the image if needed, then boots the engine. `repaint`
@@ -189,6 +223,79 @@ impl Engine {
             }
             boot();
         });
+    }
+
+    /// Stops the engine when the user asks: on Linux too, where it's a
+    /// service that otherwise keeps running.
+    pub fn shut_down(&self, repaint: impl Fn() + Send + 'static) {
+        if self.state() != State::Running {
+            return;
+        }
+        #[cfg(engine)]
+        let engine = self.running.lock().ok().and_then(|mut slot| slot.take());
+        let state = self.state.clone();
+        let given = self.given.clone();
+        Self::set(&state, State::Stopping);
+        std::thread::spawn(move || {
+            let result = Ok(());
+            #[cfg(engine)]
+            let result = engine.map_or(result, |engine| engine.shut_down());
+            if let Ok(mut slot) = given.lock() {
+                *slot = None;
+            }
+            Self::set(
+                &state,
+                match result {
+                    Ok(()) => State::Stopped,
+                    Err(e) => State::Failed(e),
+                },
+            );
+            repaint();
+        });
+    }
+
+    /// Stops the engine, deletes everything in it (images, containers,
+    /// volumes) and starts it again, empty, with `resources`.
+    pub fn reset(&self, resources: Resources, repaint: impl Fn() + Send + Sync + 'static) {
+        if self.state().busy() {
+            return;
+        }
+        let repaint = Arc::new(repaint);
+        let wake = repaint.clone();
+        let Some(boot) = self.boot(resources, move || wake()) else {
+            return;
+        };
+        let paths = self.paths.clone();
+        #[cfg(engine)]
+        let engine = self.running.lock().ok().and_then(|mut slot| slot.take());
+        let state = self.state.clone();
+        Self::set(&state, State::Stopping);
+        std::thread::spawn(move || {
+            #[cfg(engine)]
+            {
+                if let Some(engine) = engine {
+                    engine.stop();
+                }
+                if let Some(paths) = &paths
+                    && let Err(e) = platform::reset(paths)
+                {
+                    Self::set(&state, State::Failed(e));
+                    repaint();
+                    return;
+                }
+            }
+            #[cfg(not(engine))]
+            let _ = (paths, repaint);
+            boot();
+        });
+    }
+
+    /// How big the data disk is now, in GB (macOS), once there is one.
+    pub fn disk_gib(&self) -> Option<u64> {
+        let data = &self.paths.as_ref()?.data;
+        std::fs::metadata(data)
+            .ok()
+            .map(|m| m.len() / (1024 * 1024 * 1024))
     }
 
     /// Whether [`Engine::restart`] does anything: on Linux the engine is a
