@@ -18,11 +18,7 @@ containers, images, volumes, networks and Compose, plus a CLI and an MCP server 
 **[Website](https://manimovassagh.github.io/Ferrodock/)** ·
 **[Documentation](https://manimovassagh.github.io/Ferrodock/docs)**
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dark-mode.png">
-  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/containers.png">
-  <img src="docs/screenshots/containers.png" alt="Ferrodock showing the container list">
-</picture>
+<img src="docs/screenshots/demo.gif" alt="Ferrodock in action: containers grouped by Compose project, live logs and stats of a container, the command palette, and Quick start">
 
 </div>
 
@@ -59,8 +55,8 @@ that instead.
 
 <table>
   <tr>
+    <td><img src="docs/screenshots/dark-mode.png" alt="Ferrodock in dark mode"></td>
     <td><img src="docs/screenshots/logs.png" alt="Live container logs"></td>
-    <td><img src="docs/screenshots/stats.png" alt="Live CPU and memory stats"></td>
   </tr>
   <tr>
     <td><img src="docs/screenshots/disk.png" alt="Disk usage and cleanup"></td>

@@ -723,3 +723,150 @@ fn screenshots_of_dialogs_in_a_small_window() {
     h.run_steps(4);
     save(&mut h, "small-shortcuts");
 }
+
+/// Numbered frames for the README demo animation, with how long each one
+/// shows, listed in `$SCREENSHOTS/demo/frames.txt` as `file milliseconds`.
+struct Recorder {
+    dir: String,
+    frames: Vec<(String, u32)>,
+}
+
+impl Recorder {
+    fn new() -> Self {
+        let dir = std::env::var("SCREENSHOTS").unwrap_or_else(|_| "target/screenshots".into());
+        let dir = format!("{dir}/demo");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        Self {
+            dir,
+            frames: Vec::new(),
+        }
+    }
+
+    /// Renders the window as it is now, shown for `ms`.
+    fn frame(&mut self, h: &mut Harness<'static, FerrodockApp>, ms: u32) {
+        let name = format!("{:03}.png", self.frames.len());
+        let image = h.render().expect("offscreen rendering works");
+        image.save(format!("{}/{name}", self.dir)).unwrap();
+        self.frames.push((name, ms));
+    }
+
+    /// A frame every `every` ms of real time for `total` ms, so logs and
+    /// graphs move.
+    fn live(&mut self, h: &mut Harness<'static, FerrodockApp>, total: u32, every: u32) {
+        for _ in 0..total / every {
+            settle(h, Duration::from_millis(every.into()));
+            self.frame(h, every);
+        }
+    }
+
+    fn finish(self) {
+        let list: String = self
+            .frames
+            .iter()
+            .map(|(name, ms)| format!("{name} {ms}\n"))
+            .collect();
+        std::fs::write(format!("{}/frames.txt", self.dir), list).unwrap();
+        println!("saved {} frames in {}", self.frames.len(), self.dir);
+    }
+}
+
+/// Moves the pointer over a widget, for its hover highlight.
+fn hover(h: &mut Harness<'static, FerrodockApp>, label: &str) {
+    let at = h.get_by_label(label).rect().center();
+    h.event(egui::Event::PointerMoved(at));
+    h.run_steps(3);
+}
+
+fn pointer_gone(h: &mut Harness<'static, FerrodockApp>) {
+    h.event(egui::Event::PointerGone);
+    h.run_steps(3);
+}
+
+/// The README demo: the container list grouped by project, a container's
+/// live logs and stats, the command palette, and Quick start. Assemble the
+/// frames with `scripts/demo-gif.py`:
+///
+/// ```sh
+/// SCREENSHOTS=target/screenshots cargo test demo_frames -- --ignored
+/// python3 scripts/demo-gif.py target/screenshots/demo docs/screenshots/demo.gif \
+///     --webp website/static/img/demo.webp
+/// ```
+///
+/// Looks best with a Compose project running (e.g. nginx with a published
+/// port that gets requests, Redis, Postgres) and a container on its own.
+#[test]
+#[ignore]
+fn demo_frames() {
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(3));
+    set_theme(&mut h, Theme::Light);
+    open(&mut h, 0, None);
+    click(&mut h, "Group by project");
+    // A web server with a published port has the liveliest logs.
+    let target = h
+        .state()
+        .store
+        .containers
+        .iter()
+        .find(|c| c.is_running() && c.ports.iter().any(|p| p.public.is_some()))
+        .map(|c| c.id.clone())
+        .or_else(|| busiest(&h))
+        .expect("a running container");
+    let name = h
+        .state()
+        .store
+        .containers
+        .iter()
+        .find(|c| c.id == target)
+        .map(|c| c.name.clone())
+        .unwrap();
+    // Collect some CPU and memory history, so the graphs aren't empty.
+    open(&mut h, 0, Some(target.clone()));
+    click(&mut h, "Stats");
+    settle(&mut h, Duration::from_secs(8));
+    h.state_mut().pages[0].clear_selection();
+    pointer_gone(&mut h);
+    settle(&mut h, Duration::from_secs(2));
+
+    let mut r = Recorder::new();
+    // The list, with live sparklines.
+    r.live(&mut h, 2400, 400);
+
+    // Pick a container: its live logs, then its stats.
+    hover(&mut h, &name);
+    r.frame(&mut h, 500);
+    h.state_mut().pages[0].select(&target);
+    h.run_steps(3);
+    click(&mut h, "Logs");
+    pointer_gone(&mut h);
+    r.live(&mut h, 2800, 350);
+    hover(&mut h, "Stats");
+    r.frame(&mut h, 350);
+    click(&mut h, "Stats");
+    pointer_gone(&mut h);
+    r.live(&mut h, 2400, 400);
+
+    // The command palette, jumping to Quick start.
+    h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::K);
+    h.run_steps(4);
+    r.frame(&mut h, 600);
+    for c in "quick".chars() {
+        h.event(egui::Event::Text(c.into()));
+        h.run_steps(2);
+        r.frame(&mut h, 160);
+    }
+    r.frame(&mut h, 800);
+    h.key_press(egui::Key::Enter);
+    settle(&mut h, Duration::from_millis(800));
+    r.frame(&mut h, 2400);
+
+    // Back to the list.
+    hover(&mut h, "Containers");
+    r.frame(&mut h, 350);
+    h.state_mut().open_page(0);
+    h.state_mut().pages[0].clear_selection();
+    pointer_gone(&mut h);
+    r.live(&mut h, 800, 400);
+    r.finish();
+}

@@ -236,6 +236,7 @@
     0 0 0 1px rgb(0 0 0 / 30%);
 }
 
+.window picture,
 .window img {
   display: block;
   width: 100%;
