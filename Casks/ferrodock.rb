@@ -1,6 +1,6 @@
 cask "ferrodock" do
-  version "1.15.0"
-  sha256 "da77dce4b36bd68fbd2ee5d62653292d15f7b22d5ddb6c532da6e2b7e689b4b1"
+  version "1.15.1"
+  sha256 "d56a23b9b20a5b9a4c1da074ae10aabedca0d3e87107ceab57e9435d4523579f"
 
   url "https://github.com/manimovassagh/Ferrodock/releases/download/v#{version}/Ferrodock-#{version}-macos-universal.dmg"
   name "Ferrodock"
@@ -15,6 +15,9 @@ cask "ferrodock" do
   depends_on macos: ">= :big_sur"
 
   app "Ferrodock.app"
+  # The command-line tools inside the app, onto the PATH.
+  binary "#{appdir}/Ferrodock.app/Contents/MacOS/fdock"
+  binary "#{appdir}/Ferrodock.app/Contents/MacOS/ferrodock-mcp"
 
   # Ferrodock isn't notarized by Apple yet; without this, macOS refuses to
   # open it on first launch.
