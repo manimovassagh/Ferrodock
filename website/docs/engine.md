@@ -19,10 +19,40 @@ checks it, and starts it. From then on:
   quit Ferrodock;
 - it shows up as **Ferrodock** in the [engine list](./engines.md#switching-engines),
   so you can switch to and from it at any time;
-- images, containers and volumes you create in it are kept between runs.
+- images, containers and volumes you create in it are kept between runs;
+- the `docker` command and other Docker tools can use it too: Ferrodock
+  adds a Docker context called `ferrodock` that points at it. Switch to it
+  with
+
+  ```bash
+  docker context use ferrodock
+  ```
+
+  and back with `docker context use default`. Ferrodock never switches
+  your current context itself.
 
 The first start can take a minute. Ferrodock connects as soon as the
 engine is up.
+
+## Updates
+
+A new version of Ferrodock can bring a newer engine. The next time
+Ferrodock starts its engine, it downloads the new one first (**Updating
+Ferrodock's engine…**), checks it, and puts it in place of the old one.
+Your images, containers and volumes are kept:
+
+- **macOS:** the engine's kernel and root disk are replaced; the data disk
+  with your images, containers and volumes isn't touched.
+- **Windows:** the engine's programs inside the `ferrodock` distro are
+  replaced; its data, `/var/lib/docker`, isn't touched.
+- **Linux:** the engine's programs in `/opt/ferrodock/engine/bin` are
+  replaced, which asks for your admin password again; its data folder,
+  `/var/lib/ferrodock`, isn't touched. An engine that's already running
+  keeps running (with your containers) and uses the new programs from its
+  next start, such as when your computer restarts.
+
+When the update can't be downloaded, for example offline, Ferrodock starts
+the engine it has and tries again next time.
 
 ## macOS
 
@@ -41,11 +71,8 @@ download is about 120 MB.
 - Published ports are on `localhost`: after `docker run -p 8080:80 nginx`,
   http://localhost:8080 opens it, as on Linux. Ferrodock passes on TCP
   ports while it runs; UDP ports are only reachable from inside the engine.
-- The `docker` command can use it too:
-
-  ```bash
-  export DOCKER_HOST=unix://$HOME/.ferrodock/docker.sock
-  ```
+- The `docker` command can use it too: `docker context use ferrodock`,
+  or `export DOCKER_HOST=unix://$HOME/.ferrodock/docker.sock`.
 
 Intel Macs can't run Ferrodock's engine; Ferrodock connects to another
 Docker engine there. See [Connecting to other engines](./engines.md).
@@ -70,7 +97,6 @@ wsl --install
   works with no setup. Otherwise, point it at Ferrodock's:
 
   ```powershell
-  docker context create ferrodock --docker host=npipe:////./pipe/ferrodock_engine
   docker context use ferrodock
   ```
 
@@ -94,7 +120,7 @@ Docker engine itself, run as a system service called `ferrodock-engine`.
 - Like Docker on Linux, it starts with your computer and keeps running
   when you quit Ferrodock, so your containers keep running too.
 - Published ports are on `localhost`, as usual on Linux.
-- The `docker` command can use it:
+- The `docker` command can use it: `docker context use ferrodock`, or
   `export DOCKER_HOST=unix:///run/ferrodock/docker.sock`.
 - Its log: `journalctl -u ferrodock-engine`.
 
@@ -110,6 +136,9 @@ Quit Ferrodock first, so the engine is stopped.
   `%LOCALAPPDATA%\Ferrodock` folder.
 - **Linux:** run
   `sudo systemctl disable --now ferrodock-engine && sudo rm -rf /etc/systemd/system/ferrodock-engine.service /opt/ferrodock /var/lib/ferrodock`.
+
+On every platform, also run `docker context rm ferrodock` (switch to
+another context first if it's the current one).
 
 This deletes every image, container and volume in Ferrodock's engine. You
 can set it up again at any time.

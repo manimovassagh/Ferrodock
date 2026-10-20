@@ -13,8 +13,12 @@
 //!   admin password. Its socket is `/run/ferrodock/docker.sock`.
 //!
 //! The image (built in this repository's `engine/`) is downloaded on
-//! first use.
+//! first use, and again when a newer Ferrodock brings a newer one; the
+//! engine's images, containers and volumes stay. The engine is also
+//! offered to the `docker` command as the `ferrodock` context.
 
+#[cfg(any(engine, test))]
+mod context;
 #[cfg(any(engine, test))]
 pub mod download;
 #[cfg(all(engine, target_os = "linux"))]
@@ -38,7 +42,7 @@ use windows as platform;
 
 use std::sync::{Arc, Mutex};
 
-pub use ferrodock_core::builtin::{NAME, Paths, SUPPORTED};
+pub use ferrodock_core::builtin::{CONTEXT, NAME, Paths, SUPPORTED};
 /// The virtiofs tag the home folder is shared under.
 #[cfg(all(engine, target_os = "macos"))]
 pub const SHARE_TAG: &str = "home";
@@ -104,7 +108,12 @@ fn physical_memory_mib() -> Option<u64> {
 #[cfg_attr(not(engine), allow(dead_code))]
 pub enum State {
     NotInstalled,
-    Downloading { done: u64, total: Option<u64> },
+    /// `update`: a newer image, for an engine that's set up already.
+    Downloading {
+        done: u64,
+        total: Option<u64>,
+        update: bool,
+    },
     Stopped,
     Starting,
     Running,
@@ -132,7 +141,13 @@ impl Engine {
     pub fn new() -> Self {
         let paths = Paths::locate();
         let state = match &paths {
-            Some(p) if p.installed() => State::Stopped,
+            Some(p) if p.installed() => {
+                // Set up by a Ferrodock from before the context, or still
+                // running as a service (Linux).
+                #[cfg(engine)]
+                let _ = context::add(&p.host());
+                State::Stopped
+            }
             _ => State::NotInstalled,
         };
         Self {
@@ -195,8 +210,8 @@ impl Engine {
     /// system service that keeps running on its own.
     pub const RESTARTS: bool = cfg!(any(target_os = "macos", windows));
 
-    /// The work of starting: download, install, boot. None when it can't
-    /// be done here (the reason is in the state).
+    /// The work of starting: download, install (or update), boot. None
+    /// when it can't be done here (the reason is in the state).
     fn boot(
         &self,
         resources: Resources,
@@ -224,21 +239,51 @@ impl Engine {
                 std::fs::create_dir_all(&paths.dir).map_err(|e| e.to_string())?;
                 #[cfg(engine)]
                 {
-                    if !paths.installed() {
-                        let archive = download::fetch(|done, total| {
-                            Self::set(&state, State::Downloading { done, total });
+                    let fetch = |update| {
+                        download::fetch(|done, total| {
+                            Self::set(
+                                &state,
+                                State::Downloading {
+                                    done,
+                                    total,
+                                    update,
+                                },
+                            );
                             repaint();
-                        })?;
+                        })
+                    };
+                    if !paths.installed() {
+                        let archive = fetch(false)?;
                         Self::set(&state, State::Starting);
                         repaint();
                         platform::install(&paths, &archive)?;
+                        download::record(&paths)?;
+                    }
+                    // This Ferrodock brings a newer image. When it can't be
+                    // had (offline) or put in, the one set up starts, and
+                    // the update is tried again next time.
+                    let mut updated = Ok(());
+                    if download::outdated(&paths)
+                        && let Ok(archive) = fetch(true)
+                    {
+                        Self::set(&state, State::Starting);
+                        repaint();
+                        updated = platform::update(&paths, &archive)
+                            .and_then(|()| download::record(&paths));
                     }
                     Self::set(&state, State::Starting);
                     repaint();
-                    let engine = platform::Running::start(&paths, &resources)?;
+                    let engine = platform::Running::start(&paths, &resources).map_err(|e| {
+                        updated
+                            .err()
+                            .map_or(e, |u| format!("Updating the engine failed: {u}"))
+                    })?;
                     if let Ok(mut slot) = running.lock() {
                         *slot = Some(engine);
                     }
+                    // For `docker context use ferrodock`; not having it
+                    // doesn't stop the engine.
+                    let _ = context::add(&paths.host());
                     Ok::<(), String>(())
                 }
                 #[cfg(not(engine))]

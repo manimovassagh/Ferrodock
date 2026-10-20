@@ -99,6 +99,15 @@ pub fn install(paths: &Paths, archive: &[u8]) -> Result<(), String> {
     result
 }
 
+/// Installs a newer image's programs (asking for the password again).
+/// Images, containers and volumes are in `/var/lib/ferrodock`, apart from
+/// them, so they stay. The service starts with the new programs; one that
+/// runs already keeps the old ones until it restarts (with the computer),
+/// so its containers aren't stopped.
+pub fn update(paths: &Paths, archive: &[u8]) -> Result<(), String> {
+    install(paths, archive)
+}
+
 /// The engine's service. It keeps running when Ferrodock quits.
 pub struct Running;
 

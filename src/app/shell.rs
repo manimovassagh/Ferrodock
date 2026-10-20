@@ -145,11 +145,12 @@ pub fn disconnected(
 ) -> Option<Click> {
     use super::engine_start::Offer;
     let problem = diagnose(reason);
-    let starting = matches!(offer, Offer::Starting(_) | Offer::Downloading(_))
+    let starting = matches!(offer, Offer::Starting(_) | Offer::Downloading { .. })
         && problem == Problem::NotRunning;
     let starting_title = match offer {
         Offer::Starting(name) => format!("Starting {name}…"),
-        Offer::Downloading(_) => "Downloading Ferrodock's engine…".to_owned(),
+        Offer::Downloading { update: false, .. } => "Downloading Ferrodock's engine…".to_owned(),
+        Offer::Downloading { update: true, .. } => "Updating Ferrodock's engine…".to_owned(),
         _ => String::new(),
     };
     let (title, explanation) = match problem {
@@ -222,7 +223,7 @@ pub fn disconnected(
                     );
                     ui.add_space(16.0);
                 }
-                Offer::Downloading(fraction) => {
+                Offer::Downloading { fraction, .. } => {
                     ui.add(
                         egui::ProgressBar::new(fraction.unwrap_or(0.0))
                             .desired_width(320.0)

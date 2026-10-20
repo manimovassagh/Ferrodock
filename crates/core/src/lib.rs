@@ -48,7 +48,7 @@ pub use containers::{ComposeLabels, ContainerInfo};
 pub use create::Change;
 pub use debug::{TARGET_ROOT, debug_image};
 pub use disk::{DiskUsage, PruneKind, Usage};
-pub use engines::{Engine, builtin_engine, engines, pick};
+pub use engines::{Engine, builtin_engine, docker_dir, engines, pick};
 pub use events::EngineEvent;
 pub use files::{
     FileEntry, FileKind, FileOp, Listing, Preview, downloads_dir, join_path, parent_path,

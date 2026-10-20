@@ -22,6 +22,12 @@ pub fn install(paths: &Paths, archive: &[u8]) -> Result<(), String> {
     download::unpack(archive, &paths.image, &["kernel", "rootfs.img"])
 }
 
+/// Puts a newer image in place of the old one. Images, containers and
+/// volumes are on the data disk, apart from it, so they stay.
+pub fn update(paths: &Paths, archive: &[u8]) -> Result<(), String> {
+    install(paths, archive)
+}
+
 /// Copies one way, then tells the other side nothing more comes.
 fn pipe(mut from: UnixStream, mut to: UnixStream) {
     let mut buffer = vec![0u8; 64 * 1024];
