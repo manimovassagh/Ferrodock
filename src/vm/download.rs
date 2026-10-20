@@ -56,10 +56,13 @@ fn older(installed: &str, wanted: &str) -> bool {
     }
 }
 
-/// Whether the image set up is older than this build's, or of unknown
-/// version (set up before versions were recorded).
+/// The image every install had before versions were recorded.
+const UNRECORDED: &str = "0.2.0";
+
+/// Whether the image set up is older than this build's.
 pub fn outdated(paths: &Paths) -> bool {
-    let installed = std::fs::read_to_string(&paths.version).unwrap_or_default();
+    let installed =
+        std::fs::read_to_string(&paths.version).unwrap_or_else(|_| UNRECORDED.to_owned());
     older(&installed, VERSION)
 }
 
