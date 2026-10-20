@@ -1,9 +1,9 @@
 //! Ferrodock's own Docker engine: a small Linux system with the Docker
 //! engine inside, so nothing else needs to be installed (#114).
 //!
-//! - On Apple Silicon Macs it's a VM, through Apple's Virtualization
-//!   framework. Everything lives in `~/.ferrodock`, and the engine's
-//!   socket is `~/.ferrodock/docker.sock`.
+//! - On Macs (Apple Silicon and Intel) it's a VM, through Apple's
+//!   Virtualization framework. Everything lives in `~/.ferrodock`, and
+//!   the engine's socket is `~/.ferrodock/docker.sock`.
 //! - On Windows it's a WSL distro called `ferrodock`, kept in
 //!   `%LOCALAPPDATA%\Ferrodock`. Ferrodock carries the engine's socket
 //!   over the distro's standard input and output, and offers it as the
@@ -80,7 +80,7 @@ impl Resources {
 }
 
 /// The computer's memory, in MiB.
-#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+#[cfg(all(engine, target_os = "macos"))]
 fn physical_memory_mib() -> Option<u64> {
     let mut bytes: u64 = 0;
     let mut size = std::mem::size_of::<u64>();
@@ -97,7 +97,7 @@ fn physical_memory_mib() -> Option<u64> {
     (status == 0).then_some(bytes / (1024 * 1024))
 }
 
-#[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
+#[cfg(not(all(engine, target_os = "macos")))]
 fn physical_memory_mib() -> Option<u64> {
     None
 }
@@ -213,7 +213,8 @@ impl Engine {
             Self::set(
                 &self.state,
                 State::Failed(
-                    "Ferrodock's engine needs a Mac with Apple Silicon, Windows or Linux".into(),
+                    "Ferrodock's engine needs a Mac, Windows (x86_64) or Linux (x86_64 or arm64)"
+                        .into(),
                 ),
             );
             return None;

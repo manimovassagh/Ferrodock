@@ -5,8 +5,8 @@ title: Ferrodock's own engine
 
 # Ferrodock's own engine
 
-On a Mac with Apple Silicon, on Windows and on Linux, Ferrodock can run
-Docker by itself, with nothing else installed.
+On a Mac (Apple Silicon or Intel), on Windows and on Linux, Ferrodock can
+run Docker by itself, with nothing else installed.
 
 ## Setting it up
 
@@ -26,8 +26,9 @@ engine is up.
 
 ## macOS
 
-On Apple Silicon Macs the engine is a small Linux VM with the Docker engine
-inside, run through Apple's Virtualization framework at native speed. The
+On a Mac the engine is a small Linux VM with the Docker engine inside, run
+through Apple's Virtualization framework at native speed. Ferrodock
+downloads the one for your Mac's processor (Apple Silicon or Intel); the
 download is about 120 MB.
 
 - Everything lives in `~/.ferrodock`: the engine image, its data disk
@@ -41,20 +42,17 @@ download is about 120 MB.
 - Published ports are on `localhost`: after `docker run -p 8080:80 nginx`,
   http://localhost:8080 opens it, as on Linux. Ferrodock passes on TCP
   ports while it runs; UDP ports are only reachable from inside the engine.
-- Images made only for Intel (`linux/amd64`) run too, through Apple's
-  Rosetta, on macOS 13 or newer. If Rosetta isn't installed yet, the
-  engine starts without it and says so in its log; install it once with
-  `softwareupdate --install-rosetta --agree-to-license`, then restart the
-  engine. To pick the Intel variant of an image that has both, add
-  `--platform linux/amd64`.
+- On Apple Silicon, images made only for Intel (`linux/amd64`) run too,
+  through Apple's Rosetta, on macOS 13 or newer. If Rosetta isn't
+  installed yet, the engine starts without it and says so in its log;
+  install it once with `softwareupdate --install-rosetta --agree-to-license`,
+  then restart the engine. To pick the Intel variant of an image that has
+  both, add `--platform linux/amd64`.
 - The `docker` command can use it too:
 
   ```bash
   export DOCKER_HOST=unix://$HOME/.ferrodock/docker.sock
   ```
-
-Intel Macs can't run Ferrodock's engine; Ferrodock connects to another
-Docker engine there. See [Connecting to other engines](./engines.md).
 
 ## Windows
 

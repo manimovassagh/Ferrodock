@@ -12,10 +12,13 @@ pub const LINUX_PROGRAMS: &str = "/opt/ferrodock/engine/bin";
 pub const LINUX_SERVICE: &str = "/etc/systemd/system/ferrodock-engine.service";
 pub const LINUX_SOCKET: &str = "/run/ferrodock/docker.sock";
 
-/// Whether this machine can run the engine: Apple Silicon Macs, Windows
-/// (x86_64) and Linux (x86_64 and arm64).
+/// Whether this machine can run the engine: Macs (Apple Silicon and
+/// Intel), Windows (x86_64) and Linux (x86_64 and arm64).
 pub const SUPPORTED: bool = cfg!(any(
-    all(target_os = "macos", target_arch = "aarch64"),
+    all(
+        target_os = "macos",
+        any(target_arch = "aarch64", target_arch = "x86_64")
+    ),
     all(windows, target_arch = "x86_64"),
     all(
         target_os = "linux",

@@ -28,7 +28,7 @@ written entirely in Rust. For macOS, Windows and Linux.
 
 Ferrodock is a single native app: no Electron, no web view, no background
 service, and no CPU used while idle. It talks straight to the Docker Engine
-API, and on Apple Silicon Macs and Windows it can even run **its own Docker
+API, and on Macs, Windows and Linux it can even run **its own Docker
 engine**, so there's nothing else to install.
 
 ## Highlights
@@ -97,9 +97,10 @@ When Ferrodock finds no Docker engine, click **Set up Ferrodock's engine**.
 It downloads the engine once, and from then on it starts and stops with
 Ferrodock.
 
-- **Apple Silicon Macs**: a small Linux VM with the Docker engine, run
-  through Apple's Virtualization framework. Your home folder is shared, so
-  bind mounts just work.
+- **Macs** (Apple Silicon and Intel): a small Linux VM with the Docker
+  engine, run through Apple's Virtualization framework. Your home folder is
+  shared, so bind mounts just work. On Apple Silicon, Intel-only
+  (`linux/amd64`) images run too, through Rosetta.
 - **Windows**: a WSL distro called `ferrodock`. WSL is part of Windows; if
   it's off, run `wsl --install` once as administrator.
 - **Linux**: the Docker engine itself, as a system service. Setting it up
