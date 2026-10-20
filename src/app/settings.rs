@@ -33,6 +33,9 @@ pub enum Density {
 #[serde(default)]
 pub struct Settings {
     pub theme: Theme,
+    /// An editor theme (its id) used instead of Ferrodock's own colours;
+    /// it brings its own light or dark mode.
+    pub editor_theme: Option<String>,
     pub density: Density,
     /// Interface size, 0.9 to 1.25.
     pub scale: f32,
@@ -68,6 +71,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             theme: Theme::default(),
+            editor_theme: None,
             density: Density::default(),
             scale: 1.0,
             check_updates: true,
@@ -116,11 +120,28 @@ impl Settings {
 
     /// Makes the settings take effect.
     pub fn apply(&self, ctx: &egui::Context) {
-        ctx.set_theme(match self.theme {
-            Theme::Light => ThemePreference::Light,
-            Theme::Dark => ThemePreference::Dark,
-            Theme::System => ThemePreference::System,
-        });
+        match self
+            .editor_theme
+            .as_deref()
+            .and_then(crate::theme::editor_theme)
+        {
+            Some(editor) if editor.dark => {
+                crate::theme::use_palettes(ctx, &editor.palette, &crate::theme::LIGHT);
+                ctx.set_theme(ThemePreference::Dark);
+            }
+            Some(editor) => {
+                crate::theme::use_palettes(ctx, &crate::theme::DARK, &editor.palette);
+                ctx.set_theme(ThemePreference::Light);
+            }
+            None => {
+                crate::theme::use_palettes(ctx, &crate::theme::DARK, &crate::theme::LIGHT);
+                ctx.set_theme(match self.theme {
+                    Theme::Light => ThemePreference::Light,
+                    Theme::Dark => ThemePreference::Dark,
+                    Theme::System => ThemePreference::System,
+                });
+            }
+        }
         ctx.set_zoom_factor(self.scale.clamp(Self::MIN_SCALE, Self::MAX_SCALE));
         table::set_compact(ctx, self.density == Density::Compact);
     }
@@ -146,7 +167,7 @@ pub fn show(
                 .inner_margin(Margin::same(20)),
         )
         .show(ui.ctx(), |ui| {
-            ui.set_width(420.0);
+            ui.set_width(430.0);
             ui.label(RichText::new("Settings").size(18.0).strong().color(p.text));
             ui.add_space(14.0);
 
@@ -157,9 +178,17 @@ pub fn show(
                 .show(ui, |ui| {
                     ui.label(RichText::new("Theme").color(p.muted));
                     ui.horizontal(|ui| {
-                        ui.selectable_value(&mut settings.theme, Theme::Light, "Light");
-                        ui.selectable_value(&mut settings.theme, Theme::Dark, "Dark");
-                        ui.selectable_value(&mut settings.theme, Theme::System, "System");
+                        for (theme, label) in [
+                            (Theme::Light, "Light"),
+                            (Theme::Dark, "Dark"),
+                            (Theme::System, "System"),
+                        ] {
+                            let on = settings.editor_theme.is_none() && settings.theme == theme;
+                            if ui.selectable_label(on, label).clicked() {
+                                settings.theme = theme;
+                                settings.editor_theme = None;
+                            }
+                        }
                     });
                     ui.end_row();
 
@@ -192,6 +221,23 @@ pub fn show(
                     ui.end_row();
                 });
 
+            ui.add_space(14.0);
+            ui.label(RichText::new("Editor themes").color(p.muted));
+            ui.add_space(6.0);
+            egui::Grid::new("editor-themes")
+                .num_columns(3)
+                .spacing([12.0, 10.0])
+                .show(ui, |ui| {
+                    for (i, editor) in crate::theme::EDITOR_THEMES.iter().enumerate() {
+                        let on = settings.editor_theme.as_deref() == Some(editor.id);
+                        if theme_swatch(ui, p, editor, on).clicked() {
+                            settings.editor_theme = Some(editor.id.to_owned());
+                        }
+                        if i % 3 == 2 {
+                            ui.end_row();
+                        }
+                    }
+                });
             ui.add_space(18.0);
             heading(ui, p, "Notifications");
             ui.checkbox(
@@ -395,6 +441,71 @@ fn open_file(path: &std::path::Path) {
         std::process::Command::new("xdg-open")
     };
     let _ = command.arg(path).spawn();
+}
+
+/// An editor theme to pick: a small preview of its colours (background,
+/// text lines in its text and accent colours) and its name under it.
+fn theme_swatch(
+    ui: &mut egui::Ui,
+    p: &Palette,
+    editor: &crate::theme::EditorTheme,
+    selected: bool,
+) -> egui::Response {
+    let size = egui::vec2(132.0, 70.0);
+    let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
+    let painter = ui.painter();
+    let theme = &editor.palette;
+    let preview = egui::Rect::from_min_size(rect.min, egui::vec2(size.x, 48.0));
+    painter.rect_filled(preview, CornerRadius::same(6), theme.bg);
+    let side = egui::Rect::from_min_size(preview.min, egui::vec2(26.0, preview.height()));
+    painter.rect_filled(
+        side,
+        CornerRadius {
+            nw: 6,
+            sw: 6,
+            ne: 0,
+            se: 0,
+        },
+        theme.sidebar,
+    );
+    for (row, (color, width)) in [
+        (theme.accent, 34.0),
+        (theme.text, 50.0),
+        (theme.muted, 40.0),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let y = preview.top() + 12.0 + row as f32 * 11.0;
+        let line =
+            egui::Rect::from_min_size(egui::pos2(side.right() + 8.0, y), egui::vec2(width, 4.0));
+        painter.rect_filled(line, CornerRadius::same(2), color);
+    }
+    painter.circle_filled(side.center_top() + egui::vec2(0.0, 12.0), 4.0, theme.accent);
+    let ring = if selected {
+        Stroke::new(2.0, p.accent)
+    } else if response.hovered() {
+        Stroke::new(1.0, p.muted)
+    } else {
+        Stroke::new(1.0, p.border)
+    };
+    painter.rect_stroke(
+        preview,
+        CornerRadius::same(6),
+        ring,
+        egui::StrokeKind::Outside,
+    );
+    painter.text(
+        egui::pos2(rect.center().x, preview.bottom() + 12.0),
+        egui::Align2::CENTER_CENTER,
+        editor.name,
+        egui::FontId::proportional(11.5),
+        if selected { p.text } else { p.muted },
+    );
+    response.widget_info(|| {
+        egui::WidgetInfo::selected(egui::Role::RadioButton, true, selected, editor.name)
+    });
+    response.on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
 fn heading(ui: &mut egui::Ui, p: &Palette, text: &str) {

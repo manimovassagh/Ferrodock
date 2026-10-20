@@ -622,5 +622,27 @@ fn screenshots_of_integrations() {
         h.state_mut().show_integrations = true;
         h.run_steps(4);
         save(&mut h, &format!("integrations-dialog-{name}"));
+        click(&mut h, "Cursor");
+        h.run_steps(3);
+        save(&mut h, &format!("integrations-cursor-{name}"));
+        click(&mut h, "Claude Code");
     }
+}
+
+#[test]
+#[ignore]
+fn screenshots_of_themes() {
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(2));
+    open(&mut h, 2, None);
+    for editor in &crate::theme::EDITOR_THEMES {
+        h.state_mut().settings.editor_theme = Some(editor.id.to_owned());
+        let ctx = h.ctx.clone();
+        h.state().settings.apply(&ctx);
+        h.run_steps(3);
+        save(&mut h, &format!("theme-{}", editor.id));
+    }
+    h.state_mut().show_settings = true;
+    h.run_steps(4);
+    save(&mut h, "theme-settings");
 }

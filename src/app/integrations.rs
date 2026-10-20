@@ -37,12 +37,79 @@ fn invocation(name: &str) -> Option<String> {
     })
 }
 
+/// How an AI tool adds an MCP server.
+enum Setup {
+    /// A command to run in a terminal.
+    Command(String),
+    /// JSON to add to the tool's config file.
+    Config { file: &'static str, json: String },
+}
+
+struct Tool {
+    name: &'static str,
+    /// The setup, for the server started by this command.
+    setup: fn(&str) -> Setup,
+}
+
+/// The AI tools with a known setup, most used first.
+const TOOLS: &[Tool] = &[
+    Tool {
+        name: "Claude Code",
+        setup: |server| Setup::Command(format!("claude mcp add ferrodock -- {server}")),
+    },
+    Tool {
+        name: "Codex",
+        setup: |server| Setup::Command(format!("codex mcp add ferrodock -- {server}")),
+    },
+    Tool {
+        name: "GitHub Copilot",
+        setup: |server| {
+            let entry = serde_json::json!({ "name": "ferrodock", "command": unquote(server) });
+            Setup::Command(format!("code --add-mcp '{entry}'"))
+        },
+    },
+    Tool {
+        name: "Gemini CLI",
+        setup: |server| Setup::Command(format!("gemini mcp add ferrodock {server}")),
+    },
+    Tool {
+        name: "Cursor",
+        setup: |server| Setup::Config {
+            file: "~/.cursor/mcp.json",
+            json: mcp_config(server),
+        },
+    },
+    Tool {
+        name: "Windsurf",
+        setup: |server| Setup::Config {
+            file: "~/.codeium/windsurf/mcp_config.json",
+            json: mcp_config(server),
+        },
+    },
+    Tool {
+        name: "Claude Desktop",
+        setup: |server| Setup::Config {
+            file: if cfg!(windows) {
+                r"%APPDATA%\Claude\claude_desktop_config.json"
+            } else {
+                "~/Library/Application Support/Claude/claude_desktop_config.json"
+            },
+            json: mcp_config(server),
+        },
+    },
+];
+
+/// A command without the quotes [`invocation`] adds for the shell.
+fn unquote(command: &str) -> &str {
+    command.trim_matches('"')
+}
+
 /// The JSON most AI tools take to add an MCP server.
 fn mcp_config(command: &str) -> String {
-    let command = command.trim_matches('"').replace('\\', "\\\\");
-    format!(
-        "{{\n  \"mcpServers\": {{\n    \"ferrodock\": {{ \"command\": \"{command}\" }}\n  }}\n}}"
-    )
+    let config = serde_json::json!({
+        "mcpServers": { "ferrodock": { "command": unquote(command) } }
+    });
+    serde_json::to_string_pretty(&config).unwrap_or_default()
 }
 
 /// One command, in a code box with a Copy button.
@@ -127,18 +194,33 @@ pub fn show(ui: &mut egui::Ui, p: &Palette) -> bool {
             );
             ui.add_space(6.0);
             let server = mcp.as_deref().unwrap_or("ferrodock-mcp");
-            command_row(ui, p, &format!("claude mcp add ferrodock -- {server}"));
-            ui.add_space(4.0);
-            ui.horizontal(|ui| {
-                if ui.button("Copy JSON config").clicked() {
-                    ui.ctx().copy_text(mcp_config(server));
+            let picked_id = egui::Id::unique("ferrodock-integrations-tool");
+            let mut picked = ui
+                .ctx()
+                .data(|d| d.get_temp::<usize>(picked_id))
+                .unwrap_or(0)
+                .min(TOOLS.len() - 1);
+            ui.horizontal_wrapped(|ui| {
+                for (i, tool) in TOOLS.iter().enumerate() {
+                    if ui.selectable_label(i == picked, tool.name).clicked() {
+                        picked = i;
+                    }
                 }
-                ui.label(
-                    RichText::new("for Cursor, VS Code and other MCP clients")
-                        .size(12.0)
-                        .color(p.muted),
-                );
             });
+            ui.ctx().data_mut(|d| d.insert_temp(picked_id, picked));
+            ui.add_space(6.0);
+            match (TOOLS[picked].setup)(server) {
+                Setup::Command(command) => command_row(ui, p, &command),
+                Setup::Config { file, json } => {
+                    ui.label(
+                        RichText::new(format!("Add this to {file}:"))
+                            .size(12.0)
+                            .color(p.muted),
+                    );
+                    ui.add_space(2.0);
+                    command_row(ui, p, &json);
+                }
+            }
 
             if fdock.is_none() || mcp.is_none() {
                 ui.add_space(10.0);
@@ -178,5 +260,24 @@ mod tests {
         );
         let value: serde_json::Value = serde_json::from_str(&mcp_config("ferrodock-mcp")).unwrap();
         assert_eq!(value["mcpServers"]["ferrodock"]["command"], "ferrodock-mcp");
+    }
+
+    #[test]
+    fn every_tool_has_a_setup() {
+        for tool in TOOLS {
+            match (tool.setup)("\"C:\\Program Files\\ferrodock-mcp.exe\"") {
+                Setup::Command(command) => {
+                    assert!(command.contains("ferrodock"), "{}", tool.name);
+                    if let Some(json) = command.split('\'').nth(1) {
+                        let entry: serde_json::Value = serde_json::from_str(json).unwrap();
+                        assert_eq!(entry["command"], "C:\\Program Files\\ferrodock-mcp.exe");
+                    }
+                }
+                Setup::Config { file, json } => {
+                    assert!(file.ends_with(".json"), "{}", tool.name);
+                    serde_json::from_str::<serde_json::Value>(&json).unwrap();
+                }
+            }
+        }
     }
 }
