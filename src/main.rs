@@ -4,6 +4,7 @@
 mod app;
 /// The Docker layer, shared with the CLI and the MCP server.
 use ferrodock_core as docker;
+mod instance;
 mod theme;
 mod update;
 mod vm;
@@ -12,6 +13,11 @@ mod worker;
 use eframe::egui;
 
 fn main() -> eframe::Result {
+    // Held until Ferrodock exits, after it stopped its engine.
+    let instance = match instance::start(app::started_in_background()) {
+        instance::Start::Run(instance) => instance,
+        instance::Start::Exit => return Ok(()),
+    };
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("Ferrodock")
@@ -26,6 +32,17 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "Ferrodock",
         options,
-        Box::new(|cc| Ok(Box::new(app::FerrodockApp::new(cc)))),
+        Box::new(|cc| {
+            if let Some(instance) = &instance {
+                let ctx = cc.egui_ctx.clone();
+                // Not being reachable only means a second Ferrodock can't
+                // bring this one forward.
+                let _ = instance.serve(move || app::show_window(&ctx));
+            }
+            Ok(Box::new(app::FerrodockApp::new(cc)))
+        }),
     )
+    // Returning ends the process, along with any threads still running
+    // (the engine's socket, port forwarding, the worker), and lets go of
+    // the lock for the next Ferrodock.
 }

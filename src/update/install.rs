@@ -19,13 +19,18 @@ pub enum Relaunch {
 }
 
 impl Relaunch {
-    /// Starts the new version. The caller then closes this one.
+    /// Starts the new version, which waits for this one to exit before
+    /// it runs. The caller then quits this one (not to the tray).
     pub fn start(&self) -> std::io::Result<()> {
+        let flag = crate::instance::AFTER_UPDATE_FLAG;
         match self {
-            Relaunch::Exe(path) => std::process::Command::new(path).spawn().map(drop),
+            Relaunch::Exe(path) => std::process::Command::new(path).arg(flag).spawn().map(drop),
+            // `-n`: this one still runs, and `open` would only bring it
+            // forward.
             Relaunch::App(path) => std::process::Command::new("open")
                 .arg("-n")
                 .arg(path)
+                .args(["--args", flag])
                 .spawn()
                 .map(drop),
         }

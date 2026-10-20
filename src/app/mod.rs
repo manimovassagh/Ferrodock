@@ -36,6 +36,8 @@ use keys::Shortcut;
 use page::{CommandRun, Confirmation, Intent, Page, PageCtx};
 use store::{Connection, Live, Store};
 
+pub use autostart::started_in_background;
+
 pub struct FerrodockApp {
     worker: Worker,
     store: Store,
@@ -59,7 +61,8 @@ pub struct FerrodockApp {
     updater: crate::update::Updater,
     /// The menu bar / notification area icon, where there is one.
     tray: Option<tray::Tray>,
-    /// Set by Quit in the tray, so closing really quits.
+    /// Set by Quit in the tray and by Restart to update, so closing really
+    /// quits.
     quitting: bool,
     /// Starts the engine when it's down.
     engine_starter: engine_start::EngineStarter,
@@ -508,7 +511,12 @@ impl eframe::App for FerrodockApp {
             Some(sidebar::Click::Restart) => {
                 if let crate::update::Status::Ready { relaunch, .. } = self.updater.status() {
                     match relaunch.start() {
-                        Ok(()) => ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close),
+                        // Quits for real, even when closing goes to the tray:
+                        // the new version waits for this one to exit.
+                        Ok(()) => {
+                            self.quitting = true;
+                            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+                        }
                         Err(e) => {
                             self.toast = Some(Toast::new(format!("Couldn't restart: {e}"), true));
                         }
@@ -620,11 +628,15 @@ impl eframe::App for FerrodockApp {
 }
 
 /// Shows the window (hidden by closing it to the tray) and brings it to
-/// the front.
-fn show_window(ctx: &egui::Context) {
-    ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
-    ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
-    ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+/// the front. Works from any thread, e.g. when another Ferrodock asks.
+pub fn show_window(ctx: &egui::Context) {
+    for command in [
+        egui::ViewportCommand::Visible(true),
+        egui::ViewportCommand::Minimized(false),
+        egui::ViewportCommand::Focus,
+    ] {
+        ctx.send_viewport_cmd_to(egui::ViewportId::ROOT, command);
+    }
 }
 
 /// The first time Ferrodock runs from a download, puts `fdock` and
