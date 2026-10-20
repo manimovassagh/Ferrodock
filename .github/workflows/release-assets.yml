@@ -61,7 +61,7 @@ jobs:
             dist/*.dmg
 
   linux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
         with:
@@ -79,7 +79,7 @@ jobs:
 
   publish:
     needs: [windows, macos, linux]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     outputs:
@@ -117,7 +117,7 @@ jobs:
   homebrew:
     needs: publish
     if: needs.publish.outputs.latest == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
@@ -151,7 +151,7 @@ jobs:
   crates:
     needs: publish
     if: needs.publish.outputs.latest == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
         with:

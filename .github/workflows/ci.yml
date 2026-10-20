@@ -20,7 +20,7 @@ jobs:
   # below are skipped otherwise (a skipped job counts as passed).
   changes:
     name: Changes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       code: ${{ steps.diff.outputs.code }}
     steps:
@@ -44,7 +44,7 @@ jobs:
     name: Format, lint and test
     needs: changes
     if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
@@ -65,7 +65,7 @@ jobs:
     name: Licenses
     needs: changes
     if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: taiki-e/install-action@v2
