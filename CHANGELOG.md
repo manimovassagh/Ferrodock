@@ -7,6 +7,17 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.25.0](https://github.com/manimovassagh/Ferrodock/compare/v1.24.0...v1.25.0) - 2026-10-20
+
+### Added
+
+- *(engine)* start, stop, reset and disk size in Settings ([#114](https://github.com/manimovassagh/Ferrodock/pull/114))
+
+### Other
+
+- Merge remote-tracking branch 'origin/main' into claude/engine-controls
+- Merge remote-tracking branch 'origin/main' into claude/engine-controls
+
 ## [1.24.0](https://github.com/manimovassagh/Ferrodock/compare/v1.23.0...v1.24.0) - 2026-10-20
 
 ### Added
