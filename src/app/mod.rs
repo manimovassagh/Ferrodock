@@ -5,6 +5,7 @@
 //! and turns the page's [`Intent`]s into worker requests.
 
 mod autostart;
+mod cli_install;
 mod commands;
 mod components;
 mod engine_start;
@@ -79,6 +80,8 @@ impl FerrodockApp {
         if settings.check_updates {
             updater.check();
         }
+        let mut settings = settings;
+        install_cli_once(&mut settings);
         let ctx = cc.egui_ctx.clone();
         let worker = Worker::spawn(move || ctx.request_repaint());
         let pages = pages::all();
@@ -622,4 +625,26 @@ fn show_window(ctx: &egui::Context) {
     ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
     ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
     ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+}
+
+/// The first time Ferrodock runs from a download, puts `fdock` and
+/// `ferrodock-mcp` on the PATH, where that needs no password (always on
+/// Windows and Linux; on macOS when /usr/local/bin is writable). Only
+/// once, so removing them later sticks.
+fn install_cli_once(settings: &mut settings::Settings) {
+    if settings.cli_installed || cfg!(debug_assertions) {
+        return;
+    }
+    let Some(dir) = cli_install::bundled_dir() else {
+        return;
+    };
+    settings.cli_installed = true;
+    if cli_install::needs_password() {
+        return;
+    }
+    std::thread::spawn(move || {
+        if !cli_install::all_installed() {
+            cli_install::start(dir, || {});
+        }
+    });
 }
