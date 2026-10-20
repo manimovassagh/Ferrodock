@@ -7,6 +7,18 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.26.0](https://github.com/manimovassagh/Ferrodock/compare/v1.25.0...v1.26.0) - 2026-10-20
+
+### Added
+
+- *(engine)* Ferrodock's own engine on Intel Macs
+- *(engine)* run x86_64 images on Apple Silicon through Rosetta
+
+### Other
+
+- Merge pull request #165 from manimovassagh/claude/engine-mac-rosetta-intel
+- Merge remote-tracking branch 'origin/main' into claude/engine-mac-rosetta-intel
+
 ## [1.25.0](https://github.com/manimovassagh/Ferrodock/compare/v1.24.0...v1.25.0) - 2026-10-20
 
 ### Added
