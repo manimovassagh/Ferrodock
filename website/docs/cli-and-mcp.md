@@ -82,14 +82,15 @@ with status 1.
 `ferrodock-mcp` speaks MCP over standard input and output. Add it to your AI
 tool once:
 
-**Claude Code**
-
-```bash
-claude mcp add ferrodock -- ferrodock-mcp
-```
-
-**Claude Desktop and other MCP clients**: add a server with the command
-`ferrodock-mcp`, for example:
+| Tool | Setup |
+| --- | --- |
+| Claude Code | `claude mcp add ferrodock -- ferrodock-mcp` |
+| Codex | `codex mcp add ferrodock -- ferrodock-mcp` |
+| GitHub Copilot (VS Code) | `code --add-mcp '{"name":"ferrodock","command":"ferrodock-mcp"}'` |
+| Gemini CLI | `gemini mcp add ferrodock ferrodock-mcp` |
+| Cursor | the JSON below in `~/.cursor/mcp.json` |
+| Windsurf | the JSON below in `~/.codeium/windsurf/mcp_config.json` |
+| Claude Desktop | the JSON below in `claude_desktop_config.json` |
 
 ```json
 {
@@ -98,6 +99,10 @@ claude mcp add ferrodock -- ferrodock-mcp
   }
 }
 ```
+
+Other MCP clients take the same: a server named `ferrodock` that runs
+`ferrodock-mcp`. **CLI & MCP** in the app's sidebar shows each of these
+with the right path for your computer, ready to copy.
 
 Give the full path if it isn't on the PATH, such as
 `/Applications/Ferrodock.app/Contents/MacOS/ferrodock-mcp` or
