@@ -115,7 +115,7 @@ impl EngineStarter {
             }
             Plan::BuiltIn => {
                 let ctx = self.repaint.clone();
-                self.builtin.start(vm::Resources::default(), move || {
+                self.builtin.start(settings.resources(), move || {
                     if let Some(ctx) = &ctx {
                         ctx.request_repaint();
                     }

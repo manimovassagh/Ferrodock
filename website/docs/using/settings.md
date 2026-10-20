@@ -32,6 +32,18 @@ by default.
 - **Open Ferrodock when you log in**. On macOS and Windows it then starts
   in the menu bar / notification area, without opening the window.
 
+### Ferrodock's engine
+
+Shown once [Ferrodock's own engine](../engine.md) is set up.
+
+- Whether it's running.
+- **CPUs** and **Memory** (macOS): what the engine's VM gets. The default
+  is half your CPU cores (2 to 8) and 4 GB. Changes take effect when the
+  engine restarts.
+- **Restart engine** (macOS and Windows), and **Open log**, the engine's
+  `console.log`. On Linux the engine is a system service; its log is
+  `journalctl -u ferrodock-engine`.
+
 ### Menu bar / Notification area
 
 **Keep running there when the window is closed** (macOS and Windows). Turn

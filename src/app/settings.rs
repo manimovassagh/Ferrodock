@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use super::components::{table, widgets};
 use crate::theme::Palette;
 use crate::update::{Status, Updater};
+use crate::vm;
 
 /// Key the settings are stored under.
 pub const STORAGE_KEY: &str = "settings";
@@ -53,6 +54,10 @@ pub struct Settings {
     /// The app that served the engine when it last ran (macOS), to start
     /// it again.
     pub engine_app: Option<String>,
+    /// CPUs and memory for Ferrodock's engine (macOS); None is the
+    /// default share.
+    pub engine_cpus: Option<u32>,
+    pub engine_memory_mib: Option<u64>,
     /// Ferrodock opens when the user logs in. Read from the system at
     /// start, never saved: the system's login items are the record.
     #[serde(skip)]
@@ -72,6 +77,8 @@ impl Default for Settings {
             notify_crashes: true,
             start_engine: true,
             engine_app: None,
+            engine_cpus: None,
+            engine_memory_mib: None,
             launch_at_login: false,
         }
     }
@@ -91,6 +98,19 @@ impl Settings {
         self.recent_compose.truncate(Self::RECENT);
     }
 
+    /// What Ferrodock's engine gets: the chosen CPUs and memory, within
+    /// what this computer has.
+    pub fn resources(&self) -> vm::Resources {
+        let (default, most) = (vm::Resources::default(), vm::Resources::most());
+        vm::Resources {
+            cpus: self.engine_cpus.unwrap_or(default.cpus).clamp(1, most.cpus),
+            memory_mib: self
+                .engine_memory_mib
+                .unwrap_or(default.memory_mib)
+                .clamp(1024, most.memory_mib.max(1024)),
+        }
+    }
+
     pub const MIN_SCALE: f32 = 0.9;
     pub const MAX_SCALE: f32 = 1.25;
 
@@ -108,7 +128,13 @@ impl Settings {
 
 /// Draws the Settings dialog. Changes apply immediately. Returns false
 /// once it should close.
-pub fn show(ui: &mut egui::Ui, p: &Palette, settings: &mut Settings, updater: &Updater) -> bool {
+pub fn show(
+    ui: &mut egui::Ui,
+    p: &Palette,
+    settings: &mut Settings,
+    updater: &Updater,
+    engine: &vm::Engine,
+) -> bool {
     let before = settings.clone();
     let mut close = false;
     let modal = egui::Modal::new(egui::Id::unique("ferrodock-settings"))
@@ -193,6 +219,11 @@ pub fn show(ui: &mut egui::Ui, p: &Palette, settings: &mut Settings, updater: &U
             }
             if let Some(error) = ui.data(|d| d.get_temp::<String>(error_id)) {
                 ui.label(RichText::new(format!("Couldn't change it: {error}")).color(p.danger));
+            }
+            if vm::SUPPORTED && engine.state() != vm::State::NotInstalled {
+                ui.add_space(18.0);
+                heading(ui, p, "Ferrodock's engine");
+                engine_section(ui, p, settings, engine);
             }
             if crate::app::tray::Tray::SUPPORTED {
                 ui.add_space(18.0);
@@ -283,6 +314,89 @@ pub fn show(ui: &mut egui::Ui, p: &Palette, settings: &mut Settings, updater: &U
     !(close || modal.should_close())
 }
 
+/// Ferrodock's own engine: how it's doing, what it gets (macOS), a
+/// restart and its log.
+fn engine_section(ui: &mut egui::Ui, p: &Palette, settings: &mut Settings, engine: &vm::Engine) {
+    let state = engine.state();
+    let (text, color) = match &state {
+        vm::State::Running => ("Running".to_owned(), p.text),
+        vm::State::Stopped | vm::State::NotInstalled => ("Stopped".to_owned(), p.muted),
+        vm::State::Starting => ("Starting…".to_owned(), p.muted),
+        vm::State::Downloading { .. } => ("Downloading…".to_owned(), p.muted),
+        vm::State::Failed(e) => (e.clone(), p.danger),
+    };
+    ui.label(RichText::new(text).color(color));
+    if cfg!(target_os = "macos") {
+        let (default, most) = (vm::Resources::default(), vm::Resources::most());
+        let chosen = settings.resources();
+        egui::Grid::new("engine-grid")
+            .num_columns(2)
+            .spacing([18.0, 12.0])
+            .show(ui, |ui| {
+                ui.label(RichText::new("CPUs").color(p.muted));
+                let mut cpus = chosen.cpus;
+                if ui
+                    .add(egui::Slider::new(&mut cpus, 1..=most.cpus))
+                    .changed()
+                {
+                    settings.engine_cpus = (cpus != default.cpus).then_some(cpus);
+                }
+                ui.end_row();
+
+                ui.label(RichText::new("Memory").color(p.muted));
+                let mut gib = chosen.memory_mib / 1024;
+                let slider =
+                    egui::Slider::new(&mut gib, 1..=(most.memory_mib / 1024).max(1)).suffix(" GB");
+                if ui.add(slider).changed() {
+                    let mib = gib * 1024;
+                    settings.engine_memory_mib = (mib != default.memory_mib).then_some(mib);
+                }
+                ui.end_row();
+            });
+        if engine.resources().is_some_and(|given| given != chosen) {
+            ui.label(
+                RichText::new("Restart the engine to use the new settings.")
+                    .size(12.0)
+                    .color(p.muted),
+            );
+        }
+    }
+    ui.horizontal(|ui| {
+        if vm::Engine::RESTARTS && !state.busy() && ui.button("Restart engine").clicked() {
+            let ctx = ui.ctx().clone();
+            engine.restart(settings.resources(), move || ctx.request_repaint());
+        }
+        if let Some(log) = engine.log()
+            && ui.button("Open log").clicked()
+        {
+            open_file(&log);
+        }
+    });
+    if cfg!(target_os = "linux") {
+        ui.label(
+            RichText::new(
+                "It runs as the ferrodock-engine service. Its log: journalctl -u ferrodock-engine",
+            )
+            .size(12.0)
+            .color(p.muted),
+        );
+    }
+}
+
+/// Opens a text file in the system's editor.
+fn open_file(path: &std::path::Path) {
+    let mut command = if cfg!(target_os = "macos") {
+        let mut c = std::process::Command::new("open");
+        c.arg("-t");
+        c
+    } else if cfg!(windows) {
+        std::process::Command::new("notepad.exe")
+    } else {
+        std::process::Command::new("xdg-open")
+    };
+    let _ = command.arg(path).spawn();
+}
+
 fn heading(ui: &mut egui::Ui, p: &Palette, text: &str) {
     ui.label(RichText::new(text.to_uppercase()).size(11.0).color(p.muted));
     ui.add_space(6.0);
@@ -306,5 +420,18 @@ mod tests {
         let s: Settings = serde_json::from_str(r#"{"theme":"Dark"}"#).unwrap();
         assert_eq!(s.theme, Theme::Dark);
         assert_eq!(s.scale, 1.0);
+    }
+
+    #[test]
+    fn engine_gets_what_was_chosen_within_limits() {
+        let mut s = Settings::default();
+        assert_eq!(s.resources(), vm::Resources::default());
+        s.engine_cpus = Some(10_000);
+        s.engine_memory_mib = Some(1);
+        let r = s.resources();
+        assert_eq!(r.cpus, vm::Resources::most().cpus);
+        assert_eq!(r.memory_mib, 1024);
+        let old: Settings = serde_json::from_str("{}").unwrap();
+        assert_eq!(old.engine_cpus, None);
     }
 }
