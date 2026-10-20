@@ -4,6 +4,7 @@
 //! [`Response`]s once per frame.
 
 mod compose;
+mod compose_install;
 mod dedup;
 mod files;
 mod images;
