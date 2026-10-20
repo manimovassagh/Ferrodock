@@ -28,6 +28,9 @@ cask "ferrodock" do
   depends_on macos: ">= :big_sur"
 
   app "Ferrodock.app"
+  # The command-line tools inside the app, onto the PATH.
+  binary "#{appdir}/Ferrodock.app/Contents/MacOS/fdock"
+  binary "#{appdir}/Ferrodock.app/Contents/MacOS/ferrodock-mcp"
 
   # Ferrodock isn't notarized by Apple yet; without this, macOS refuses to
   # open it on first launch.

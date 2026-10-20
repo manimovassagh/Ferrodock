@@ -205,13 +205,13 @@ const FEATURES = [
     icon: icon(<><ellipse cx="12" cy="5" rx="8" ry="3" /><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5" /><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" /></>),
   },
   {
-    title: "Ports in one click",
-    text: "Published ports are links. Click 8080 ↗ and your app opens in the browser.",
-    icon: icon(<><path d="M7 17L17 7" /><path d="M8 7h9v9" /></>),
+    title: "Scripts and AI tools",
+    text: "fdock brings it all to the terminal, with compact JSON for scripts. ferrodock-mcp lets AI tools read logs, start services and tidy up, and asks before it changes anything.",
+    icon: icon(<><path d="M4 17l6-6-6-6" /><path d="M12 19h8" /><circle cx="19" cy="6" r="2" /></>),
   },
   {
     title: "Works with any engine",
-    text: "Ferrodock's own engine on Apple Silicon Macs and Windows, a plain dockerd, or any other Docker engine you run, local or remote. Ferrodock connects as soon as the engine is up.",
+    text: "Ferrodock's own engine on Apple Silicon Macs, Windows and Linux, or any other Docker engine you run, local or remote. Ferrodock connects as soon as the engine is up.",
     icon: icon(<><path d="M12 2v6" /><path d="M12 16v6" /><circle cx="12" cy="12" r="4" /></>),
   },
 ];

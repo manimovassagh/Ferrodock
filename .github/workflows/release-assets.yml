@@ -32,13 +32,14 @@ jobs:
         with:
           ref: ${{ inputs.tag }}
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo build --release --locked
+      - run: cargo build --release --locked --workspace
       - name: Package
         shell: bash
         run: |
           mkdir dist
           cp target/release/ferrodock.exe dist/Ferrodock.exe
-          cd dist && 7z a "Ferrodock-${TAG#v}-windows-x64.zip" Ferrodock.exe
+          cp target/release/fdock.exe target/release/ferrodock-mcp.exe dist/
+          cd dist && 7z a "Ferrodock-${TAG#v}-windows-x64.zip" Ferrodock.exe fdock.exe ferrodock-mcp.exe
       - uses: actions/upload-artifact@v7
         with:
           name: windows
@@ -66,11 +67,11 @@ jobs:
         with:
           ref: ${{ inputs.tag }}
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo build --release --locked
+      - run: cargo build --release --locked --workspace
       - name: Package
         run: |
           mkdir dist
-          tar -czf "dist/Ferrodock-${TAG#v}-linux-x64.tar.gz" -C target/release ferrodock
+          tar -czf "dist/Ferrodock-${TAG#v}-linux-x64.tar.gz" -C target/release ferrodock fdock ferrodock-mcp
       - uses: actions/upload-artifact@v7
         with:
           name: linux
@@ -165,8 +166,8 @@ jobs:
             exit 0
           fi
           version=${TAG#v}
-          # The shared crate first: the app and the CLI depend on it.
-          for crate in ferrodock-core ferrodock-cli ferrodock; do
+          # The shared crate first: the others depend on it.
+          for crate in ferrodock-core ferrodock-cli ferrodock-mcp ferrodock; do
             if curl -fsS -A "ferrodock-release (github.com/manimovassagh/Ferrodock)" \
                 "https://crates.io/api/v1/crates/$crate/$version" > /dev/null; then
               echo "$crate $version is already on crates.io."

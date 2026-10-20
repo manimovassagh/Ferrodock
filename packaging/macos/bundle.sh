@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Builds dist/Ferrodock.app (universal: Apple Silicon + Intel), then a zip
-# and a .dmg of it.
+# Builds dist/Ferrodock.app (universal: Apple Silicon + Intel), with the
+# fdock CLI and the ferrodock-mcp server inside it, then a zip and a .dmg.
 # Run on macOS from the repository root: packaging/macos/bundle.sh
 set -euo pipefail
 
@@ -10,14 +10,18 @@ version=$(cargo metadata --no-deps --format-version 1 |
 app=dist/Ferrodock.app
 
 rustup target add aarch64-apple-darwin x86_64-apple-darwin
-cargo build --release --target aarch64-apple-darwin
-cargo build --release --target x86_64-apple-darwin
+cargo build --release --workspace --target aarch64-apple-darwin
+cargo build --release --workspace --target x86_64-apple-darwin
 
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
-lipo -create -output "$app/Contents/MacOS/ferrodock" \
-    target/aarch64-apple-darwin/release/ferrodock \
-    target/x86_64-apple-darwin/release/ferrodock
+# The app, and the command-line tools that come with it (Homebrew links
+# them onto the PATH).
+for program in ferrodock fdock ferrodock-mcp; do
+    lipo -create -output "$app/Contents/MacOS/$program" \
+        "target/aarch64-apple-darwin/release/$program" \
+        "target/x86_64-apple-darwin/release/$program"
+done
 sed "s/__VERSION__/$version/g" packaging/macos/Info.plist > "$app/Contents/Info.plist"
 cp assets/icon.icns "$app/Contents/Resources/icon.icns"
 

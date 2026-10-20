@@ -31,6 +31,7 @@ git_release_body = """
 
 **macOS:** `brew tap manimovassagh/ferrodock https://github.com/manimovassagh/Ferrodock && brew install --cask ferrodock`, or open the DMG and drag `Ferrodock.app` to Applications. The app isn't notarized yet, so allow it once: `xattr -dr com.apple.quarantine /Applications/Ferrodock.app`, or **Open Anyway** in System Settings → Privacy & Security.
 **Windows:** unzip and run `Ferrodock.exe`. If SmartScreen appears, choose **More info → Run anyway**.
+Every download also has the `fdock` command line and the `ferrodock-mcp` server for AI tools (Homebrew puts them on your PATH): see [Command line and AI tools](https://manimovassagh.github.io/Ferrodock/docs/cli-and-mcp).
 Verify downloads with `SHA256SUMS.txt`.
 
 ## What's changed
@@ -57,6 +58,11 @@ git_tag_name = "ferrodock-core-v{{ version }}"
 name = "ferrodock-cli"
 release = false
 git_tag_name = "ferrodock-cli-v{{ version }}"
+
+[[package]]
+name = "ferrodock-mcp"
+release = false
+git_tag_name = "ferrodock-mcp-v{{ version }}"
 
 [changelog]
 # Group commits by their Conventional Commit type. Housekeeping commits

@@ -110,6 +110,24 @@ Already run Docker somewhere? Ferrodock connects to it through
 [Ferrodock's own engine](https://manimovassagh.github.io/Ferrodock/docs/engine)
 and [Connecting to other engines](https://manimovassagh.github.io/Ferrodock/docs/engines).
 
+## Command line and AI tools
+
+Ferrodock comes with two more programs, built on the same Rust core:
+
+- **`fdock`**, the command line: `fdock ps`, `fdock logs web -f`,
+  `fdock quickstart postgres`, `fdock df` and more. Every command takes
+  `--json` for compact output that scripts and AI tools read cheaply.
+- **`ferrodock-mcp`**, an [MCP](https://modelcontextprotocol.io) server, so
+  AI tools can list containers, read logs, start services and clean up.
+  Tools that change something ask first; `--read-only` leaves them out.
+
+  ```bash
+  claude mcp add ferrodock -- ferrodock-mcp
+  ```
+
+Homebrew puts both on your PATH; the Windows zip and Linux tarball have them
+next to Ferrodock. See [Command line and AI tools](https://manimovassagh.github.io/Ferrodock/docs/cli-and-mcp).
+
 ## Documentation
 
 Everything else lives on the **[documentation site](https://manimovassagh.github.io/Ferrodock/docs)**:
