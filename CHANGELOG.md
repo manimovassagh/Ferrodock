@@ -7,6 +7,17 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.17.0](https://github.com/manimovassagh/Ferrodock/compare/v1.16.0...v1.17.0) - 2026-10-20
+
+### Added
+
+- ship fdock and ferrodock-mcp with every download
+- ferrodock-mcp, an MCP server for AI tools
+
+### Other
+
+- Merge remote-tracking branch 'origin/main' into claude/mcp-server
+
 ## [1.16.0](https://github.com/manimovassagh/Ferrodock/compare/v1.15.1...v1.16.0) - 2026-10-20
 
 ### Added
