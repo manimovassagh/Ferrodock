@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.18.0](https://github.com/manimovassagh/Ferrodock/compare/v1.17.0...v1.18.0) - 2026-10-20
+
+### Added
+
+- Compose Open… button with the system file picker
+
 ## [1.17.0](https://github.com/manimovassagh/Ferrodock/compare/v1.16.0...v1.17.0) - 2026-10-20
 
 ### Added
