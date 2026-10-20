@@ -58,6 +58,11 @@ name = "ferrodock-cli"
 release = false
 git_tag_name = "ferrodock-cli-v{{ version }}"
 
+[[package]]
+name = "ferrodock-mcp"
+release = false
+git_tag_name = "ferrodock-mcp-v{{ version }}"
+
 [changelog]
 # Group commits by their Conventional Commit type. Housekeeping commits
 # don't belong in the user-facing changelog.
