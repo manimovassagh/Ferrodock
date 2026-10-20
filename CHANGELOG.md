@@ -7,6 +7,17 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.21.0](https://github.com/manimovassagh/Ferrodock/compare/v1.20.0...v1.21.0) - 2026-10-20
+
+### Added
+
+- MCP setup for Claude Code, Codex, GitHub Copilot, Gemini CLI, Cursor, Windsurf and Claude Desktop
+- editor themes: Tokyo Night, Catppuccin, Gruvbox, Nord and Rosé Pine
+
+### Other
+
+- Merge branch 'claude/sidebar-ai' into claude/themes
+
 ## [1.20.0](https://github.com/manimovassagh/Ferrodock/compare/v1.19.0...v1.20.0) - 2026-10-20
 
 ### Added
