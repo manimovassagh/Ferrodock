@@ -1,0 +1,25 @@
+[package]
+name = "ferrodock-mcp"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+homepage.workspace = true
+description = "ferrodock-mcp: an MCP server that lets AI tools see and manage Docker containers, images and Quick start services, on Ferrodock's own engine or any other."
+readme = "README.md"
+keywords = ["docker", "mcp", "ai", "containers"]
+categories = ["development-tools"]
+
+[[bin]]
+name = "ferrodock-mcp"
+path = "src/main.rs"
+
+[dependencies]
+ferrodock-core.workspace = true
+rmcp = { version = "3.6.0", features = ["server", "transport-io", "macros"] }
+futures-util.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
