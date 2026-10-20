@@ -42,6 +42,9 @@ pub use ferrodock_core::builtin::{NAME, Paths, SUPPORTED};
 /// The virtiofs tag the home folder is shared under.
 #[cfg(all(engine, target_os = "macos"))]
 pub const SHARE_TAG: &str = "home";
+/// The virtiofs tag Rosetta is shared under (Apple Silicon).
+#[cfg(all(engine, target_os = "macos"))]
+pub const ROSETTA_TAG: &str = "rosetta";
 /// Where the agent in the VM offers the engine's socket.
 #[cfg(all(engine, target_os = "macos"))]
 pub const VSOCK_PORT: u32 = 2375;

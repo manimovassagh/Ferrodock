@@ -4,6 +4,7 @@
 mod disk;
 mod mounts;
 mod network;
+mod rosetta;
 
 use crate::config::Config;
 use crate::log;
@@ -22,6 +23,10 @@ pub fn boot(config: &Config) {
     step("data disk", disk::mount_data(&config.data_disk));
     for (tag, path) in &config.shares {
         step(&format!("share {tag}"), mounts::share(tag, path));
+    }
+    // Only when the host shares Rosetta (Apple Silicon, macOS 13+).
+    if let Some(tag) = &config.rosetta {
+        step("rosetta", rosetta::enable(tag));
     }
     step("network", network::up());
     log("booted");

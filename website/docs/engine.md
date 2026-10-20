@@ -41,6 +41,12 @@ download is about 120 MB.
 - Published ports are on `localhost`: after `docker run -p 8080:80 nginx`,
   http://localhost:8080 opens it, as on Linux. Ferrodock passes on TCP
   ports while it runs; UDP ports are only reachable from inside the engine.
+- Images made only for Intel (`linux/amd64`) run too, through Apple's
+  Rosetta, on macOS 13 or newer. If Rosetta isn't installed yet, the
+  engine starts without it and says so in its log; install it once with
+  `softwareupdate --install-rosetta --agree-to-license`, then restart the
+  engine. To pick the Intel variant of an image that has both, add
+  `--platform linux/amd64`.
 - The `docker` command can use it too:
 
   ```bash
