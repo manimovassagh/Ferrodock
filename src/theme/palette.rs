@@ -13,6 +13,9 @@ pub struct Palette {
     pub text: Color32,
     pub muted: Color32,
     pub accent: Color32,
+    /// A second, cooler colour the accent blends into, for the few
+    /// highlighted places (the CLI & MCP card).
+    pub glow: Color32,
     pub success: Color32,
     pub warning: Color32,
     pub danger: Color32,
@@ -26,6 +29,7 @@ pub const DARK: Palette = Palette {
     text: Color32::from_rgb(0xf2, 0xf2, 0xf5),
     muted: Color32::from_rgb(0x9a, 0x9a, 0xa3),
     accent: Color32::from_rgb(0xf0, 0x71, 0x4f),
+    glow: Color32::from_rgb(0x8b, 0x7c, 0xf6),
     success: Color32::from_rgb(0x32, 0xd1, 0x5c),
     warning: Color32::from_rgb(0xff, 0xa8, 0x26),
     danger: Color32::from_rgb(0xff, 0x5a, 0x50),
@@ -39,6 +43,7 @@ pub const LIGHT: Palette = Palette {
     text: Color32::from_rgb(0x1d, 0x1d, 0x1f),
     muted: Color32::from_rgb(0x6e, 0x6e, 0x76),
     accent: Color32::from_rgb(0xc8, 0x48, 0x2a),
+    glow: Color32::from_rgb(0x6a, 0x58, 0xd6),
     success: Color32::from_rgb(0x1f, 0x8f, 0x3e),
     warning: Color32::from_rgb(0xb2, 0x5e, 0x00),
     danger: Color32::from_rgb(0xd7, 0x26, 0x2c),

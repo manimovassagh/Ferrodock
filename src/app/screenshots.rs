@@ -608,3 +608,19 @@ fn screenshots_of_quick_start() {
     settle(&mut h, Duration::from_secs(5));
     save(&mut h, "hub-run");
 }
+
+#[test]
+#[ignore]
+fn screenshots_of_integrations() {
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(2));
+    for (theme, name) in [(Theme::Light, "light"), (Theme::Dark, "dark")] {
+        set_theme(&mut h, theme);
+        h.state_mut().show_integrations = false;
+        h.run_steps(3);
+        save(&mut h, &format!("integrations-sidebar-{name}"));
+        h.state_mut().show_integrations = true;
+        h.run_steps(4);
+        save(&mut h, &format!("integrations-dialog-{name}"));
+    }
+}

@@ -85,6 +85,84 @@ pub fn nav_item(
     response.on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
+/// A highlighted sidebar card: an icon, a title and a line under it, on
+/// a soft gradient from the accent into the palette's second colour, with
+/// a matching hairline border. Brighter on hover.
+pub fn feature_card(
+    ui: &mut egui::Ui,
+    p: &Palette,
+    icon: Icon,
+    title: &str,
+    subtitle: &str,
+) -> Response {
+    let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), 46.0), Sense::click());
+    let painter = ui.painter();
+    let (from, to) = (p.accent, p.glow);
+    let dark = ui.visuals().dark_mode;
+    let strength = match (response.hovered(), dark) {
+        (true, true) => 0.24,
+        (true, false) => 0.16,
+        (false, true) => 0.15,
+        (false, false) => 0.09,
+    };
+    let blend = move |t: f32, alpha: f32| -> Color32 {
+        let t = t.clamp(0.0, 1.0);
+        let mix = |a: u8, b: u8| (a as f32 + (b as f32 - a as f32) * t).round() as u8;
+        Color32::from_rgb(
+            mix(from.r(), to.r()),
+            mix(from.g(), to.g()),
+            mix(from.b(), to.b()),
+        )
+        .gamma_multiply(alpha)
+    };
+
+    // The fill: a fan over the rounded outline, coloured left to right.
+    let mut outline = Vec::new();
+    egui::epaint::tessellator::path::rounded_rectangle(
+        &mut outline,
+        egui::epaint::RoundedRect::new(rect, CornerRadius::same(10)),
+    );
+    let along = |pos: egui::Pos2| (pos.x - rect.left()) / rect.width().max(1.0);
+    let mut mesh = egui::Mesh::default();
+    mesh.colored_vertex(rect.center(), blend(0.5, strength));
+    for point in &outline {
+        mesh.colored_vertex(*point, blend(along(*point), strength));
+    }
+    let n = outline.len() as u32;
+    for i in 0..n {
+        mesh.add_triangle(0, 1 + i, 1 + (i + 1) % n);
+    }
+    painter.add(mesh);
+    painter.add(egui::epaint::PathShape {
+        points: outline,
+        closed: true,
+        fill: Color32::TRANSPARENT,
+        stroke: egui::epaint::PathStroke::new_uv(1.0, move |bounds, pos| {
+            blend((pos.x - bounds.left()) / bounds.width().max(1.0), 0.55)
+        }),
+    });
+
+    let icon_rect =
+        egui::Rect::from_center_size(rect.left_center() + vec2(20.0, 0.0), vec2(18.0, 18.0));
+    icons::paint(painter, icon_rect, icon, p.accent);
+    painter.text(
+        rect.left_center() + vec2(38.0, -8.0),
+        Align2::LEFT_CENTER,
+        title,
+        FontId::new(13.5, crate::theme::semibold()),
+        p.text,
+    );
+    painter.text(
+        rect.left_center() + vec2(38.0, 9.0),
+        Align2::LEFT_CENTER,
+        subtitle,
+        FontId::proportional(11.5),
+        p.muted,
+    );
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, title));
+    response.on_hover_cursor(egui::CursorIcon::PointingHand)
+}
+
 /// A rounded track holding [`tab`]s, like a macOS segmented control.
 pub fn segmented<R>(ui: &mut egui::Ui, p: &Palette, add: impl FnOnce(&mut egui::Ui) -> R) -> R {
     egui::Frame::new()
