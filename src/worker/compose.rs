@@ -5,8 +5,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use super::compose_install;
 use super::{Response, Shared, refresh};
-use crate::docker::compose_cli::{command, logs_args, steps, stream};
+use crate::docker::compose_cli::{command, logs_args, program, steps, stream};
 use crate::docker::{ComposeOp, DockerClient, Engine, Resource};
 
 const FLUSH_EVERY: Duration = Duration::from_millis(100);
@@ -34,14 +35,14 @@ impl Jobs {
             } => {
                 let task = tokio::spawn(async move {
                     let mut out = Batch::new(&shared, job);
-                    let mut result = Ok(true);
+                    let mut result = ensure_compose(&mut out).await.map(|()| true);
                     for args in steps(&target, &action) {
-                        out.push(format!("$ docker compose {}", args.join(" ")));
-                        let cmd = command(engine.as_ref(), Some(&target.dir), &args);
-                        result = stream(cmd, |line| out.push(line)).await;
                         if !matches!(result, Ok(true)) {
                             break;
                         }
+                        out.push(format!("$ docker compose {}", args.join(" ")));
+                        let cmd = command(engine.as_ref(), Some(&target.dir), &args);
+                        result = stream(cmd, |line| out.push(line)).await;
                     }
                     out.flush();
                     let error = match result {
@@ -57,8 +58,13 @@ impl Jobs {
             ComposeOp::Logs { job, project } => {
                 let task = tokio::spawn(async move {
                     let mut out = Batch::new(&shared, job);
-                    let cmd = command(engine.as_ref(), None, &logs_args(&project));
-                    let result = stream(cmd, |line| out.push(line)).await;
+                    let result = match ensure_compose(&mut out).await {
+                        Ok(()) => {
+                            let cmd = command(engine.as_ref(), None, &logs_args(&project));
+                            stream(cmd, |line| out.push(line)).await
+                        }
+                        Err(e) => Err(e),
+                    };
                     out.flush();
                     shared.send(Response::ComposeDone {
                         job,
@@ -82,6 +88,25 @@ impl Jobs {
             task.abort();
         }
     }
+}
+
+/// Downloads Ferrodock's copy of Compose first when there's neither one
+/// nor a `docker` command.
+async fn ensure_compose(out: &mut Batch<'_>) -> Result<(), String> {
+    if program().is_some() {
+        return Ok(());
+    }
+    let target = crate::vm::Paths::locate()
+        .ok_or("No home folder for Docker Compose")?
+        .compose();
+    out.push(format!(
+        "Downloading Docker Compose {} (once)…",
+        compose_install::VERSION
+    ));
+    out.flush();
+    tokio::task::spawn_blocking(move || compose_install::install(&target))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 /// Output lines, sent together.

@@ -1,7 +1,8 @@
 //! Driving the `docker compose` command: bringing projects up from their
 //! files, rebuilding services, and following merged logs. The Engine API
-//! has no Compose support, so this is the one place Ferrodock runs the
-//! Docker CLI, pointed at the engine it's using.
+//! has no Compose support, so this is the one place Ferrodock runs a
+//! program, pointed at the engine it's using: Ferrodock's own copy of
+//! Compose when it has one, otherwise the Docker CLI's `docker compose`.
 
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
@@ -111,10 +112,51 @@ pub fn logs_args(project: &str) -> Vec<String> {
         .to_vec()
 }
 
+/// What runs Compose.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Program {
+    /// The Docker CLI: `docker compose …`.
+    Docker,
+    /// Compose on its own, `docker-compose …`: Ferrodock's copy.
+    Standalone(PathBuf),
+}
+
+/// Ferrodock's copy of Compose when it has one, else the `docker`
+/// command when there is one. None: neither, so Compose has to be
+/// downloaded first.
+pub fn program() -> Option<Program> {
+    if let Some(own) = super::builtin::Paths::locate().map(|p| p.compose())
+        && own.is_file()
+    {
+        return Some(Program::Standalone(own));
+    }
+    on_path("docker").then_some(Program::Docker)
+}
+
+/// Whether `name` is a program in PATH.
+fn on_path(name: &str) -> bool {
+    let Some(path) = std::env::var_os("PATH") else {
+        return false;
+    };
+    let names: Vec<String> = if cfg!(windows) {
+        vec![format!("{name}.exe"), format!("{name}.cmd")]
+    } else {
+        vec![name.to_owned()]
+    };
+    std::env::split_paths(&path).any(|dir| names.iter().any(|n| dir.join(n).is_file()))
+}
+
 /// A `docker compose` command aimed at `engine` (or the CLI's own default).
 pub fn command(engine: Option<&Engine>, dir: Option<&Path>, args: &[String]) -> Command {
-    let mut cmd = Command::new("docker");
-    cmd.arg("compose").args(args);
+    let mut cmd = match program() {
+        Some(Program::Standalone(own)) => Command::new(own),
+        _ => {
+            let mut docker = Command::new("docker");
+            docker.arg("compose");
+            docker
+        }
+    };
+    cmd.args(args);
     if let Some(dir) = dir.filter(|d| d.is_dir()) {
         cmd.current_dir(dir);
     }
@@ -140,7 +182,7 @@ pub fn command(engine: Option<&Engine>, dir: Option<&Path>, args: &[String]) -> 
 pub async fn stream(mut cmd: Command, mut line: impl FnMut(String)) -> Result<bool, String> {
     let mut child: Child = cmd.spawn().map_err(|e| {
         if e.kind() == std::io::ErrorKind::NotFound {
-            "the docker command isn't installed (Compose needs it)".to_owned()
+            "Docker Compose isn't installed".to_owned()
         } else {
             e.to_string()
         }
