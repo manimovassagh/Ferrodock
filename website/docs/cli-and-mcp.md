@@ -22,20 +22,27 @@ ferrodock` (see [Ferrodock's own engine](./engine.md)).
 
 ## Getting them
 
-- **Homebrew** (`brew install --cask ferrodock`) puts both on your PATH.
-- **macOS, from the DMG**: they're inside the app. Link them onto your PATH:
-  ```bash
-  sudo ln -sf /Applications/Ferrodock.app/Contents/MacOS/fdock /usr/local/bin/fdock
-  sudo ln -sf /Applications/Ferrodock.app/Contents/MacOS/ferrodock-mcp /usr/local/bin/ferrodock-mcp
-  ```
-- **Windows**: `fdock.exe` and `ferrodock-mcp.exe` are in the zip, next to
-  `Ferrodock.exe`.
-- **Linux**: `fdock` and `ferrodock-mcp` are in the tarball, next to
-  `ferrodock`.
+Both come with every download of Ferrodock. To use them from any terminal,
+they need to be on your PATH:
+
+- **Windows and Linux**: Ferrodock puts them there itself the first time it
+  starts. On Windows it adds its folder to your user Path; on Linux it links
+  them into `~/.local/bin`. Open a new terminal afterwards.
+- **macOS**: click **Install fdock command** under **CLI & MCP** in the
+  sidebar. macOS asks for your password once, to link them into
+  `/usr/local/bin`. (When that folder is writable without a password,
+  Ferrodock does it by itself on first start.)
+- **Homebrew** (`brew install --cask ferrodock`) puts both on your PATH
+  already.
 - **With Cargo**: `cargo install ferrodock-cli ferrodock-mcp`.
 
-On a Mac and on Windows, Ferrodock's own engine runs while Ferrodock does,
-so keep the app open (it can sit in the menu bar) when the tools use it.
+To do it by hand instead, **CLI & MCP → Or do it yourself** shows the
+commands for your computer. For example, on macOS:
+
+```bash
+sudo ln -sf /Applications/Ferrodock.app/Contents/MacOS/fdock /usr/local/bin/fdock
+sudo ln -sf /Applications/Ferrodock.app/Contents/MacOS/ferrodock-mcp /usr/local/bin/ferrodock-mcp
+```
 
 ## fdock
 

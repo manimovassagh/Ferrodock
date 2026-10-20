@@ -101,7 +101,7 @@ Ferrodock.
   through Apple's Virtualization framework. Your home folder is shared, so
   bind mounts just work.
 - **Windows**: a WSL distro called `ferrodock`. WSL is part of Windows; if
-  it's off, run `wsl --install` once as administrator.
+  it's missing, Ferrodock installs it (with an administrator prompt).
 - **Linux**: the Docker engine itself, as a system service. Setting it up
   asks for your admin password once; then it starts with your computer.
 

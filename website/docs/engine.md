@@ -80,12 +80,20 @@ Docker engine there. See [Connecting to other engines](./engines.md).
 ## Windows
 
 On Windows the engine is a WSL distro called `ferrodock`. WSL is part of
-Windows; if it isn't turned on yet, run this once in a terminal opened as
-administrator, then restart:
+Windows. If it isn't installed or turned on yet, or it's the old version
+that came with Windows 10, setting up the engine installs or updates it
+first:
 
-```powershell
-wsl --install
-```
+- Windows asks you to approve this as administrator. If you say no, setup
+  stops there; click **Try starting Ferrodock's engine again** to be asked
+  again.
+- Installing WSL usually needs a restart. Ferrodock then shows **Restart
+  Windows to finish setting up**: restart, open Ferrodock, and setup goes
+  on (click **Set up Ferrodock's engine** if it doesn't by itself).
+- To do it yourself instead, run `wsl --install --no-distribution` in a
+  terminal opened as administrator, then restart.
+
+Once it's set up:
 
 - Everything lives in `%LOCALAPPDATA%\Ferrodock`: the distro's disk
   (images, containers and volumes) and the engine's log, `console.log`.

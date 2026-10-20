@@ -108,6 +108,12 @@ fn physical_memory_mib() -> Option<u64> {
 #[cfg_attr(not(engine), allow(dead_code))]
 pub enum State {
     NotInstalled,
+    /// Installing WSL, which the engine runs in (Windows).
+    #[cfg_attr(not(windows), allow(dead_code))]
+    InstallingWsl,
+    /// WSL was installed and works once Windows restarts (Windows).
+    #[cfg_attr(not(windows), allow(dead_code))]
+    NeedsRestart,
     /// `update`: a newer image, for an engine that's set up already.
     Downloading {
         done: u64,
@@ -122,7 +128,10 @@ pub enum State {
 
 impl State {
     pub fn busy(&self) -> bool {
-        matches!(self, State::Downloading { .. } | State::Starting)
+        matches!(
+            self,
+            State::InstallingWsl | State::Downloading { .. } | State::Starting
+        )
     }
 }
 
@@ -253,6 +262,13 @@ impl Engine {
                         })
                     };
                     if !paths.installed() {
+                        #[cfg(windows)]
+                        if !platform::prepare(|| {
+                            Self::set(&state, State::InstallingWsl);
+                            repaint();
+                        })? {
+                            return Ok(State::NeedsRestart);
+                        }
                         let archive = fetch(false)?;
                         Self::set(&state, State::Starting);
                         repaint();
@@ -284,7 +300,7 @@ impl Engine {
                     // For `docker context use ferrodock`; not having it
                     // doesn't stop the engine.
                     let _ = context::add(&paths.host());
-                    Ok::<(), String>(())
+                    Ok::<State, String>(State::Running)
                 }
                 #[cfg(not(engine))]
                 {
@@ -293,15 +309,9 @@ impl Engine {
                 }
             })();
             if let Ok(mut slot) = given.lock() {
-                *slot = result.is_ok().then_some(resources);
+                *slot = (result == Ok(State::Running)).then_some(resources);
             }
-            Self::set(
-                &state,
-                match result {
-                    Ok(()) => State::Running,
-                    Err(e) => State::Failed(e),
-                },
-            );
+            Self::set(&state, result.unwrap_or_else(State::Failed));
             repaint();
         })
     }

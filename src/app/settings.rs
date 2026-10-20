@@ -61,6 +61,9 @@ pub struct Settings {
     /// default share.
     pub engine_cpus: Option<u32>,
     pub engine_memory_mib: Option<u64>,
+    /// Ferrodock has put `fdock` on the PATH (or found that it needs a
+    /// password), so it doesn't try again at start.
+    pub cli_installed: bool,
     /// Ferrodock opens when the user logs in. Read from the system at
     /// start, never saved: the system's login items are the record.
     #[serde(skip)]
@@ -83,6 +86,7 @@ impl Default for Settings {
             engine_app: None,
             engine_cpus: None,
             engine_memory_mib: None,
+            cli_installed: false,
             launch_at_login: false,
         }
     }
@@ -367,6 +371,8 @@ fn engine_section(ui: &mut egui::Ui, p: &Palette, settings: &mut Settings, engin
     let (text, color) = match &state {
         vm::State::Running => ("Running".to_owned(), p.text),
         vm::State::Stopped | vm::State::NotInstalled => ("Stopped".to_owned(), p.muted),
+        vm::State::InstallingWsl => ("Installing WSL…".to_owned(), p.muted),
+        vm::State::NeedsRestart => ("Restart Windows to finish setting up".to_owned(), p.muted),
         vm::State::Starting => ("Starting…".to_owned(), p.muted),
         vm::State::Downloading { update: false, .. } => ("Downloading…".to_owned(), p.muted),
         vm::State::Downloading { update: true, .. } => ("Updating…".to_owned(), p.muted),
