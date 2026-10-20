@@ -8,6 +8,7 @@ mod autostart;
 mod commands;
 mod components;
 mod engine_start;
+mod integrations;
 mod keys;
 mod notify;
 mod page;
@@ -51,6 +52,7 @@ pub struct FerrodockApp {
     /// Labels of recently used palette entries, most recent first.
     recent: Vec<String>,
     show_help: bool,
+    show_integrations: bool,
     settings: settings::Settings,
     show_settings: bool,
     updater: crate::update::Updater,
@@ -105,6 +107,7 @@ impl FerrodockApp {
             palette: None,
             recent: Vec::new(),
             show_help: false,
+            show_integrations: false,
             settings,
             show_settings: false,
             updater,
@@ -246,6 +249,7 @@ impl FerrodockApp {
         self.palette.is_some()
             || self.pages[self.active].has_overlay()
             || self.show_help
+            || self.show_integrations
             || self.show_settings
             || self.confirmation.is_some()
     }
@@ -318,6 +322,7 @@ impl FerrodockApp {
             Target::Refresh => self.refresh(),
             Target::Help => self.show_help = true,
             Target::Settings => self.show_settings = true,
+            Target::Integrations => self.show_integrations = true,
         }
     }
 
@@ -490,6 +495,7 @@ impl eframe::App for FerrodockApp {
         match clicked_page {
             Some(sidebar::Click::Page(index)) => self.open_page(index),
             Some(sidebar::Click::Settings) => self.show_settings = true,
+            Some(sidebar::Click::Integrations) => self.show_integrations = true,
             Some(sidebar::Click::Engine(engine)) => self.switch_engine(engine),
             Some(sidebar::Click::Update) => {
                 if let crate::update::Status::Available(available) = self.updater.status() {
@@ -594,6 +600,9 @@ impl eframe::App for FerrodockApp {
                 &self.updater,
                 &self.engine_starter.builtin,
             );
+        }
+        if self.show_integrations {
+            self.show_integrations = integrations::show(ui, p);
         }
         if self.show_help {
             let titles: Vec<&'static str> = self.pages.iter().map(|page| page.title()).collect();

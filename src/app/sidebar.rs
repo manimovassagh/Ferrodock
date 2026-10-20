@@ -20,6 +20,8 @@ pub enum Click {
     Restart,
     /// Switch to another Docker engine.
     Engine(crate::docker::Engine),
+    /// How to use Ferrodock from a terminal and AI tools.
+    Integrations,
 }
 
 /// Draws the sidebar.
@@ -75,6 +77,13 @@ pub fn show(
         }
         if let Some(click) = update_item(ui, p, update) {
             clicked = Some(click);
+        }
+        ui.add_space(8.0);
+        let card =
+            widgets::feature_card(ui, p, Icon::Terminal, "CLI & MCP", "Terminal and AI tools")
+                .on_hover_text("Use Ferrodock from a terminal (fdock) and from AI tools (MCP)");
+        if card.clicked() {
+            clicked = Some(Click::Integrations);
         }
         // Drawn bottom-up: the pages, then their heading above them.
         let bottom: Vec<(usize, &Box<dyn Page>)> = pages

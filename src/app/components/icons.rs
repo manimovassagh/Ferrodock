@@ -19,6 +19,8 @@ pub enum Icon {
     More,
     Folder,
     File,
+    /// A prompt in a window: the command line.
+    Terminal,
     /// A group that's folded (pointing right) or open (pointing down).
     ChevronRight,
     ChevronDown,
@@ -114,6 +116,16 @@ pub fn paint(painter: &egui::Painter, rect: Rect, icon: Icon, color: Color32) {
                 p(6.0, 20.5),
             ]),
             line(&[p(14.0, 3.5), p(14.0, 8.0), p(18.5, 8.0)]),
+        ],
+        Icon::Terminal => vec![
+            Shape::rect_stroke(
+                Rect::from_min_max(p(3.0, 4.0), p(21.0, 20.0)),
+                2.5 * s,
+                stroke,
+                egui::StrokeKind::Middle,
+            ),
+            line(&[p(7.5, 9.0), p(10.5, 12.0), p(7.5, 15.0)]),
+            line(&[p(13.0, 15.0), p(16.5, 15.0)]),
         ],
         Icon::ChevronRight => vec![line(&[p(9.0, 6.0), p(15.0, 12.0), p(9.0, 18.0)])],
         Icon::ChevronDown => vec![line(&[p(6.0, 9.0), p(12.0, 15.0), p(18.0, 9.0)])],

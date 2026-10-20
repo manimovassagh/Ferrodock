@@ -11,6 +11,9 @@ Ferrodock comes with two more programs, built on the same core as the app:
 - **`ferrodock-mcp`**: an [MCP](https://modelcontextprotocol.io) server, so
   AI tools such as Claude can see and manage your containers.
 
+In the app, **CLI & MCP** at the bottom of the sidebar shows the commands
+for this computer, ready to copy, including the MCP setup for your AI tool.
+
 Both use the same engine as Ferrodock: `DOCKER_HOST` when it's set, else
 Ferrodock's own engine when it runs, else your current Docker context. Pick
 another with `--engine NAME`; `fdock engine` lists them.
