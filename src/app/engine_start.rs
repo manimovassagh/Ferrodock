@@ -206,7 +206,7 @@ impl EngineStarter {
                 // Running but not answering yet: the engine is still
                 // coming up inside.
                 vm::State::Starting | vm::State::Running => Offer::Starting(BUILTIN.into()),
-                vm::State::Stopped => Offer::Start(BUILTIN.into()),
+                vm::State::Stopped | vm::State::Stopping => Offer::Start(BUILTIN.into()),
                 vm::State::Failed(error) => Offer::Failed {
                     name: BUILTIN.into(),
                     error,

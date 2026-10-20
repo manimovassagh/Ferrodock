@@ -148,6 +148,18 @@ pub fn install(paths: &Paths, archive: &[u8]) -> Result<(), String> {
     result.map(drop)
 }
 
+/// Unregisters the distro, which deletes its disk: every image, container
+/// and volume. The next start downloads and imports it again.
+pub fn reset(paths: &Paths) -> Result<(), String> {
+    // Fails when it isn't registered (a reset that didn't finish): fine,
+    // as long as its disk is gone.
+    let unregistered = wsl(&["--unregister", DISTRO]);
+    if paths.installed() {
+        return unregistered.map(drop);
+    }
+    Ok(())
+}
+
 /// Run as root in the distro with the new image's tar: puts the image's
 /// files in place of the old ones, and keeps the engine's data
 /// (`/var/lib/docker`: images, containers and volumes) and what WSL
@@ -316,6 +328,12 @@ impl Running {
             .lock()
             .map(|mut c| matches!(c.try_wait(), Ok(None)))
             .unwrap_or(false)
+    }
+
+    /// Stopped from Settings: the same as when Ferrodock quits.
+    pub fn shut_down(&self) -> Result<(), String> {
+        self.stop();
+        Ok(())
     }
 
     /// Stops the engine, giving its containers time to shut down, then

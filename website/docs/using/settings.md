@@ -41,12 +41,25 @@ by default.
 Shown once [Ferrodock's own engine](../engine.md) is set up.
 
 - Whether it's running.
-- **CPUs** and **Memory** (macOS): what the engine's VM gets. The default
-  is half your CPU cores (2 to 8) and 4 GB. Changes take effect when the
-  engine restarts.
+- **CPUs**, **Memory** and **Disk** (macOS): what the engine's VM gets. The
+  default is half your CPU cores (2 to 8), 4 GB of memory and a 128 GB
+  disk; the disk can be 32, 64, 128 or 256 GB and only takes the space
+  that's used. Changes take effect when the engine restarts. The disk only
+  grows: to make it smaller, pick the size, then **Reset engine…**.
+- **Start engine** / **Stop engine**. On Linux, where the engine is a
+  system service, stopping it asks for your admin password, and it stays
+  stopped until you start it again or restart the computer.
 - **Restart engine** (macOS and Windows), and **Open log**, the engine's
-  `console.log`. On Linux the engine is a system service; its log is
-  `journalctl -u ferrodock-engine`.
+  `console.log`. On Linux its log is `journalctl -u ferrodock-engine`.
+- **Reset engine…** deletes everything in the engine: all containers,
+  images, volumes (with their data), networks and build cache. You type
+  `reset` to confirm. The engine then starts again, empty, as on first use:
+  - macOS: its disk, `~/.ferrodock/data.img`, is deleted and made again at
+    the chosen size.
+  - Windows: the `ferrodock` WSL distro is removed and set up again, which
+    downloads the engine again.
+  - Linux: its data folder, `/var/lib/ferrodock`, is deleted. This asks for
+    your admin password.
 
 ### Menu bar / Notification area
 
