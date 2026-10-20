@@ -47,6 +47,8 @@ pub enum Intent {
     Image(ImageOp),
     /// Run `docker compose`.
     Compose(ComposeOp),
+    /// Pick a Compose file and bring its project up.
+    OpenComposeFile,
 }
 
 /// A question for the user before something destructive happens.

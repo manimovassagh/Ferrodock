@@ -405,6 +405,12 @@ impl FerrodockApp {
                 }
             }
             Intent::ClearSearch => self.search.clear(),
+            Intent::OpenComposeFile => {
+                if let Some(file) = pages::pick_compose_file() {
+                    self.handle_intent(Intent::OpenPage("Compose"));
+                    self.handle_intent(Intent::Compose(pages::up_op(&file)));
+                }
+            }
             Intent::Inspect(resource, id) => {
                 self.store.inspection = None;
                 self.store.inspecting = Some(id.clone());
