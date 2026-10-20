@@ -145,8 +145,10 @@ pub fn disconnected(
 ) -> Option<Click> {
     use super::engine_start::Offer;
     let problem = diagnose(reason);
-    let starting = matches!(offer, Offer::Starting(_) | Offer::Downloading(_))
-        && problem == Problem::NotRunning;
+    let starting = matches!(
+        offer,
+        Offer::Starting(_) | Offer::Downloading(_) | Offer::InstallingWsl
+    ) && problem == Problem::NotRunning;
     let starting_title = match offer {
         Offer::Starting(name) => format!("Starting {name}…"),
         Offer::Downloading(_) => "Downloading Ferrodock's engine…".to_owned(),
@@ -156,6 +158,15 @@ pub fn disconnected(
         Problem::PermissionDenied => (
             "Docker won't let Ferrodock in",
             "Docker is running, but your user isn't allowed to use it.",
+        ),
+        Problem::NotRunning if matches!(offer, Offer::InstallingWsl) => (
+            "Installing WSL…",
+            "Ferrodock's engine runs in WSL, which is part of Windows. Approve the \
+             administrator prompt; installing can take a few minutes.",
+        ),
+        Problem::NotRunning if matches!(offer, Offer::NeedsRestart) => (
+            "Restart Windows to finish setting up",
+            "WSL is installed. Restart Windows, then open Ferrodock to finish setting up.",
         ),
         Problem::NotRunning if starting => (
             starting_title.as_str(),
@@ -214,6 +225,9 @@ pub fn disconnected(
                         RichText::new(if cfg!(target_os = "linux") {
                             "Downloads about 70 MB once and asks for your admin password, \
                              then starts with your computer."
+                        } else if cfg!(windows) {
+                            "Downloads about 120 MB once, and installs WSL first if it's \
+                             missing (Windows asks for approval)."
                         } else {
                             "Downloads about 120 MB once, then starts in seconds."
                         })
@@ -231,7 +245,7 @@ pub fn disconnected(
                     );
                     ui.add_space(16.0);
                 }
-                Offer::Starting(_) => {
+                Offer::Starting(_) | Offer::InstallingWsl => {
                     ui.spinner();
                     ui.add_space(16.0);
                 }
@@ -244,7 +258,7 @@ pub fn disconnected(
                     }
                     ui.add_space(16.0);
                 }
-                Offer::Nothing => {}
+                Offer::Nothing | Offer::NeedsRestart => {}
             }
         }
 
