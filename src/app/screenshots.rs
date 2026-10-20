@@ -17,8 +17,12 @@ use super::settings::Theme;
 const SIZE: egui::Vec2 = egui::vec2(1240.0, 740.0);
 
 fn harness() -> Harness<'static, FerrodockApp> {
+    harness_of_size(SIZE)
+}
+
+fn harness_of_size(size: egui::Vec2) -> Harness<'static, FerrodockApp> {
     Harness::builder()
-        .with_size(SIZE)
+        .with_size(size)
         .with_pixels_per_point(2.0)
         .wgpu()
         .build_eframe(|cc| FerrodockApp::new(cc))
@@ -665,4 +669,57 @@ fn screenshots_of_engine_settings() {
     click(&mut h, "Reset engine…");
     h.run_steps(4);
     save(&mut h, "engine-reset");
+}
+
+/// Scrolls what's under the middle of the window all the way down.
+fn scroll_to_bottom(h: &mut Harness<'static, FerrodockApp>) {
+    let center = h.ctx.content_rect().center();
+    h.event(egui::Event::PointerMoved(center));
+    h.event(egui::Event::MouseWheel {
+        unit: egui::MouseWheelUnit::Point,
+        delta: egui::vec2(0.0, -5000.0),
+        phase: egui::TouchPhase::Move,
+        source: egui::MouseWheelSource::Unknown,
+        modifiers: egui::Modifiers::NONE,
+    });
+    h.run_steps(10);
+}
+
+/// The dialogs in the smallest window, at the largest interface size:
+/// they fit in it, and their bodies scroll.
+#[test]
+#[ignore]
+fn screenshots_of_dialogs_in_a_small_window() {
+    let mut h = harness_of_size(egui::vec2(820.0, 480.0));
+    settle(&mut h, Duration::from_secs(2));
+    h.state_mut().settings.scale = super::settings::Settings::MAX_SCALE;
+    set_theme(&mut h, Theme::Light);
+    h.state()
+        .engine_starter
+        .builtin
+        .pretend(crate::vm::State::Running);
+    h.state_mut().show_settings = true;
+    h.run_steps(4);
+    save(&mut h, "small-settings-top");
+    scroll_to_bottom(&mut h);
+    save(&mut h, "small-settings-bottom");
+    h.get_by_label("Reset engine…").scroll_to_me();
+    h.run_steps(4);
+    save(&mut h, "small-settings-engine");
+    click(&mut h, "Reset engine…");
+    h.run_steps(4);
+    save(&mut h, "small-engine-reset");
+    click(&mut h, "Cancel");
+    h.state_mut().show_settings = false;
+
+    h.state_mut().show_integrations = true;
+    h.run_steps(4);
+    save(&mut h, "small-integrations-top");
+    scroll_to_bottom(&mut h);
+    save(&mut h, "small-integrations-bottom");
+    h.state_mut().show_integrations = false;
+
+    h.state_mut().show_help = true;
+    h.run_steps(4);
+    save(&mut h, "small-shortcuts");
 }
