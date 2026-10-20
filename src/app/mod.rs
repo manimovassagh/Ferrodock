@@ -581,7 +581,13 @@ impl eframe::App for FerrodockApp {
         self.show_confirmation(ui, p);
         self.show_palette(ui, p);
         if self.show_settings {
-            self.show_settings = settings::show(ui, p, &mut self.settings, &self.updater);
+            self.show_settings = settings::show(
+                ui,
+                p,
+                &mut self.settings,
+                &self.updater,
+                &self.engine_starter.builtin,
+            );
         }
         if self.show_help {
             let titles: Vec<&'static str> = self.pages.iter().map(|page| page.title()).collect();
