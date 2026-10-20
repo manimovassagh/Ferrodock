@@ -7,6 +7,18 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.19.0](https://github.com/manimovassagh/Ferrodock/compare/v1.18.0...v1.19.0) - 2026-10-20
+
+### Added
+
+- Settings → Ferrodock's engine: CPUs, memory, restart and log
+- published ports on localhost with Ferrodock's engine on macOS
+
+### Other
+
+- Merge remote-tracking branch 'origin/main' into claude/mac-localhost-ports
+- Merge pull request #146 from manimovassagh/claude/engine-settings
+
 ## [1.18.0](https://github.com/manimovassagh/Ferrodock/compare/v1.17.0...v1.18.0) - 2026-10-20
 
 ### Added
