@@ -49,8 +49,14 @@ git_release_name = "v{{ version }}"
 [[package]]
 name = "ferrodock-core"
 release = false
-# Its own tag name, which never gets created: it isn't released on its own.
+# Their own tag names, which never get created: they aren't released on
+# their own.
 git_tag_name = "ferrodock-core-v{{ version }}"
+
+[[package]]
+name = "ferrodock-cli"
+release = false
+git_tag_name = "ferrodock-cli-v{{ version }}"
 
 [changelog]
 # Group commits by their Conventional Commit type. Housekeeping commits

@@ -16,9 +16,10 @@ include = ["/src", "/assets", "/build.rs", "/engine/VERSION", "/README.md", "/LI
 
 # The desktop app (this package) and the crates it shares code with:
 #   crates/core  ferrodock-core, the Docker layer (no UI)
+#   crates/cli   ferrodock-cli, the `fdock` command
 # They share one version, the app's.
 [workspace]
-members = [".", "crates/core"]
+members = [".", "crates/core", "crates/cli"]
 # The agent that runs inside the engine's Linux VM (#114) is its own
 # crate, built separately: it ships inside the engine image, not here.
 exclude = ["agent"]
