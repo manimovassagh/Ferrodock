@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.27.1](https://github.com/manimovassagh/Ferrodock/compare/v1.27.0...v1.27.1) - 2026-10-20
+
+### Other
+
+- Add six more editor themes: Dracula, One Dark/Light, GitHub Dark/Light, Solarized Light
+
 ## [1.27.0](https://github.com/manimovassagh/Ferrodock/compare/v1.26.0...v1.27.0) - 2026-10-20
 
 ### Added
