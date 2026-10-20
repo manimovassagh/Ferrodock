@@ -622,5 +622,9 @@ fn screenshots_of_integrations() {
         h.state_mut().show_integrations = true;
         h.run_steps(4);
         save(&mut h, &format!("integrations-dialog-{name}"));
+        click(&mut h, "Cursor");
+        h.run_steps(3);
+        save(&mut h, &format!("integrations-cursor-{name}"));
+        click(&mut h, "Claude Code");
     }
 }
