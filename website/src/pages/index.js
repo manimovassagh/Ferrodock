@@ -135,13 +135,16 @@ function Hero() {
       <div className={styles.glow} aria-hidden />
       <div className={clsx("container", styles.heroInner)}>
         <img className={styles.heroLogo} src={useBaseUrl("/img/logo.png")} alt="" />
-        <p className={styles.eyebrow}>Free · Open source · 100% Rust</p>
+        <p className={styles.eyebrow}>Free · Open source · macOS, Windows and Linux</p>
         <h1 className={styles.title}>
-          Docker, at <span className={styles.accent}>native speed</span>.
+          The native Docker desktop.
+          <br />
+          <span className={styles.accent}>Written in Rust.</span>
         </h1>
         <p className={styles.subtitle}>
-          Ferrodock is a fast, lightweight desktop app for your containers, images, volumes and
-          networks. It's a single native app: no Electron, no web view, and no CPU used while idle.
+          One fast, lightweight app for your containers, images, volumes and networks, with its
+          own Docker engine built in. No Electron, no web view, no subscription, and no CPU used
+          while idle.
         </p>
         <DownloadCards downloads={downloads} platform={platform} dark />
         <p className={styles.platforms}>
@@ -295,6 +298,61 @@ const WHY = [
   ["Yours to keep", "MIT licensed and free for personal, commercial and company use. No account, no telemetry, no subscription."],
 ];
 
+const YES = "✓";
+const COMPARE = {
+  tools: ["Ferrodock", "Docker Desktop", "OrbStack", "Rancher Desktop", "Podman Desktop"],
+  rows: [
+    ["Free for companies", YES, "Paid above 250 people or $10M revenue", "Paid for commercial use", YES, YES],
+    ["macOS, Windows and Linux", YES, YES, "macOS only", YES, YES],
+    ["App built with", "Rust, native", "Electron", "Swift, native", "Electron", "Electron"],
+    ["Docker engine included", YES, YES, YES, YES, "Podman"],
+    ["Open source", "MIT", "No", "No", "Apache-2.0", "Apache-2.0"],
+    ["CLI and MCP server for AI tools, built in", YES, "MCP Toolkit", "No", "No", "No"],
+  ],
+};
+
+function Compare() {
+  return (
+    <section className={styles.section}>
+      <div className="container">
+        <h2 className={styles.sectionTitle}>How it compares</h2>
+        <p className={styles.sectionLead}>
+          The only one that's free, native and on every platform, with its own engine on each.
+        </p>
+        <div className={styles.compareWrap}>
+          <table className={styles.compare}>
+            <thead>
+              <tr>
+                <th />
+                {COMPARE.tools.map((tool, i) => (
+                  <th key={tool} className={clsx(i === 0 && styles.compareUs)}>{tool}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {COMPARE.rows.map(([label, ...cells]) => (
+                <tr key={label}>
+                  <th scope="row">{label}</th>
+                  {cells.map((cell, i) => (
+                    <td key={i} className={clsx(i === 0 && styles.compareUs, cell === YES && styles.compareYes)}>
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className={styles.compareNote}>
+          As of October 2026; check each project's site for its current terms. Where others are
+          ahead: OrbStack has years of tuning behind its Mac file sharing and networking, and Docker
+          Desktop has the largest ecosystem of extensions.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 function Why() {
   return (
     <section className={clsx(styles.section, styles.why)}>
@@ -389,8 +447,8 @@ function FinalCta() {
 export default function Home() {
   return (
     <Layout
-      title="Docker, at native speed"
-      description="Ferrodock is a fast, native desktop app for managing Docker, written entirely in Rust. Free and open source for macOS, Windows and Linux."
+      title="The native Docker desktop, written in Rust"
+      description="Ferrodock is a free, open-source desktop app for Docker on macOS, Windows and Linux, written in Rust, with its own Docker engine, a CLI and an MCP server for AI tools."
     >
       <main className={styles.page}>
         <Hero />
@@ -398,6 +456,7 @@ export default function Home() {
         <Features />
         <Showcase />
         <Why />
+        <Compare />
         <Install />
         <FinalCta />
       </main>
