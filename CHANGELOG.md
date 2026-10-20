@@ -7,6 +7,17 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.27.2](https://github.com/manimovassagh/Ferrodock/compare/v1.27.1...v1.27.2) - 2026-10-20
+
+### Documentation
+
+- lead with the native, cross-platform, own-engine story and compare honestly
+
+### Fixed
+
+- keep dialogs within the window and scroll their bodies ([#162](https://github.com/manimovassagh/Ferrodock/pull/162))
+- quit the old Ferrodock on Restart to update, and allow only one to run ([#163](https://github.com/manimovassagh/Ferrodock/pull/163))
+
 ## [1.27.1](https://github.com/manimovassagh/Ferrodock/compare/v1.27.0...v1.27.1) - 2026-10-20
 
 ### Other
