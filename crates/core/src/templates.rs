@@ -1,7 +1,7 @@
 //! Quick start templates: popular services with settings that work for
 //! local development, ready to run in one step.
 
-use super::{Restart, RunSpec};
+use super::{ContainerInfo, Restart, RunSpec};
 
 /// A setting passed to the container as an environment variable.
 pub struct Field {
@@ -218,6 +218,14 @@ impl Template {
         }
     }
 
+    /// Defaults that don't clash with `containers`: a free name, and host
+    /// ports no container publishes and nothing on this machine listens
+    /// on.
+    pub fn defaults_for(&self, containers: &[ContainerInfo]) -> Choices {
+        let names: Vec<&str> = containers.iter().map(|c| c.name.as_str()).collect();
+        self.defaults(&names, |port| port_free(containers, port))
+    }
+
     /// The image with the chosen tag.
     pub fn reference(&self, choices: &Choices) -> String {
         format!("{}:{}", self.image, choices.tag)
@@ -274,6 +282,81 @@ impl Template {
     }
 }
 
+/// Changes to a template's defaults, as the CLI and MCP server take
+/// them. Anything left empty keeps the default.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Overrides {
+    pub name: Option<String>,
+    /// The image tag ("version").
+    pub tag: Option<String>,
+    /// Host ports, in the order of the template's ports.
+    pub ports: Vec<u16>,
+    /// Field values by their variable, e.g. `POSTGRES_PASSWORD`.
+    pub values: Vec<(String, String)>,
+    pub keep_data: Option<bool>,
+}
+
+impl Template {
+    /// `choices` with `overrides` applied. Fails on a value for a field
+    /// the template doesn't have, or more ports than it has.
+    pub fn customize(
+        &self,
+        mut choices: Choices,
+        overrides: &Overrides,
+    ) -> Result<Choices, String> {
+        if let Some(name) = overrides.name.as_ref().filter(|n| !n.trim().is_empty()) {
+            choices.name = name.trim().to_owned();
+        }
+        if let Some(tag) = overrides.tag.as_ref().filter(|t| !t.trim().is_empty()) {
+            choices.tag = tag.trim().to_owned();
+        }
+        if overrides.ports.len() > self.ports.len() {
+            return Err(format!(
+                "{} has {} port(s), not {}",
+                self.name,
+                self.ports.len(),
+                overrides.ports.len()
+            ));
+        }
+        for (slot, port) in choices.ports.iter_mut().zip(&overrides.ports) {
+            *slot = *port;
+        }
+        for (key, value) in &overrides.values {
+            let index = self
+                .fields
+                .iter()
+                .position(|f| f.env.eq_ignore_ascii_case(key))
+                .ok_or_else(|| {
+                    let keys: Vec<&str> = self.fields.iter().map(|f| f.env).collect();
+                    if keys.is_empty() {
+                        format!("{} has no settings", self.name)
+                    } else {
+                        format!(
+                            "{} has no setting {key}; it has {}",
+                            self.name,
+                            keys.join(", ")
+                        )
+                    }
+                })?;
+            choices.values[index] = value.clone();
+        }
+        if let Some(keep) = overrides.keep_data {
+            choices.keep_data = keep && self.data.is_some();
+        }
+        Ok(choices)
+    }
+}
+
+/// Whether a host port is free: none of `containers` publishes it and
+/// nothing on this machine listens on it.
+pub fn port_free(containers: &[ContainerInfo], port: u16) -> bool {
+    let published = containers
+        .iter()
+        .flat_map(|c| &c.ports)
+        .any(|p| p.public == Some(port));
+    !published && std::net::TcpListener::bind(("127.0.0.1", port)).is_ok()
+}
+
 /// The template called `name` (any case).
 pub fn template(name: &str) -> Option<&'static Template> {
     TEMPLATES.iter().find(|t| t.name.eq_ignore_ascii_case(name))
@@ -282,6 +365,44 @@ pub fn template(name: &str) -> Option<&'static Template> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn overrides_change_only_what_they_name() {
+        let postgres = template("postgres").unwrap();
+        let defaults = postgres.defaults(&[], |_| true);
+        let choices = postgres
+            .customize(
+                defaults.clone(),
+                &Overrides {
+                    name: Some("db".into()),
+                    tag: Some("16".into()),
+                    ports: vec![6543],
+                    values: vec![("postgres_password".into(), "secret".into())],
+                    keep_data: Some(false),
+                },
+            )
+            .unwrap();
+        assert_eq!(postgres.reference(&choices), "postgres:16");
+        assert_eq!(
+            postgres.connection(&choices),
+            "postgres://postgres:secret@localhost:6543/app"
+        );
+        assert!(postgres.spec(&choices).volumes.is_empty());
+        assert_eq!(
+            postgres.customize(defaults.clone(), &Overrides::default()),
+            Ok(defaults.clone())
+        );
+        let wrong = Overrides {
+            values: vec![("NOPE".into(), "x".into())],
+            ..Default::default()
+        };
+        assert!(
+            postgres
+                .customize(defaults, &wrong)
+                .unwrap_err()
+                .contains("POSTGRES_PASSWORD")
+        );
+    }
 
     #[test]
     fn defaults_avoid_taken_names_and_ports() {

@@ -15,13 +15,25 @@ impl DockerClient {
         id: &str,
         tail: usize,
     ) -> impl Stream<Item = Result<String, String>> + use<> {
+        // Each line starts with when it was written; the UI can show it.
+        self.logs_with(id, tail, true, true)
+    }
+
+    /// Like [`DockerClient::logs`], but it can stop after the tail instead
+    /// of following, and leave out the timestamps.
+    pub fn logs_with(
+        &self,
+        id: &str,
+        tail: usize,
+        follow: bool,
+        timestamps: bool,
+    ) -> impl Stream<Item = Result<String, String>> + use<> {
         let opts = LogsOptions {
-            follow: true,
+            follow,
             stdout: true,
             stderr: true,
             tail: tail.to_string(),
-            // Each line starts with when it was written; the UI can show it.
-            timestamps: true,
+            timestamps,
             ..Default::default()
         };
         self.docker
