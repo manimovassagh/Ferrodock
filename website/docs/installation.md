@@ -9,6 +9,27 @@ Ferrodock runs on macOS 11 or newer (Apple Silicon and Intel), Windows 10
 and 11 (x64), and Linux (x64). Downloads are on the
 [Releases page](https://github.com/manimovassagh/Ferrodock/releases/latest).
 
+## Let your AI assistant install it
+
+Not sure how to install apps from a terminal? If you use an AI assistant
+that can run commands, such as Claude Code, Codex, GitHub Copilot or Cursor,
+give it this:
+
+```text
+Install Ferrodock for me, following https://manimovassagh.github.io/Ferrodock/install.md
+```
+
+It installs from the official release, checks the download's SHA-256, and
+asks you before anything that needs your password or changes a security
+setting. Then it can connect itself to Ferrodock's
+[MCP server](./cli-and-mcp.md), so it can manage your containers too.
+
+The guide is an Agent Skill in the repository's
+[`skills/`](https://github.com/manimovassagh/Ferrodock/tree/main/skills)
+folder, next to one that connects an AI tool to Ferrodock. To keep them in
+Claude Code, copy their folders into `~/.claude/skills/`; then asking
+"install Ferrodock" is enough.
+
 ## macOS
 
 The quickest way is [Homebrew](https://brew.sh):

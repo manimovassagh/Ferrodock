@@ -1,5 +1,7 @@
 // @ts-check
 const { themes } = require("prism-react-renderer");
+const fs = require("fs");
+const path = require("path");
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
@@ -20,6 +22,28 @@ const config = {
   markdown: { mermaid: true },
   themes: ["@docusaurus/theme-mermaid"],
 
+  plugins: [
+    // Skills for AI agents live in skills/<name>/SKILL.md; the site
+    // serves each one as /skills/<name>.md, and the install skill also
+    // as /install.md, so a link is all an AI tool needs.
+    () => ({
+      name: "skills",
+      async postBuild({ outDir }) {
+        const skills = path.join(__dirname, "../skills");
+        fs.mkdirSync(path.join(outDir, "skills"), { recursive: true });
+        for (const name of fs.readdirSync(skills)) {
+          const file = path.join(skills, name, "SKILL.md");
+          if (fs.existsSync(file)) {
+            fs.copyFileSync(file, path.join(outDir, "skills", `${name}.md`));
+          }
+        }
+        fs.copyFileSync(
+          path.join(skills, "install-ferrodock/SKILL.md"),
+          path.join(outDir, "install.md"),
+        );
+      },
+    }),
+  ],
   presets: [
     [
       "classic",

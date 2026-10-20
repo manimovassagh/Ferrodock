@@ -148,10 +148,9 @@ function Hero() {
     <header className={styles.hero}>
       <div className={styles.glow} aria-hidden />
       <div className={clsx("container", styles.heroInner)}>
-        <img className={styles.heroLogo} src={useBaseUrl("/img/logo.png")} alt="" />
         <p className={styles.eyebrow}>Free · Open source · macOS, Windows and Linux</p>
         <h1 className={styles.title}>
-          The native container app
+          The native container manager
           <br />
           <span className={styles.accent}>Written in Rust</span>
         </h1>
@@ -439,6 +438,10 @@ function Install() {
         <p className={styles.installNote}>
           {INSTALL[current].note} <Link to="/docs/installation">Installation guide →</Link>
         </p>
+        <p className={styles.installNote}>
+          Or ask your AI assistant: <em>"Install Ferrodock for me, following{" "}
+          https://manimovassagh.github.io/Ferrodock/install.md"</em>
+        </p>
       </div>
     </section>
   );
@@ -467,7 +470,7 @@ function FinalCta() {
 export default function Home() {
   return (
     <Layout
-      title="The native container app, written in Rust"
+      title="The native container manager, written in Rust"
       description="Ferrodock is a free, open-source desktop app for Docker on macOS, Windows and Linux, written in Rust, with its own Docker engine, a CLI and an MCP server for AI tools."
     >
       <main className={styles.page}>
