@@ -64,6 +64,17 @@ impl Paths {
         std::env::var_os("HOME").map(|home| Self::under(PathBuf::from(home).join(".ferrodock")))
     }
 
+    /// Ferrodock's own copy of Docker Compose, used when there's no
+    /// `docker` command on this computer.
+    pub fn compose(&self) -> PathBuf {
+        let name = if cfg!(windows) {
+            "docker-compose.exe"
+        } else {
+            "docker-compose"
+        };
+        self.dir.join("bin").join(name)
+    }
+
     /// Whether the engine is set up: the image downloaded, or on Windows
     /// the distro imported into WSL.
     pub fn installed(&self) -> bool {

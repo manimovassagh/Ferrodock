@@ -33,7 +33,17 @@ one-click restarts.
 ## What it needs
 
 **Up**, **Rebuild**, **Pull & recreate** and the project's merged **Logs**
-use the `docker compose` command, so they need the Docker CLI with its
-Compose plugin installed. Ferrodock points it at the engine you picked.
-Everything else on this page (start, stop, restart, remove) works without
-it.
+run Docker Compose, pointed at the engine you picked. Nothing needs to be
+installed for them:
+
+- When the `docker` command is installed, Ferrodock uses its
+  `docker compose`.
+- When it isn't (with only [Ferrodock's own engine](../engine.md), for
+  example), the first of these downloads Docker Compose once, the official
+  standalone build from its GitHub releases, checked against its SHA-256.
+  It's kept in Ferrodock's folder (`~/.ferrodock/bin` on macOS and Linux,
+  `%LOCALAPPDATA%\Ferrodock\bin` on Windows) and used from then on.
+  Docker Compose is free and open source (Apache-2.0).
+
+Everything else on this page (start, stop, restart, remove) doesn't need
+Compose at all.
