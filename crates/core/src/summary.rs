@@ -7,7 +7,7 @@ use serde::Serialize;
 
 use super::{
     ComposeProject, ContainerInfo, DiskUsage, ImageInfo, Inspection, NetworkInfo, PortMapping,
-    Usage, VolumeInfo, format_size, looks_secret, time_ago,
+    PruneKind, Usage, VolumeInfo, format_size, looks_secret, time_ago,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -259,6 +259,36 @@ impl From<&DiskUsage> for Disk {
             containers: d.containers.as_ref().map(Space::from),
             volumes: d.volumes.as_ref().map(Space::from),
             build_cache: d.build_cache.as_ref().map(Space::from),
+        }
+    }
+}
+
+/// What a clean-up freed: each kind of thing, and all of them together.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Cleaned {
+    pub cleaned: Vec<Freed>,
+    pub freed: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Freed {
+    /// e.g. `unused images`.
+    pub what: String,
+    pub freed: String,
+}
+
+impl Cleaned {
+    /// From [`crate::DockerClient::clean`]'s bytes freed per kind.
+    pub fn new(freed: &[(PruneKind, i64)]) -> Self {
+        Self {
+            cleaned: freed
+                .iter()
+                .map(|(kind, bytes)| Freed {
+                    what: kind.noun().to_owned(),
+                    freed: format_size(*bytes),
+                })
+                .collect(),
+            freed: format_size(freed.iter().map(|(_, bytes)| bytes).sum()),
         }
     }
 }

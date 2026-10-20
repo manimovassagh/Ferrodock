@@ -54,6 +54,8 @@ impl ComposeJobs {
                     }
                     ComposeAction::Rebuild(None) => format!("Rebuilding {project}"),
                     ComposeAction::PullRecreate => format!("Pulling and recreating {project}"),
+                    ComposeAction::Down => format!("Stopping {project}"),
+                    ComposeAction::Restart => format!("Restarting {project}"),
                 };
                 self.run = Some(Job::new(*job, title, project));
                 None

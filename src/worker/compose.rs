@@ -5,9 +5,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use super::compose_install;
 use super::{Response, Shared, refresh};
-use crate::docker::compose_cli::{command, logs_args, program, steps, stream};
+use crate::docker::compose_cli::{command, logs_args, steps, stream};
+use crate::docker::compose_install;
 use crate::docker::{ComposeOp, DockerClient, Engine, Resource};
 
 const FLUSH_EVERY: Duration = Duration::from_millis(100);
@@ -93,20 +93,14 @@ impl Jobs {
 /// Downloads Ferrodock's copy of Compose first when there's neither one
 /// nor a `docker` command.
 async fn ensure_compose(out: &mut Batch<'_>) -> Result<(), String> {
-    if program().is_some() {
-        return Ok(());
-    }
-    let target = crate::vm::Paths::locate()
-        .ok_or("No home folder for Docker Compose")?
-        .compose();
-    out.push(format!(
-        "Downloading Docker Compose {} (once)…",
-        compose_install::VERSION
-    ));
-    out.flush();
-    tokio::task::spawn_blocking(move || compose_install::install(&target))
-        .await
-        .map_err(|e| e.to_string())?
+    compose_install::ensure(|| {
+        out.push(format!(
+            "Downloading Docker Compose {} (once)…",
+            compose_install::VERSION
+        ));
+        out.flush();
+    })
+    .await
 }
 
 /// Output lines, sent together.

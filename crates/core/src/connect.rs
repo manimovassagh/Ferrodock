@@ -1,9 +1,10 @@
 //! Reaching an engine from outside the app: the `fdock` CLI and the MCP
-//! server pick one the way Ferrodock does, and check that it answers.
+//! server pick one the way Ferrodock does, check that it answers, and
+//! start it when it doesn't.
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
-use super::{DockerClient, Engine, builtin, engines, pick};
+use super::{DockerClient, Engine, Starter, builtin, engines, pick, starter_outside_app};
 
 /// How long an engine gets to answer before the next one is tried.
 const PATIENCE: Duration = Duration::from_secs(3);
@@ -78,6 +79,69 @@ pub async fn connect(name: Option<&str>) -> Result<Connection, String> {
         }
     }
     Err(error)
+}
+
+/// How long a started engine gets to answer. Engines that run in a VM can
+/// take a minute or two to boot it.
+const BOOT_PATIENCE: Duration = Duration::from_secs(180);
+
+/// Starts the engine called `name`, or the first one [`connect`] tries,
+/// unless one answers already, and waits for it to answer. `starting` is
+/// told what starts it. Returns the engine, and whether it was started.
+pub async fn start(
+    name: Option<&str>,
+    starting: impl FnOnce(&Starter),
+) -> Result<(Connection, bool), String> {
+    if let Ok(conn) = connect(name).await {
+        return Ok((conn, false));
+    }
+    let list = engines();
+    let docker_host = std::env::var_os("DOCKER_HOST").is_some();
+    let engine = candidates(&list, name, docker_host)?
+        .into_iter()
+        .next()
+        .ok_or("No Docker engine found.")?;
+    let Some(starter) = starter_outside_app(&engine) else {
+        return Err(nothing_starts(&engine.name));
+    };
+    starting(&starter);
+    let run = starter.clone();
+    tokio::task::spawn_blocking(move || run.run())
+        .await
+        .map_err(|e| e.to_string())??;
+    let since = Instant::now();
+    loop {
+        match connect(Some(&engine.name)).await {
+            Ok(conn) => return Ok((conn, true)),
+            Err(_) if since.elapsed() < BOOT_PATIENCE => {
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
+            Err(e) => {
+                let mut error = format!("{} didn't answer after 3 minutes: {e}", engine.name);
+                if let Starter::Ferrodock(_) = starter {
+                    error.push_str(
+                        "\nWhen Ferrodock was open already, or \"Start the Docker engine when \
+                         Ferrodock opens\" is off in its Settings, start the engine from Ferrodock.",
+                    );
+                }
+                return Err(error);
+            }
+        }
+    }
+}
+
+/// Why nothing can start the engine called `name`, and what to do instead.
+fn nothing_starts(name: &str) -> String {
+    if name == builtin::NAME {
+        return "Couldn't find the Ferrodock app to start its engine: open Ferrodock.".into();
+    }
+    let mut error =
+        format!("Ferrodock doesn't know how to start {name} on this computer: start it yourself");
+    if builtin::SUPPORTED {
+        error.push_str(", or open Ferrodock to set up its own engine");
+    }
+    error.push('.');
+    error
 }
 
 #[cfg(test)]
