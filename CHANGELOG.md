@@ -7,6 +7,13 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.20.0](https://github.com/manimovassagh/Ferrodock/compare/v1.19.0...v1.20.0) - 2026-10-20
+
+### Added
+
+- CLI & MCP card in the sidebar, with a setup dialog
+- Compose works without the docker command
+
 ## [1.19.0](https://github.com/manimovassagh/Ferrodock/compare/v1.18.0...v1.19.0) - 2026-10-20
 
 ### Added
