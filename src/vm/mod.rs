@@ -113,6 +113,12 @@ fn physical_memory_mib() -> Option<u64> {
 #[cfg_attr(not(engine), allow(dead_code))]
 pub enum State {
     NotInstalled,
+    /// Installing WSL, which the engine runs in (Windows).
+    #[cfg_attr(not(windows), allow(dead_code))]
+    InstallingWsl,
+    /// WSL was installed and works once Windows restarts (Windows).
+    #[cfg_attr(not(windows), allow(dead_code))]
+    NeedsRestart,
     Downloading {
         done: u64,
         total: Option<u64>,
@@ -129,7 +135,7 @@ impl State {
     pub fn busy(&self) -> bool {
         matches!(
             self,
-            State::Downloading { .. } | State::Starting | State::Stopping
+            State::InstallingWsl | State::Downloading { .. } | State::Starting | State::Stopping
         )
     }
 }
@@ -332,6 +338,13 @@ impl Engine {
                 #[cfg(engine)]
                 {
                     if !paths.installed() {
+                        #[cfg(windows)]
+                        if !platform::prepare(|| {
+                            Self::set(&state, State::InstallingWsl);
+                            repaint();
+                        })? {
+                            return Ok(State::NeedsRestart);
+                        }
                         let archive = download::fetch(|done, total| {
                             Self::set(&state, State::Downloading { done, total });
                             repaint();
@@ -346,7 +359,7 @@ impl Engine {
                     if let Ok(mut slot) = running.lock() {
                         *slot = Some(engine);
                     }
-                    Ok::<(), String>(())
+                    Ok::<State, String>(State::Running)
                 }
                 #[cfg(not(engine))]
                 {
@@ -355,15 +368,9 @@ impl Engine {
                 }
             })();
             if let Ok(mut slot) = given.lock() {
-                *slot = result.is_ok().then_some(resources);
+                *slot = (result == Ok(State::Running)).then_some(resources);
             }
-            Self::set(
-                &state,
-                match result {
-                    Ok(()) => State::Running,
-                    Err(e) => State::Failed(e),
-                },
-            );
+            Self::set(&state, result.unwrap_or_else(State::Failed));
             repaint();
         })
     }
