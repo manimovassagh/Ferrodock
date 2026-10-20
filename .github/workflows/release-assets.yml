@@ -165,9 +165,12 @@ jobs:
             exit 0
           fi
           version=${TAG#v}
-          if curl -fsS -A "ferrodock-release (github.com/manimovassagh/Ferrodock)" \
-              "https://crates.io/api/v1/crates/ferrodock/$version" > /dev/null; then
-            echo "ferrodock $version is already on crates.io."
-            exit 0
-          fi
-          cargo publish --locked
+          # The shared crates first: the app depends on them.
+          for crate in ferrodock-core ferrodock; do
+            if curl -fsS -A "ferrodock-release (github.com/manimovassagh/Ferrodock)" \
+                "https://crates.io/api/v1/crates/$crate/$version" > /dev/null; then
+              echo "$crate $version is already on crates.io."
+            else
+              cargo publish --locked -p "$crate"
+            fi
+          done

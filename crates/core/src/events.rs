@@ -125,7 +125,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn live_daemon_reports_a_start() {
-        use crate::docker::RunSpec;
+        use crate::RunSpec;
         use bollard::query_parameters::RemoveContainerOptions;
         use std::time::Duration;
 

@@ -38,6 +38,20 @@ Verify downloads with `SHA256SUMS.txt`.
 {{ changelog }}
 """
 
+# The desktop app is the release: its tags (v1.2.3) and GitHub releases
+# drive release-assets.yml. The crates it's built from share its version
+# (version.workspace) and are published with it, without tags of their own.
+[[package]]
+name = "ferrodock"
+git_tag_name = "v{{ version }}"
+git_release_name = "v{{ version }}"
+
+[[package]]
+name = "ferrodock-core"
+release = false
+# Its own tag name, which never gets created: it isn't released on its own.
+git_tag_name = "ferrodock-core-v{{ version }}"
+
 [changelog]
 # Group commits by their Conventional Commit type. Housekeeping commits
 # don't belong in the user-facing changelog.

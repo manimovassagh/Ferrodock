@@ -34,95 +34,15 @@ mod wsl;
 #[cfg(all(engine, windows))]
 use windows as platform;
 
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-/// How the engine shows up in the engine list.
-pub const NAME: &str = "Ferrodock";
-/// Linux: where the engine's programs are installed, its service and its
-/// socket.
-pub const LINUX_PROGRAMS: &str = "/opt/ferrodock/engine/bin";
-pub const LINUX_SERVICE: &str = "/etc/systemd/system/ferrodock-engine.service";
-pub const LINUX_SOCKET: &str = "/run/ferrodock/docker.sock";
+pub use ferrodock_core::builtin::{NAME, Paths, SUPPORTED};
 /// The virtiofs tag the home folder is shared under.
 #[cfg(all(engine, target_os = "macos"))]
 pub const SHARE_TAG: &str = "home";
 /// Where the agent in the VM offers the engine's socket.
 #[cfg(all(engine, target_os = "macos"))]
 pub const VSOCK_PORT: u32 = 2375;
-
-/// Whether this machine can run the engine.
-pub const SUPPORTED: bool = cfg!(engine);
-
-/// Where everything is.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Paths {
-    pub dir: PathBuf,
-    /// The unpacked image: `kernel` and `rootfs.img`.
-    pub image: PathBuf,
-    pub kernel: PathBuf,
-    pub rootfs: PathBuf,
-    /// Images, containers and volumes.
-    pub data: PathBuf,
-    pub socket: PathBuf,
-    /// The WSL distro's disk and files (Windows).
-    pub distro: PathBuf,
-    /// The engine's log: the agent's and the kernel's messages.
-    pub console: PathBuf,
-}
-
-impl Paths {
-    pub fn under(dir: PathBuf) -> Self {
-        let image = dir.join("engine");
-        Self {
-            kernel: image.join("kernel"),
-            rootfs: image.join("rootfs.img"),
-            data: dir.join("data.img"),
-            socket: dir.join("docker.sock"),
-            distro: dir.join("wsl"),
-            console: dir.join("console.log"),
-            image,
-            dir,
-        }
-    }
-
-    pub fn default() -> Option<Self> {
-        if cfg!(windows) {
-            return std::env::var_os("LOCALAPPDATA")
-                .map(|dir| Self::under(PathBuf::from(dir).join("Ferrodock")));
-        }
-        std::env::var_os("HOME").map(|home| Self::under(PathBuf::from(home).join(".ferrodock")))
-    }
-
-    /// Whether the engine is set up: the image downloaded, or on Windows
-    /// the distro imported into WSL.
-    pub fn installed(&self) -> bool {
-        if cfg!(windows) {
-            return self.distro.join("ext4.vhdx").is_file();
-        }
-        if cfg!(target_os = "linux") {
-            return std::path::Path::new(LINUX_SERVICE).is_file()
-                && std::path::Path::new(LINUX_PROGRAMS)
-                    .join("dockerd")
-                    .is_file();
-        }
-        self.kernel.is_file() && self.rootfs.is_file()
-    }
-
-    /// The Docker host clients connect to.
-    pub fn host(&self) -> String {
-        if cfg!(windows) {
-            return PIPE.into();
-        }
-        if cfg!(target_os = "linux") {
-            return format!("unix://{LINUX_SOCKET}");
-        }
-        format!("unix://{}", self.socket.display())
-    }
-}
-
-/// The named pipe Ferrodock offers the engine on, on Windows.
-pub const PIPE: &str = "npipe:////./pipe/ferrodock_engine";
 
 /// What the VM gets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -172,7 +92,7 @@ pub struct Engine {
 
 impl Engine {
     pub fn new() -> Self {
-        let paths = Paths::default();
+        let paths = Paths::locate();
         let state = match &paths {
             Some(p) if p.installed() => State::Stopped,
             _ => State::NotInstalled,
@@ -296,6 +216,7 @@ impl Engine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     #[test]
     #[cfg(unix)]
@@ -320,7 +241,7 @@ mod tests {
     #[cfg(windows)]
     fn offers_the_engine_on_a_named_pipe() {
         let paths = Paths::under(PathBuf::from(r"C:\Users\me\AppData\Local\Ferrodock"));
-        assert_eq!(paths.host(), PIPE);
+        assert_eq!(paths.host(), ferrodock_core::builtin::PIPE);
         assert!(paths.distro.ends_with("wsl"));
         assert!(!paths.installed());
     }

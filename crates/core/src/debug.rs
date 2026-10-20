@@ -133,7 +133,7 @@ mod tests {
         let Some(image) = client.list_images().await.unwrap().into_iter().next() else {
             return;
         };
-        let spec = crate::docker::RunSpec {
+        let spec = crate::RunSpec {
             image: image.id.clone(),
             name: "ferrodock-debug-target".into(),
             command: "sleep 4321".into(),

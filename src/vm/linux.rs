@@ -8,7 +8,9 @@
 use std::path::Path;
 use std::process::Command;
 
-use super::{LINUX_SOCKET, Paths, Resources, download};
+use ferrodock_core::builtin::LINUX_SOCKET;
+
+use super::{Paths, Resources, download};
 
 const SERVICE: &str = "ferrodock-engine.service";
 
@@ -136,7 +138,7 @@ mod tests {
     fn installs_where_the_app_looks() {
         let setup = super::SETUP;
         assert!(setup.contains(&format!("unix://{}", super::LINUX_SOCKET)));
-        assert!(setup.contains(crate::vm::LINUX_PROGRAMS));
-        assert!(setup.contains(crate::vm::LINUX_SERVICE));
+        assert!(setup.contains(ferrodock_core::builtin::LINUX_PROGRAMS));
+        assert!(setup.contains(ferrodock_core::builtin::LINUX_SERVICE));
     }
 }

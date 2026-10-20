@@ -325,7 +325,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn live_daemon_renames_and_updates() {
-        use crate::docker::RunSpec;
+        use crate::RunSpec;
         let client = DockerClient::connect().unwrap();
         let Some(image) = client.list_images().await.unwrap().into_iter().next() else {
             return;
@@ -370,7 +370,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn live_daemon_sets_limits_and_recreates() {
-        use crate::docker::RunSpec;
+        use crate::RunSpec;
         let client = DockerClient::connect().unwrap();
         let Some(image) = client.list_images().await.unwrap().into_iter().next() else {
             return;
@@ -432,7 +432,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn live_daemon_recreate_rolls_back() {
-        use crate::docker::RunSpec;
+        use crate::RunSpec;
         let client = DockerClient::connect().unwrap();
         let Some(image) = client.list_images().await.unwrap().into_iter().next() else {
             return;
