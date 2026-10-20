@@ -7,6 +7,16 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.16.0](https://github.com/manimovassagh/Ferrodock/compare/v1.15.1...v1.16.0) - 2026-10-20
+
+### Added
+
+- fdock, Ferrodock on the command line
+
+### Other
+
+- Merge pull request #141 from manimovassagh/claude/elegant-hopper-qhtyv6
+
 ## [1.15.1](https://github.com/manimovassagh/Ferrodock/compare/v1.15.0...v1.15.1) - 2026-10-20
 
 ### Changed
