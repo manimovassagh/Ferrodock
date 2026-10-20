@@ -33,7 +33,7 @@ jobs:
             target: aarch64-unknown-linux-musl
           # Intel Macs.
           - arch: amd64
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
             target: x86_64-unknown-linux-musl
     runs-on: ${{ matrix.runner }}
     steps:
@@ -90,7 +90,7 @@ jobs:
 
   wsl:
     name: Build the engine image (Windows, WSL)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
@@ -123,7 +123,7 @@ jobs:
       matrix:
         include:
           - arch: amd64
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
           - arch: arm64
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
@@ -150,7 +150,7 @@ jobs:
     name: Publish (main only, once per version)
     if: github.event_name != 'pull_request'
     needs: [image, wsl, linux]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
