@@ -7,6 +7,16 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.23.0](https://github.com/manimovassagh/Ferrodock/compare/v1.22.0...v1.23.0) - 2026-10-20
+
+### Added
+
+- *(engine)* install WSL on Windows when setting up the engine
+
+### Other
+
+- Merge pull request #158 from manimovassagh/claude/engine-wsl-install
+
 ## [1.22.0](https://github.com/manimovassagh/Ferrodock/compare/v1.21.0...v1.22.0) - 2026-10-20
 
 ### Added
