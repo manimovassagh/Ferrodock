@@ -4,7 +4,7 @@
 
 # Ferrodock
 
-**The native Docker desktop. Written in Rust.**<br>
+**The native container app, written in Rust**<br>
 One free app for macOS, Windows and Linux, with its own Docker engine built in:<br>
 containers, images, volumes, networks and Compose, plus a CLI and an MCP server for AI tools.
 
@@ -107,6 +107,7 @@ has the details for each platform.
 As of October 2026; check each project's site for its current terms. Where
 others are ahead: OrbStack has years of tuning behind its Mac file sharing
 and networking, and Docker Desktop has the largest ecosystem of extensions.
+**[Prices for a team, download sizes and memory, side by side →](https://manimovassagh.github.io/Ferrodock/compare)**
 
 ## Ferrodock's own engine
 
