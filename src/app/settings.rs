@@ -367,6 +367,8 @@ fn engine_section(ui: &mut egui::Ui, p: &Palette, settings: &mut Settings, engin
     let (text, color) = match &state {
         vm::State::Running => ("Running".to_owned(), p.text),
         vm::State::Stopped | vm::State::NotInstalled => ("Stopped".to_owned(), p.muted),
+        vm::State::InstallingWsl => ("Installing WSL…".to_owned(), p.muted),
+        vm::State::NeedsRestart => ("Restart Windows to finish setting up".to_owned(), p.muted),
         vm::State::Starting => ("Starting…".to_owned(), p.muted),
         vm::State::Downloading { .. } => ("Downloading…".to_owned(), p.muted),
         vm::State::Failed(e) => (e.clone(), p.danger),

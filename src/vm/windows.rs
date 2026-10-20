@@ -19,7 +19,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::windows::named_pipe::{NamedPipeServer, ServerOptions};
 use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
 
-use super::wsl::{decode, linux_path, pem};
+use super::wsl::{Wsl, decode, linux_path, pem, readiness};
 use super::{Paths, Resources, download, mux};
 
 const DISTRO: &str = "ferrodock";
@@ -31,6 +31,10 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 const PIPES: [&str; 2] = [r"\\.\pipe\ferrodock_engine", r"\\.\pipe\docker_engine"];
 /// How long the engine gets to stop its containers.
 const GRACE: Duration = Duration::from_secs(20);
+/// The administrator prompt was dismissed (ERROR_CANCELLED).
+const CANCELLED: i32 = 1223;
+/// Installed, but only works after a restart (ERROR_SUCCESS_REBOOT_REQUIRED).
+const REBOOT: i32 = 3010;
 
 /// Where each connection's data from the engine goes; None once the
 /// engine has sent everything.
@@ -49,6 +53,76 @@ fn wsl(args: &[&str]) -> Result<String, String> {
         Ok(text)
     } else {
         Err(format!("wsl {}: {}", args.join(" "), text.trim()))
+    }
+}
+
+/// How WSL stands on this machine.
+fn wsl_state() -> Result<Wsl, String> {
+    let run = |arg: &str| {
+        Command::new("wsl.exe")
+            .arg(arg)
+            .env("WSL_UTF8", "1")
+            .stdin(Stdio::null())
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+    };
+    let version = run("--version").map_err(|e| {
+        format!(
+            "WSL isn't available ({e}). Ferrodock's engine needs Windows 10 version 2004 \
+             or later, or Windows 11."
+        )
+    })?;
+    let status = run("--status").map_err(|e| e.to_string())?;
+    let text = format!("{}{}", decode(&status.stdout), decode(&status.stderr));
+    Ok(readiness(
+        version.status.success(),
+        (status.status.success(), &text),
+    ))
+}
+
+/// Runs `wsl.exe` with `args` as administrator, after Windows' prompt
+/// (UAC), and returns its exit code.
+fn wsl_as_admin(args: &str) -> Result<i32, String> {
+    // Start-Process fails when the prompt is dismissed; why is somewhere
+    // down the exception's causes.
+    let script = format!(
+        "try {{ $p = Start-Process wsl.exe -ArgumentList '{args}' -Verb RunAs \
+         -WindowStyle Hidden -Wait -PassThru; exit $p.ExitCode }} \
+         catch {{ $e = $_.Exception; while ($e) {{ \
+         if ($e.NativeErrorCode -eq {CANCELLED}) {{ exit {CANCELLED} }}; \
+         $e = $e.InnerException }}; [Console]::Error.WriteLine($_); exit 1 }}"
+    );
+    let output = Command::new("powershell.exe")
+        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .map_err(|e| format!("Couldn't ask for administrator approval: {e}"))?;
+    match output.status.code() {
+        Some(code @ (0 | CANCELLED | REBOOT)) => Ok(code),
+        code => Err(format!(
+            "`wsl {args}` failed ({}). Try it in a terminal opened as administrator. {}",
+            code.map_or_else(|| "no exit code".into(), |c| format!("exit code {c}")),
+            decode(&output.stderr).trim()
+        )),
+    }
+}
+
+/// Makes sure WSL can run the engine's distro, installing or updating it
+/// as administrator when needed (`installing` is called first). Returns
+/// false when WSL is installed but works only after Windows restarts.
+pub fn prepare(installing: impl Fn()) -> Result<bool, String> {
+    let args = match wsl_state()? {
+        Wsl::Ready => return Ok(true),
+        Wsl::Missing => "--install --no-distribution",
+        Wsl::Outdated => "--update",
+    };
+    installing();
+    match wsl_as_admin(args)? {
+        CANCELLED => Err("Setup needs administrator approval to install WSL.".into()),
+        REBOOT => Ok(false),
+        // Turning WSL on usually takes a restart too, even when the
+        // installer doesn't say so.
+        _ => Ok(wsl_state()? == Wsl::Ready),
     }
 }
 

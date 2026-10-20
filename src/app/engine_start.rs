@@ -30,6 +30,10 @@ pub enum Offer {
     Start(String),
     /// Can download and start Ferrodock's own engine.
     SetUp,
+    /// Installing WSL for Ferrodock's engine (Windows).
+    InstallingWsl,
+    /// WSL is installed; Windows needs a restart before setup goes on.
+    NeedsRestart,
     /// Downloading Ferrodock's engine: how far, 0 to 1, when known.
     Downloading(Option<f32>),
     /// Starting it now.
@@ -188,6 +192,8 @@ impl EngineStarter {
         if let Some(Plan::BuiltIn) = Self::plan(store, settings) {
             return match self.builtin.state() {
                 vm::State::NotInstalled => Offer::SetUp,
+                vm::State::InstallingWsl => Offer::InstallingWsl,
+                vm::State::NeedsRestart => Offer::NeedsRestart,
                 vm::State::Downloading { done, total } => {
                     Offer::Downloading(total.filter(|t| *t > 0).map(|t| done as f32 / t as f32))
                 }

@@ -39,9 +39,11 @@ Ferrodock found no engine to start. See
 
 ## Ferrodock's own engine
 
-**Setting up the engine on Windows fails with "WSL isn't available".**
-Turn WSL on: run `wsl --install` in a terminal opened as administrator, then
-restart Windows and try again.
+**Setting up the engine on Windows fails while installing WSL.**
+Ferrodock installs WSL itself, which needs administrator approval. If that
+doesn't work, run `wsl --install --no-distribution` in a terminal opened as
+administrator, then restart Windows and try again. WSL needs Windows 10
+version 2004 or later, or Windows 11.
 
 **The engine doesn't start.**
 The engine's log is `console.log` in `~/.ferrodock` (macOS) or

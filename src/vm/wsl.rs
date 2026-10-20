@@ -32,6 +32,46 @@ pub fn linux_path(path: &Path) -> Option<String> {
     ))
 }
 
+/// How WSL stands on this machine, for the engine's distro.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(not(windows), allow(dead_code))]
+pub enum Wsl {
+    /// Runs WSL 2 distros.
+    Ready,
+    /// Not installed, or not turned on: `wsl --install` sets it up.
+    Missing,
+    /// The old WSL that came with Windows: `wsl --update` brings the
+    /// current one.
+    Outdated,
+}
+
+/// How WSL stands, from whether `wsl --version` worked and what
+/// `wsl --status` said (whether it worked, and its output). Only the
+/// current WSL knows `--version`; the old one prints its help instead.
+/// Messages are translated, so this goes by the parts that aren't: links,
+/// error codes and commands.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn readiness(version: bool, status: (bool, &str)) -> Wsl {
+    let text = status.1.to_lowercase();
+    let said = |marks: &[&str]| marks.iter().any(|m| text.contains(m));
+    // WSL 2 needs Windows' Virtual Machine Platform, which `--install`
+    // turns on.
+    let no_vm = said(&["hcs_e_hyperv_not_installed", "virtualmachineplatform"]);
+    let not_installed = said(&[
+        "aka.ms/wslinstall",
+        "wsl_e_wsl_optional_component_required",
+        "wsl.exe --install",
+        "wsl --install",
+    ]);
+    if no_vm || (!version && not_installed) {
+        Wsl::Missing
+    } else if version || (status.0 && !said(&["--update"])) {
+        Wsl::Ready
+    } else {
+        Wsl::Outdated
+    }
+}
+
 /// Certificates (DER) as one PEM file.
 pub fn pem<'a>(certificates: impl IntoIterator<Item = &'a [u8]>) -> String {
     let mut out = String::new();
@@ -77,6 +117,37 @@ mod tests {
             .collect();
         assert_eq!(decode(&utf16), "ferrodock\r\n");
         assert_eq!(decode(b"ferrodock\n"), "ferrodock\n");
+    }
+
+    #[test]
+    fn tells_how_wsl_stands() {
+        // The current WSL, set up.
+        assert_eq!(readiness(true, (true, "Default Version: 2")), Wsl::Ready);
+        // Windows 11 with nothing installed yet.
+        let none = "The Windows Subsystem for Linux is not installed. You can install by \
+                    running 'wsl.exe --install'.\nFor more information please visit \
+                    https://aka.ms/wslinstall";
+        assert_eq!(readiness(false, (false, none)), Wsl::Missing);
+        // Windows 10 with the feature turned off, in German.
+        let off = "Die optionale Komponente \"Windows-Subsystem für Linux\" ist nicht \
+                   aktiviert.\nWeitere Informationen finden Sie unter https://aka.ms/wslinstall";
+        assert_eq!(readiness(false, (false, off)), Wsl::Missing);
+        // The current WSL, without the Virtual Machine Platform.
+        let no_vm = "Please enable the Virtual Machine Platform Windows feature.\n\
+                     Error code: Wsl/Service/CreateInstance/CreateVm/HCS/HCS_E_HYPERV_NOT_INSTALLED";
+        assert_eq!(readiness(true, (true, no_vm)), Wsl::Missing);
+        // The old WSL: help for both, or a status asking for an update.
+        let help = "Usage: wsl.exe [Argument] [Options...] [CommandLine]\n\
+                    --update\n    Update the Windows Subsystem for Linux package.";
+        assert_eq!(readiness(false, (false, help)), Wsl::Outdated);
+        let kernel = "Default Version: 2\nWSL 2 requires an update to its kernel component. \
+                      Run 'wsl.exe --update'.";
+        assert_eq!(readiness(false, (true, kernel)), Wsl::Outdated);
+        // The old WSL, working: no need to touch it.
+        assert_eq!(
+            readiness(false, (true, "Default Version: 2\nKernel version: 5.10.16")),
+            Wsl::Ready
+        );
     }
 
     #[test]
