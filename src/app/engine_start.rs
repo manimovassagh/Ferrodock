@@ -34,8 +34,9 @@ pub enum Offer {
     InstallingWsl,
     /// WSL is installed; Windows needs a restart before setup goes on.
     NeedsRestart,
-    /// Downloading Ferrodock's engine: how far, 0 to 1, when known.
-    Downloading(Option<f32>),
+    /// Downloading Ferrodock's engine, or a newer image for it (`update`):
+    /// how far, 0 to 1, when known.
+    Downloading { fraction: Option<f32>, update: bool },
     /// Starting it now.
     Starting(String),
     /// The last start failed.
@@ -194,9 +195,14 @@ impl EngineStarter {
                 vm::State::NotInstalled => Offer::SetUp,
                 vm::State::InstallingWsl => Offer::InstallingWsl,
                 vm::State::NeedsRestart => Offer::NeedsRestart,
-                vm::State::Downloading { done, total } => {
-                    Offer::Downloading(total.filter(|t| *t > 0).map(|t| done as f32 / t as f32))
-                }
+                vm::State::Downloading {
+                    done,
+                    total,
+                    update,
+                } => Offer::Downloading {
+                    fraction: total.filter(|t| *t > 0).map(|t| done as f32 / t as f32),
+                    update,
+                },
                 // Running but not answering yet: the engine is still
                 // coming up inside.
                 vm::State::Starting | vm::State::Running => Offer::Starting(BUILTIN.into()),

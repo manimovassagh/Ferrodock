@@ -451,7 +451,8 @@ fn engine_section(ui: &mut egui::Ui, p: &Palette, settings: &mut Settings, engin
         vm::State::NeedsRestart => ("Restart Windows to finish setting up".to_owned(), p.muted),
         vm::State::Starting => ("Starting…".to_owned(), p.muted),
         vm::State::Stopping => ("Stopping…".to_owned(), p.muted),
-        vm::State::Downloading { .. } => ("Downloading…".to_owned(), p.muted),
+        vm::State::Downloading { update: false, .. } => ("Downloading…".to_owned(), p.muted),
+        vm::State::Downloading { update: true, .. } => ("Updating…".to_owned(), p.muted),
         vm::State::Failed(e) => (e.clone(), p.danger),
     };
     ui.label(RichText::new(text).color(color));

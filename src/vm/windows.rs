@@ -160,6 +160,59 @@ pub fn reset(paths: &Paths) -> Result<(), String> {
     Ok(())
 }
 
+/// Run as root in the distro with the new image's tar: puts the image's
+/// files in place of the old ones, and keeps the engine's data
+/// (`/var/lib/docker`: images, containers and volumes) and what WSL
+/// provides.
+const UPDATE: &str = r#"set -eu -o pipefail
+archive=$1 new=/var/lib/ferrodock-update
+rm -rf "$new"
+mkdir -p "$new"
+trap 'rm -rf "$new"' EXIT
+# Unpacked apart first, so a damaged image changes nothing.
+tar -x -f "$archive" -C "$new"
+rm -rf "$new/dev" "$new/proc" "$new/sys" "$new/run" "$new/tmp" "$new/mnt" \
+    "$new/var/lib/docker" "$new/var/lib/containerd"
+# A folder that became a link can't be replaced in place.
+for entry in "$new"/*; do
+    name=${entry#"$new"/}
+    if [ -L "$entry" ] && [ -d "/$name" ] && [ ! -L "/$name" ]; then
+        echo "/$name is a link in the new image" >&2
+        exit 1
+    fi
+done
+# tar writes each file anew rather than over the old one, so the
+# programs doing this keep running.
+tar -c -C "$new" . | tar -x -C /
+# The agent adds Windows' certificates to the new image's bundle.
+rm -f /etc/ssl/certs/ca-certificates.crt.orig
+"#;
+
+/// Puts a newer image's files into the `ferrodock` distro, keeping its
+/// images, containers and volumes. The distro holds both, so it isn't
+/// imported again.
+pub fn update(paths: &Paths, archive: &[u8]) -> Result<(), String> {
+    let tar = paths.dir.join("ferrodock-engine.tar");
+    let script = paths.dir.join("update-engine.sh");
+    download::decompress(archive, &tar)?;
+    let result = std::fs::write(&script, UPDATE)
+        .map_err(|e| format!("{}: {e}", script.display()))
+        .and_then(|()| {
+            let (Some(script), Some(tar)) = (linux_path(&script), linux_path(&tar)) else {
+                return Err(format!("WSL can't reach {}", paths.dir.display()));
+            };
+            // The engine is stopped while its programs change.
+            let _ = wsl(&["--terminate", DISTRO]);
+            wsl(&[
+                "-d", DISTRO, "-u", "root", "--exec", "/bin/sh", &script, &tar,
+            ])
+        });
+    let _ = wsl(&["--terminate", DISTRO]);
+    let _ = std::fs::remove_file(&script);
+    let _ = std::fs::remove_file(&tar);
+    result.map(drop)
+}
+
 /// Writes the certificates Windows trusts to a file the agent adds to the
 /// engine's own, so pulls work behind a proxy that inspects TLS, as on
 /// many company networks. Returns where the agent finds the file.
