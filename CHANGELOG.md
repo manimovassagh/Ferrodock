@@ -7,6 +7,13 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.28.2](https://github.com/manimovassagh/Ferrodock/compare/v1.28.1...v1.28.2) - 2026-10-20
+
+### Other
+
+- Merge pull request #185 from manimovassagh/claude/demo-gif
+- Add a demo animation of the real app to the README and site hero ([#166](https://github.com/manimovassagh/Ferrodock/pull/166))
+
 ## [1.28.1](https://github.com/manimovassagh/Ferrodock/compare/v1.28.0...v1.28.1) - 2026-10-20
 
 ### Documentation
