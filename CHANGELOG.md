@@ -7,6 +7,20 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.24.0](https://github.com/manimovassagh/Ferrodock/compare/v1.23.0...v1.24.0) - 2026-10-20
+
+### Added
+
+- engine image updates and a `ferrodock` Docker context
+
+### Fixed
+
+- count installs from before version records as engine 0.2.0
+
+### Other
+
+- Merge remote-tracking branch 'origin/main' into claude/engine-context-updates
+
 ## [1.23.0](https://github.com/manimovassagh/Ferrodock/compare/v1.22.0...v1.23.0) - 2026-10-20
 
 ### Added
