@@ -1,40 +1,27 @@
 //! The "CLI & MCP" dialog: how to use Ferrodock from a terminal (`fdock`)
 //! and from AI tools (`ferrodock-mcp`), with commands ready to copy. Both
 //! programs ship next to Ferrodock itself.
-
-use std::path::PathBuf;
-
 use eframe::egui::{self, CornerRadius, Frame, Margin, RichText, Stroke};
 
+use super::cli_install;
 use super::components::widgets;
 use crate::theme::Palette;
 
 const GUIDE: &str = "https://manimovassagh.github.io/Ferrodock/docs/cli-and-mcp";
 
-/// How to run one of the programs that came with Ferrodock: by name when
-/// it's on PATH, else by its full path (quoted when it has spaces). None
-/// when it isn't next to Ferrodock (e.g. a build from source).
-fn invocation(name: &str) -> Option<String> {
-    let file = if cfg!(windows) {
-        format!("{name}.exe")
-    } else {
-        name.to_owned()
-    };
-    let beside: PathBuf = std::env::current_exe().ok()?.parent()?.join(&file);
-    let on_path = std::env::var_os("PATH")
-        .is_some_and(|path| std::env::split_paths(&path).any(|dir| dir.join(&file).is_file()));
-    if on_path {
-        return Some(name.to_owned());
-    }
-    if !beside.is_file() {
-        return None;
-    }
-    let full = beside.display().to_string();
-    Some(if full.contains(' ') {
-        format!("\"{full}\"")
-    } else {
-        full
-    })
+/// The full path of `program`, for config files: the apps that read them
+/// don't always see the PATH a terminal has.
+fn full_path(program: &str) -> String {
+    cli_install::installed(program)
+        .or_else(|| {
+            let file = if cfg!(windows) {
+                format!("{program}.exe")
+            } else {
+                program.to_owned()
+            };
+            cli_install::bundled_dir().map(|dir| dir.join(file))
+        })
+        .map_or_else(|| program.to_owned(), |path| path.display().to_string())
 }
 
 /// How an AI tool adds an MCP server.
@@ -74,32 +61,32 @@ const TOOLS: &[Tool] = &[
     },
     Tool {
         name: "Cursor",
-        setup: |server| Setup::Config {
+        setup: |_| Setup::Config {
             file: "~/.cursor/mcp.json",
-            json: mcp_config(server),
+            json: mcp_config(&full_path("ferrodock-mcp")),
         },
     },
     Tool {
         name: "Windsurf",
-        setup: |server| Setup::Config {
+        setup: |_| Setup::Config {
             file: "~/.codeium/windsurf/mcp_config.json",
-            json: mcp_config(server),
+            json: mcp_config(&full_path("ferrodock-mcp")),
         },
     },
     Tool {
         name: "Claude Desktop",
-        setup: |server| Setup::Config {
+        setup: |_| Setup::Config {
             file: if cfg!(windows) {
                 r"%APPDATA%\Claude\claude_desktop_config.json"
             } else {
                 "~/Library/Application Support/Claude/claude_desktop_config.json"
             },
-            json: mcp_config(server),
+            json: mcp_config(&full_path("ferrodock-mcp")),
         },
     },
 ];
 
-/// A command without the quotes [`invocation`] adds for the shell.
+/// A path without the quotes a shell would need around it.
 fn unquote(command: &str) -> &str {
     command.trim_matches('"')
 }
@@ -136,6 +123,79 @@ fn heading(ui: &mut egui::Ui, p: &Palette, text: &str) {
     ui.add_space(4.0);
 }
 
+/// Whether `fdock` is on the PATH, with a button to put it there and the
+/// steps to do it by hand.
+fn cli_status(ui: &mut egui::Ui, p: &Palette) {
+    let Some(dir) = cli_install::bundled_dir() else {
+        if !cli_install::is_installed() {
+            ui.label(
+                RichText::new(
+                    "fdock isn't next to this copy of Ferrodock. It comes with every \
+                     download, or install it with: cargo install ferrodock-cli ferrodock-mcp",
+                )
+                .size(12.0)
+                .color(p.warning),
+            );
+        }
+        return;
+    };
+    let progress = cli_install::progress();
+    if cli_install::is_installed() {
+        ui.horizontal(|ui| {
+            widgets::dot(ui, p.success);
+            ui.label(
+                RichText::new("Installed. fdock works in any new terminal.")
+                    .size(12.5)
+                    .color(p.text),
+            );
+        });
+        return;
+    }
+    ui.horizontal(|ui| {
+        let running = progress == cli_install::Progress::Running;
+        let clicked = ui
+            .add_enabled_ui(!running, |ui| {
+                widgets::primary_button(ui, "Install fdock command")
+            })
+            .inner
+            .clicked();
+        if clicked {
+            let ctx = ui.ctx().clone();
+            cli_install::start(dir.clone(), move || ctx.request_repaint());
+        }
+        if running {
+            ui.spinner();
+        }
+        let note = if cli_install::needs_password() {
+            "Your password is needed once."
+        } else {
+            "Puts fdock and ferrodock-mcp on your PATH."
+        };
+        ui.label(RichText::new(note).size(12.0).color(p.muted));
+    });
+    if let cli_install::Progress::Failed(error) = &progress {
+        ui.label(
+            RichText::new(format!("Couldn't install: {error}"))
+                .size(12.0)
+                .color(p.danger),
+        );
+    }
+    egui::CollapsingHeader::new(RichText::new("Or do it yourself").size(12.0).color(p.muted))
+        .id_salt("cli-manual")
+        .show(ui, |ui| {
+            let hint = if cfg!(windows) {
+                "In PowerShell, then open a new terminal:"
+            } else {
+                "In a terminal, then open a new one:"
+            };
+            ui.label(RichText::new(hint).size(12.0).color(p.muted));
+            for step in cli_install::manual_steps(&dir) {
+                command_row(ui, p, &step);
+                ui.add_space(2.0);
+            }
+        });
+}
+
 /// Draws the dialog. Returns false once it should close.
 pub fn show(ui: &mut egui::Ui, p: &Palette) -> bool {
     let mut close = false;
@@ -164,9 +224,6 @@ pub fn show(ui: &mut egui::Ui, p: &Palette) -> bool {
             );
             ui.add_space(14.0);
 
-            let fdock = invocation("fdock");
-            let mcp = invocation("ferrodock-mcp");
-
             heading(ui, p, "COMMAND LINE: FDOCK");
             ui.label(
                 RichText::new(
@@ -175,12 +232,12 @@ pub fn show(ui: &mut egui::Ui, p: &Palette) -> bool {
                 )
                 .color(p.text),
             );
-            ui.add_space(6.0);
-            let run = fdock.as_deref().unwrap_or("fdock");
-            for args in ["ps", "quickstart postgres", "logs api -f"] {
-                command_row(ui, p, &format!("{run} {args}"));
-                ui.add_space(4.0);
-            }
+            ui.add_space(8.0);
+            cli_status(ui, p);
+            ui.add_space(8.0);
+            command_row(ui, p, "fdock ps");
+            ui.add_space(4.0);
+            command_row(ui, p, "fdock quickstart postgres");
 
             ui.add_space(12.0);
             heading(ui, p, "AI TOOLS: FERRODOCK-MCP");
@@ -193,7 +250,6 @@ pub fn show(ui: &mut egui::Ui, p: &Palette) -> bool {
                 .color(p.text),
             );
             ui.add_space(6.0);
-            let server = mcp.as_deref().unwrap_or("ferrodock-mcp");
             let picked_id = egui::Id::unique("ferrodock-integrations-tool");
             let mut picked = ui
                 .ctx()
@@ -209,7 +265,7 @@ pub fn show(ui: &mut egui::Ui, p: &Palette) -> bool {
             });
             ui.ctx().data_mut(|d| d.insert_temp(picked_id, picked));
             ui.add_space(6.0);
-            match (TOOLS[picked].setup)(server) {
+            match (TOOLS[picked].setup)("ferrodock-mcp") {
                 Setup::Command(command) => command_row(ui, p, &command),
                 Setup::Config { file, json } => {
                     ui.label(
@@ -220,19 +276,6 @@ pub fn show(ui: &mut egui::Ui, p: &Palette) -> bool {
                     ui.add_space(2.0);
                     command_row(ui, p, &json);
                 }
-            }
-
-            if fdock.is_none() || mcp.is_none() {
-                ui.add_space(10.0);
-                ui.label(
-                    RichText::new(
-                        "These programs aren't next to this copy of Ferrodock. They come with \
-                         every download, or install them with \
-                         cargo install ferrodock-cli ferrodock-mcp.",
-                    )
-                    .size(12.0)
-                    .color(p.warning),
-                );
             }
 
             ui.add_space(16.0);
