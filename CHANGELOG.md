@@ -7,6 +7,16 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.27.0](https://github.com/manimovassagh/Ferrodock/compare/v1.26.0...v1.27.0) - 2026-10-20
+
+### Added
+
+- *(cli, mcp)* engine start, clean, reset and compose ([#116](https://github.com/manimovassagh/Ferrodock/pull/116))
+
+### Other
+
+- Merge pull request #172 from manimovassagh/claude/cli-engine-compose
+
 ## [1.26.0](https://github.com/manimovassagh/Ferrodock/compare/v1.25.0...v1.26.0) - 2026-10-20
 
 ### Added
