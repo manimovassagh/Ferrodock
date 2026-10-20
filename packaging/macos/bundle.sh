@@ -4,7 +4,9 @@
 # Run on macOS from the repository root: packaging/macos/bundle.sh
 set -euo pipefail
 
-version=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
+# From Cargo: the version lives in [workspace.package], shared by every crate.
+version=$(cargo metadata --no-deps --format-version 1 |
+    jq -r '.packages[] | select(.name == "ferrodock") | .version')
 app=dist/Ferrodock.app
 
 rustup target add aarch64-apple-darwin x86_64-apple-darwin
