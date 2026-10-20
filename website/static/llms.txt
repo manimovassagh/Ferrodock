@@ -1,0 +1,15 @@
+# Ferrodock
+
+> Free, open-source (MIT) desktop app for Docker containers, images, volumes and networks, written in Rust, with its own Docker engine built in. macOS (Apple Silicon and Intel), Windows 10/11 and Linux. Also ships a command line (`fdock`) and an MCP server (`ferrodock-mcp`) for AI tools.
+
+## Install
+
+- [Install Ferrodock (skill for AI agents)](https://manimovassagh.github.io/Ferrodock/skills/install-ferrodock.md): install Ferrodock from its official release, checking SHA-256. Also at /install.md.
+- [Connect an AI tool to Ferrodock (skill for AI agents)](https://manimovassagh.github.io/Ferrodock/skills/connect-ferrodock-mcp.md): add Ferrodock's MCP server to Claude Code, Codex, Gemini CLI, Copilot, Cursor, Windsurf or Claude Desktop.
+- [Installation (for people)](https://manimovassagh.github.io/Ferrodock/docs/installation)
+
+## Docs
+
+- [Command line and AI tools](https://manimovassagh.github.io/Ferrodock/docs/cli-and-mcp): `fdock` commands and the `ferrodock-mcp` tools.
+- [Ferrodock's own engine](https://manimovassagh.github.io/Ferrodock/docs/engine)
+- [Source code](https://github.com/manimovassagh/Ferrodock)

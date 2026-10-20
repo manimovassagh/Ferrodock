@@ -4,7 +4,7 @@
 
 # Ferrodock
 
-**The native container app, written in Rust**<br>
+**The native container manager, written in Rust**<br>
 One free app for macOS, Windows and Linux, with its own Docker engine built in:<br>
 containers, images, volumes, networks and Compose, plus a CLI and an MCP server for AI tools.
 
@@ -65,6 +65,12 @@ that instead.
 </table>
 
 ## Install
+
+**Easiest:** ask your AI assistant (Claude Code, Codex, Copilot, Cursor…)
+*"Install Ferrodock for me, following
+https://manimovassagh.github.io/Ferrodock/install.md"*. It follows the
+[install skill](skills/install-ferrodock/SKILL.md): official download,
+checksum checked, and it asks before anything that needs your password.
 
 **macOS** (with [Homebrew](https://brew.sh)):
 
