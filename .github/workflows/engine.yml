@@ -1,8 +1,9 @@
 name: Engine
 
-# Builds Ferrodock's engine images: for Apple Silicon, our arm64 kernel,
-# the Docker engine and ferrodock-agent, packed as kernel + rootfs.img (on
-# a native arm64 runner, so nothing is emulated); for Windows, the Docker
+# Builds Ferrodock's engine images: for Macs, our kernel, the Docker
+# engine and ferrodock-agent, packed as kernel + rootfs.img, arm64 for
+# Apple Silicon and amd64 for Intel (each on a native runner, so nothing
+# is emulated); for Windows, the Docker
 # engine and ferrodock-agent as a root filesystem WSL imports; for Linux,
 # the Docker engine's programs (amd64 and arm64). Then publishes them all,
 # once per engine/VERSION.
@@ -22,22 +23,34 @@ env:
 
 jobs:
   image:
-    name: Build the engine image (arm64)
-    runs-on: ubuntu-24.04-arm
+    name: Build the engine image (Mac, ${{ matrix.arch }})
+    strategy:
+      matrix:
+        include:
+          # Apple Silicon.
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+          # Intel Macs.
+          - arch: amd64
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-unknown-linux-musl
+          targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: agent
       - name: Tools
         run: sudo apt-get update && sudo apt-get install -y flex bison bc libssl-dev libelf-dev e2fsprogs zstd musl-tools
 
+      # LinuxKit's kernel for the image's architecture (the runner's own).
       - name: Kernel source and base config
         run: |
-          id=$(docker create "$KERNEL_IMAGE" /x)
+          id=$(docker create --platform linux/${{ matrix.arch }} "$KERNEL_IMAGE" /x)
           docker cp "$id:/linux.tar.xz" .
           docker cp "$id:/kernel-dev.tar" .
           docker rm "$id"
@@ -46,33 +59,34 @@ jobs:
       - uses: actions/cache@v5
         with:
           path: kernel-out
-          key: kernel-${{ env.KERNEL_IMAGE }}-${{ hashFiles('engine/kernel/**') }}
+          key: kernel-${{ matrix.arch }}-${{ env.KERNEL_IMAGE }}-${{ hashFiles('engine/kernel/**') }}
       - name: Kernel
-        run: test -f kernel-out/Image || engine/kernel/build.sh linux base.config kernel-out
+        run: test -f kernel-out/kernel || engine/kernel/build.sh ${{ matrix.arch }} linux base.config kernel-out
 
       - name: Agent
-        run: cargo build --manifest-path agent/Cargo.toml --release --target aarch64-unknown-linux-musl
+        run: cargo build --manifest-path agent/Cargo.toml --release --target ${{ matrix.target }}
       - name: Image
         run: |
-          engine/build.sh kernel-out/Image kernel-out/modules \
-            agent/target/aarch64-unknown-linux-musl/release/ferrodock-agent out
-          tar -C out -cf - kernel rootfs.img | zstd -19 -T0 > ferrodock-engine-arm64.tar.zst
-          sha256sum ferrodock-engine-arm64.tar.zst | tee ferrodock-engine-arm64.tar.zst.sha256
-          cp kernel-out/config ferrodock-engine-arm64.kernel-config
-          cp out/packages.txt ferrodock-engine-arm64.packages.txt
-          cp engine/NOTICE.md ferrodock-engine-arm64.NOTICE.md
+          name=ferrodock-engine-${{ matrix.arch }}
+          engine/build.sh ${{ matrix.arch }} kernel-out/kernel kernel-out/modules \
+            agent/target/${{ matrix.target }}/release/ferrodock-agent out
+          tar -C out -cf - kernel rootfs.img | zstd -19 -T0 > "$name.tar.zst"
+          sha256sum "$name.tar.zst" | tee "$name.tar.zst.sha256"
+          cp kernel-out/config "$name.kernel-config"
+          cp out/packages.txt "$name.packages.txt"
+          cp engine/NOTICE.md "$name.NOTICE.md"
           # The kernel is GPL-2.0: its exact source ships with the image.
-          cp linux.tar.xz ferrodock-engine-arm64.kernel-source.tar.xz
+          cp linux.tar.xz "$name.kernel-source.tar.xz"
       - uses: actions/upload-artifact@v7
         with:
-          name: ferrodock-engine-arm64
+          name: ferrodock-engine-${{ matrix.arch }}
           path: |
-            ferrodock-engine-arm64.tar.zst
-            ferrodock-engine-arm64.tar.zst.sha256
-            ferrodock-engine-arm64.kernel-config
-            ferrodock-engine-arm64.packages.txt
-            ferrodock-engine-arm64.NOTICE.md
-            ferrodock-engine-arm64.kernel-source.tar.xz
+            ferrodock-engine-${{ matrix.arch }}.tar.zst
+            ferrodock-engine-${{ matrix.arch }}.tar.zst.sha256
+            ferrodock-engine-${{ matrix.arch }}.kernel-config
+            ferrodock-engine-${{ matrix.arch }}.packages.txt
+            ferrodock-engine-${{ matrix.arch }}.NOTICE.md
+            ferrodock-engine-${{ matrix.arch }}.kernel-source.tar.xz
 
   wsl:
     name: Build the engine image (Windows, WSL)
@@ -163,6 +177,6 @@ jobs:
           else
             gh release create "$tag" --prerelease --latest=false \
               --title "Ferrodock engine $version" \
-              --notes "The images of Ferrodock's own Docker engine: a Linux VM for Apple Silicon Macs (arm64), a WSL distro for Windows (wsl-amd64), and the Docker engine's programs for Linux (linux-amd64, linux-arm64). Ferrodock downloads the one it needs by itself; there's no need to get them by hand. Built from engine/ and agent/ at ${{ github.sha }}. Free and open source: see NOTICE.md for what's inside, its licenses and sources." \
+              --notes "The images of Ferrodock's own Docker engine: a Linux VM for Macs (arm64 for Apple Silicon, amd64 for Intel), a WSL distro for Windows (wsl-amd64), and the Docker engine's programs for Linux (linux-amd64, linux-arm64). Ferrodock downloads the one it needs by itself; there's no need to get them by hand. Built from engine/ and agent/ at ${{ github.sha }}. Free and open source: see NOTICE.md for what's inside, its licenses and sources." \
               *
           fi

@@ -17,12 +17,15 @@ use super::Paths;
 /// The engine image this build of Ferrodock uses.
 pub const VERSION: &str = include_str!("../../engine/VERSION");
 
-/// The image for this platform: kernel and root disk for the Mac's VM, a
-/// root filesystem for WSL, or the engine's programs for Linux.
+/// The image for this platform: kernel and root disk for the Mac's VM
+/// (Apple Silicon or Intel), a root filesystem for WSL, or the engine's
+/// programs for Linux.
 pub const ASSET: &str = if cfg!(windows) {
     "ferrodock-engine-wsl-amd64.tar.zst"
-} else if cfg!(target_os = "macos") {
+} else if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
     "ferrodock-engine-arm64.tar.zst"
+} else if cfg!(target_os = "macos") {
+    "ferrodock-engine-amd64.tar.zst"
 } else if cfg!(target_arch = "aarch64") {
     "ferrodock-engine-linux-arm64.tar.zst"
 } else {

@@ -39,9 +39,9 @@ says the app "is damaged", run the `xattr` command above; it means the same
 thing. Installed with Homebrew? Nothing to do: the cask allows the app for
 you.
 
-**Docker engine:** on an Apple Silicon Mac, click **Set up Ferrodock's
-engine** on first launch. See [Ferrodock's own engine](./engine.md). On an
-Intel Mac, Ferrodock connects to a Docker engine you already run; see
+**Docker engine:** click **Set up Ferrodock's engine** on first launch.
+See [Ferrodock's own engine](./engine.md). Ferrodock also connects to a
+Docker engine you already run; see
 [Connecting to other engines](./engines.md).
 
 ## Windows

@@ -37,8 +37,8 @@ Docker containers need a Linux kernel. Where your computer doesn't have one
 to spare, Ferrodock brings a small Linux system with the Docker engine
 inside, built only from free and open source software:
 
-- **Apple Silicon Macs**: a lightweight virtual machine, run through
-  Apple's Virtualization framework. Ferrodock passes the engine's socket
+- **Macs** (Apple Silicon and Intel): a lightweight virtual machine, run
+  through Apple's Virtualization framework. Ferrodock passes the engine's socket
   through to `~/.ferrodock/docker.sock` on your Mac, and shares your home
   folder with the VM.
 - **Windows**: a WSL distro. Ferrodock talks to the engine through WSL

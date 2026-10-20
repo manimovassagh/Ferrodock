@@ -75,8 +75,8 @@ bollard = { version = "0.21.1", features = ["ssh"] }
 tray-icon = "0.26.1"
 
 # Ferrodock's own engine: a Linux VM through Apple's Virtualization
-# framework, on Apple Silicon.
-[target.'cfg(all(target_os = "macos", target_arch = "aarch64"))'.dependencies]
+# framework, on Apple Silicon and Intel Macs.
+[target.'cfg(all(target_os = "macos", any(target_arch = "aarch64", target_arch = "x86_64")))'.dependencies]
 objc2 = "0.6.5"
 objc2-foundation = "0.3.2"
 objc2-virtualization = "0.3.2"

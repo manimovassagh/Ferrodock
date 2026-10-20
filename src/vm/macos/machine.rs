@@ -1,41 +1,76 @@
 //! The engine's Linux VM, through Apple's Virtualization.framework: the
 //! kernel and read-only root from the engine image, a data disk, the
 //! user's home folder over virtiofs, NAT networking and a vsock device
-//! the Docker socket travels over.
+//! the Docker socket travels over. On Apple Silicon also Rosetta, so
+//! x86_64 (amd64) images run too.
 //!
 //! Every call on the VM happens on its own dispatch queue, as the
 //! framework requires; [`Machine`] only ever touches it from there.
 
+use std::io::Write;
 use std::os::fd::{FromRawFd, IntoRawFd};
 use std::sync::mpsc;
 
 use block2::RcBlock;
 use dispatch2::{DispatchQueue, DispatchRetained};
 use objc2::rc::Retained;
+use objc2::runtime::AnyClass;
 use objc2::{AnyThread, ClassType};
 use objc2_foundation::{NSArray, NSError, NSFileHandle, NSString, NSURL};
 use objc2_virtualization::{
     VZDirectorySharingDeviceConfiguration, VZDiskImageStorageDeviceAttachment,
     VZEntropyDeviceConfiguration, VZFileHandleSerialPortAttachment, VZLinuxBootLoader,
-    VZMACAddress, VZMemoryBalloonDeviceConfiguration, VZNATNetworkDeviceAttachment,
-    VZNetworkDeviceConfiguration, VZSerialPortConfiguration, VZSharedDirectory,
-    VZSingleDirectoryShare, VZSocketDeviceConfiguration, VZStorageDeviceConfiguration,
-    VZVirtioBlockDeviceConfiguration, VZVirtioConsoleDeviceSerialPortConfiguration,
-    VZVirtioEntropyDeviceConfiguration, VZVirtioFileSystemDeviceConfiguration,
-    VZVirtioNetworkDeviceConfiguration, VZVirtioSocketConnection, VZVirtioSocketDevice,
-    VZVirtioSocketDeviceConfiguration, VZVirtioTraditionalMemoryBalloonDeviceConfiguration,
-    VZVirtualMachine, VZVirtualMachineConfiguration, VZVirtualMachineState,
+    VZLinuxRosettaAvailability, VZLinuxRosettaDirectoryShare, VZMACAddress,
+    VZMemoryBalloonDeviceConfiguration, VZNATNetworkDeviceAttachment, VZNetworkDeviceConfiguration,
+    VZSerialPortConfiguration, VZSharedDirectory, VZSingleDirectoryShare,
+    VZSocketDeviceConfiguration, VZStorageDeviceConfiguration, VZVirtioBlockDeviceConfiguration,
+    VZVirtioConsoleDeviceSerialPortConfiguration, VZVirtioEntropyDeviceConfiguration,
+    VZVirtioFileSystemDeviceConfiguration, VZVirtioNetworkDeviceConfiguration,
+    VZVirtioSocketConnection, VZVirtioSocketDevice, VZVirtioSocketDeviceConfiguration,
+    VZVirtioTraditionalMemoryBalloonDeviceConfiguration, VZVirtualMachine,
+    VZVirtualMachineConfiguration, VZVirtualMachineState,
 };
 
-use crate::vm::{Paths, Resources, SHARE_TAG, VSOCK_PORT};
+use crate::vm::{Paths, ROSETTA_TAG, Resources, SHARE_TAG, VSOCK_PORT};
 
 /// What the kernel is told: the read-only root, the agent as the first
-/// process, and the home folder shared at the same path inside.
-fn command_line(home: &str) -> String {
-    format!(
+/// process, the home folder shared at the same path inside, and whether
+/// Rosetta is shared.
+fn command_line(home: &str, rosetta: bool) -> String {
+    let mut line = format!(
         "console=hvc0 root=/dev/vda ro rootfstype=ext4 init=/sbin/ferrodock-agent \
          ferrodock.data=/dev/vdb ferrodock.share={SHARE_TAG}:{home}"
-    )
+    );
+    if rosetta {
+        line.push_str(&format!(" ferrodock.rosetta={ROSETTA_TAG}"));
+    }
+    line
+}
+
+/// Rosetta, shared with the guest so it runs x86_64 programs (Apple
+/// Silicon, macOS 13 or newer, once it's installed), or why it can't be,
+/// for the engine's log.
+///
+/// When it isn't installed the engine starts without it, rather than
+/// bring up macOS's installer on its own: the log says how to install it.
+fn rosetta() -> Result<Retained<VZLinuxRosettaDirectoryShare>, String> {
+    // Before macOS 13 the class isn't there at all (and naming it would
+    // panic).
+    if AnyClass::get(c"VZLinuxRosettaDirectoryShare").is_none() {
+        return Err("Rosetta needs macOS 13 or newer: x86_64 (amd64) images won't run".into());
+    }
+    match unsafe { VZLinuxRosettaDirectoryShare::availability() } {
+        VZLinuxRosettaAvailability::Installed => unsafe {
+            VZLinuxRosettaDirectoryShare::initWithError(VZLinuxRosettaDirectoryShare::alloc())
+        }
+        .map_err(|e| format!("Rosetta: {}", describe(&e))),
+        VZLinuxRosettaAvailability::NotInstalled => Err(
+            "Rosetta isn't installed, so x86_64 (amd64) images won't run. To install it, \
+             run `softwareupdate --install-rosetta --agree-to-license`, then restart the engine"
+                .into(),
+        ),
+        _ => Err("Rosetta isn't available: x86_64 (amd64) images won't run".into()),
+    }
 }
 
 fn url(path: &std::path::Path) -> Retained<NSURL> {
@@ -187,6 +222,8 @@ fn configuration(
     resources: &Resources,
 ) -> Result<Retained<VZVirtualMachineConfiguration>, String> {
     let home = std::env::var("HOME").map_err(|_| "no home folder".to_owned())?;
+    // An Intel Mac runs x86_64 programs as they are.
+    let rosetta = cfg!(target_arch = "aarch64").then(rosetta);
     unsafe {
         let config = VZVirtualMachineConfiguration::new();
         config.setCPUCount(resources.cpus as usize);
@@ -194,7 +231,10 @@ fn configuration(
 
         let boot =
             VZLinuxBootLoader::initWithKernelURL(VZLinuxBootLoader::alloc(), &url(&paths.kernel));
-        boot.setCommandLine(&NSString::from_str(&command_line(&home)));
+        boot.setCommandLine(&NSString::from_str(&command_line(
+            &home,
+            matches!(rosetta, Some(Ok(_))),
+        )));
         config.setBootLoader(Some(boot.as_super()));
 
         // vda: the read-only root; vdb: the data disk.
@@ -229,8 +269,11 @@ fn configuration(
         config.setNetworkDevices(&NSArray::from_retained_slice(&networks));
 
         // The console goes to a file: the engine's log.
-        let log = std::fs::File::create(&paths.console)
+        let mut log = std::fs::File::create(&paths.console)
             .map_err(|e| format!("{}: {e}", paths.console.display()))?;
+        if let Some(Err(why)) = &rosetta {
+            let _ = writeln!(log, "ferrodock: {why}");
+        }
         let handle = NSFileHandle::initWithFileDescriptor_closeOnDealloc(
             NSFileHandle::alloc(),
             log.into_raw_fd(),
@@ -277,8 +320,16 @@ fn configuration(
             &NSString::from_str(SHARE_TAG),
         );
         fs.setShare(Some(share.as_super()));
-        let shares: Vec<Retained<VZDirectorySharingDeviceConfiguration>> =
+        let mut shares: Vec<Retained<VZDirectorySharingDeviceConfiguration>> =
             vec![Retained::into_super(fs)];
+        if let Some(Ok(share)) = &rosetta {
+            let fs = VZVirtioFileSystemDeviceConfiguration::initWithTag(
+                VZVirtioFileSystemDeviceConfiguration::alloc(),
+                &NSString::from_str(ROSETTA_TAG),
+            );
+            fs.setShare(Some(share.as_super()));
+            shares.push(Retained::into_super(fs));
+        }
         config.setDirectorySharingDevices(&NSArray::from_retained_slice(&shares));
 
         config
@@ -292,9 +343,12 @@ fn configuration(
 mod tests {
     #[test]
     fn tells_the_kernel_where_everything_is() {
-        let line = super::command_line("/Users/me");
+        let line = super::command_line("/Users/me", false);
         assert!(line.contains("init=/sbin/ferrodock-agent"));
         assert!(line.contains("ferrodock.share=home:/Users/me"));
         assert!(line.contains("root=/dev/vda ro"));
+        assert!(!line.contains("ferrodock.rosetta"));
+        let line = super::command_line("/Users/me", true);
+        assert!(line.ends_with(" ferrodock.rosetta=rosetta"));
     }
 }
