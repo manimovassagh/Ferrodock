@@ -7,6 +7,36 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.24.0](https://github.com/manimovassagh/Ferrodock/compare/v1.23.0...v1.24.0) - 2026-10-20
+
+### Added
+
+- engine image updates and a `ferrodock` Docker context
+
+### Fixed
+
+- count installs from before version records as engine 0.2.0
+
+### Other
+
+- Merge remote-tracking branch 'origin/main' into claude/engine-context-updates
+
+## [1.23.0](https://github.com/manimovassagh/Ferrodock/compare/v1.22.0...v1.23.0) - 2026-10-20
+
+### Added
+
+- *(engine)* install WSL on Windows when setting up the engine
+
+### Other
+
+- Merge pull request #158 from manimovassagh/claude/engine-wsl-install
+
+## [1.22.0](https://github.com/manimovassagh/Ferrodock/compare/v1.21.0...v1.22.0) - 2026-10-20
+
+### Added
+
+- put fdock and ferrodock-mcp on the PATH
+
 ## [1.21.0](https://github.com/manimovassagh/Ferrodock/compare/v1.20.0...v1.21.0) - 2026-10-20
 
 ### Added

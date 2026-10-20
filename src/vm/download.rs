@@ -1,6 +1,8 @@
 //! Getting the engine image: downloaded from the project's releases on
 //! first use, checked against its published SHA-256, and unpacked: on a
 //! Mac the kernel and root disk, on Windows the distro's files for WSL.
+//! The version set up is recorded, so the newer image that comes with a
+//! newer Ferrodock is downloaded on the engine's next start.
 
 // Tested everywhere, used only where there's an engine.
 #![cfg_attr(not(engine), allow(dead_code))]
@@ -9,6 +11,8 @@ use std::io::Read;
 use std::path::Path;
 
 use sha2::{Digest, Sha256};
+
+use super::Paths;
 
 /// The engine image this build of Ferrodock uses.
 pub const VERSION: &str = include_str!("../../engine/VERSION");
@@ -39,6 +43,36 @@ fn base_url() -> String {
 pub fn parse_checksum(line: &str) -> Option<String> {
     let digest = line.split_whitespace().next()?.to_lowercase();
     (digest.len() == 64 && digest.bytes().all(|b| b.is_ascii_hexdigit())).then_some(digest)
+}
+
+/// A version's numbers: `0.2.0` → [0, 2, 0]. None if it isn't one.
+fn numbers(version: &str) -> Option<Vec<u64>> {
+    version.trim().split('.').map(|n| n.parse().ok()).collect()
+}
+
+/// Whether `installed` is older than `wanted`, or unknown.
+fn older(installed: &str, wanted: &str) -> bool {
+    match (numbers(installed), numbers(wanted)) {
+        (Some(installed), Some(wanted)) => installed < wanted,
+        (None, Some(_)) => true,
+        _ => false,
+    }
+}
+
+/// The image every install had before versions were recorded.
+const UNRECORDED: &str = "0.2.0";
+
+/// Whether the image set up is older than this build's.
+pub fn outdated(paths: &Paths) -> bool {
+    let installed =
+        std::fs::read_to_string(&paths.version).unwrap_or_else(|_| UNRECORDED.to_owned());
+    older(&installed, VERSION)
+}
+
+/// Records that this build's image is the one set up.
+pub fn record(paths: &Paths) -> Result<(), String> {
+    std::fs::write(&paths.version, VERSION.trim())
+        .map_err(|e| format!("{}: {e}", paths.version.display()))
 }
 
 /// Downloads the image, calling `progress` with (done, total) bytes, and
@@ -121,6 +155,29 @@ mod tests {
         assert_eq!(parse_checksum("nope file"), None);
         assert_eq!(parse_checksum(""), None);
         assert_eq!(VERSION.trim().split('.').count(), 3);
+    }
+
+    #[test]
+    fn updates_only_to_newer_images() {
+        assert!(older("0.1.9", "0.2.0"));
+        assert!(older("0.2.0", "0.10.0"));
+        assert!(!older("0.2.0\n", "0.2.0"));
+        // A newer Ferrodock was here before: its image stays.
+        assert!(!older("0.3.0", "0.2.0"));
+        // Set up before versions were recorded.
+        assert!(older("", "0.2.0"));
+        assert!(!older("0.2.0", "garbled"));
+
+        let dir = std::env::temp_dir().join(format!("ferrodock-version-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let paths = Paths::under(dir.clone());
+        // Set up before versions were recorded: that was 0.2.0.
+        assert_eq!(outdated(&paths), older(UNRECORDED, VERSION));
+        std::fs::write(&paths.version, "0.1.0").unwrap();
+        assert!(outdated(&paths));
+        record(&paths).unwrap();
+        assert!(!outdated(&paths));
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     /// A zstd-compressed tar like the published one, unpacked for real.

@@ -50,8 +50,9 @@ Docker engine you already run; see
 2. Run **Ferrodock.exe**. If SmartScreen appears, choose
    **More info → Run anyway**.
 3. Click **Set up Ferrodock's engine**. Ferrodock runs Docker in WSL,
-   which is part of Windows. If WSL isn't turned on yet, run
-   `wsl --install` once in a terminal opened as administrator, and restart.
+   which is part of Windows. If WSL isn't installed yet, Ferrodock installs
+   it first (Windows asks for administrator approval); restart Windows when
+   Ferrodock asks, then open it again to finish.
 
 More in [Ferrodock's own engine](./engine.md#windows).
 
