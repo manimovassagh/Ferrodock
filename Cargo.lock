@@ -1602,6 +1602,7 @@ dependencies = [
  "eframe",
  "egui_extras",
  "egui_kittest",
+ "ferrodock-core",
  "futures-util",
  "libc",
  "notify-rust",
@@ -1621,6 +1622,20 @@ dependencies = [
  "ureq",
  "vt100",
  "winresource",
+]
+
+[[package]]
+name = "ferrodock-core"
+version = "1.15.0"
+dependencies = [
+ "bollard",
+ "bytes",
+ "futures-util",
+ "serde",
+ "serde_json",
+ "tar",
+ "tokio",
+ "vt100",
 ]
 
 [[package]]

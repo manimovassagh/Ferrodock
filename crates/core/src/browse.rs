@@ -105,7 +105,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn live_daemon_browses_a_volume() {
-        use crate::docker::{Action, Change, Preview, Resource};
+        use crate::{Action, Change, Preview, Resource};
         let client = DockerClient::connect().unwrap();
         if client.list_images().await.unwrap().is_empty() {
             return;

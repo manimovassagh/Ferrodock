@@ -163,7 +163,7 @@ pub fn engines() -> Vec<Engine> {
     }
     // Ferrodock's own engine, once it's downloaded.
     if let Some(engine) = builtin_engine()
-        && crate::vm::Paths::default().is_some_and(|p| p.installed())
+        && crate::builtin::Paths::locate().is_some_and(|p| p.installed())
     {
         list.push(engine);
     }
@@ -172,12 +172,12 @@ pub fn engines() -> Vec<Engine> {
 
 /// Ferrodock's own engine (#114), where this machine can run it.
 pub fn builtin_engine() -> Option<Engine> {
-    if !crate::vm::SUPPORTED {
+    if !crate::builtin::SUPPORTED {
         return None;
     }
-    let paths = crate::vm::Paths::default()?;
+    let paths = crate::builtin::Paths::locate()?;
     Some(Engine {
-        name: crate::vm::NAME.into(),
+        name: crate::builtin::NAME.into(),
         host: paths.host(),
         tls: None,
         current: false,

@@ -70,7 +70,7 @@ pub fn group_projects(containers: &[ContainerInfo]) -> Vec<ComposeProject> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::docker::containers::ComposeLabels;
+    use crate::containers::ComposeLabels;
 
     fn container(name: &str, state: &str, compose: Option<(&str, &str)>) -> ContainerInfo {
         ContainerInfo {

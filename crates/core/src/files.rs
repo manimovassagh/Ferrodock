@@ -538,7 +538,7 @@ mod tests {
         let Some(image) = client.list_images().await.unwrap().into_iter().next() else {
             return;
         };
-        let spec = crate::docker::RunSpec {
+        let spec = crate::RunSpec {
             image: image.id,
             name: "ferrodock-files".into(),
             command: "sleep 300".into(),
@@ -597,7 +597,7 @@ mod tests {
         std::fs::remove_dir_all(&work).unwrap();
 
         // Stopped: no exec, so the archive API lists the folder.
-        client.perform(crate::docker::Action::Stop, id).await?;
+        client.perform(crate::Action::Stop, id).await?;
         let listing = client.list_files(id, "/etc").await?;
         assert!(
             listing

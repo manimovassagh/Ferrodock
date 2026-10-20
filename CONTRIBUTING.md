@@ -25,16 +25,17 @@ CI runs these, so running them locally saves a round trip:
 
 ```bash
 cargo fmt
-cargo clippy --all-targets -- -D warnings
-cargo test                        # unit tests
-cargo test -- --include-ignored   # also tests against your local Docker Engine
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace                        # unit tests
+cargo test --workspace -- --include-ignored   # also tests against your local Docker Engine
 ```
 
 ## Code layout
 
 | Path | What lives there |
 |---|---|
-| `src/docker/` | Docker Engine API, one file per resource. No UI code. |
+| `crates/core/` | `ferrodock-core`: the Docker Engine API, one file per resource. No UI code; shared with the CLI and the MCP server. |
+| `src/vm/` | Ferrodock's own engine: the Mac VM, the Windows WSL distro, the Linux service. |
 | `src/worker/` | Background thread that runs Docker calls and streams. |
 | `src/app/store/` | Everything currently known about the engine. |
 | `src/app/page.rs` | The `Page` trait every sidebar section implements. |

@@ -1,0 +1,29 @@
+[package]
+name = "ferrodock-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+homepage.workspace = true
+description = "Ferrodock's Docker layer: engines, containers, images, volumes, networks, Compose and Quick start templates, shared by the Ferrodock app, CLI and MCP server."
+readme = "README.md"
+keywords = ["docker", "containers", "bollard"]
+categories = ["development-tools"]
+
+[dependencies]
+bollard.workspace = true
+bytes.workspace = true
+futures-util.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tar.workspace = true
+tokio.workspace = true
+
+# Contexts over SSH run the system's ssh, which bollard supports on Unix.
+[target.'cfg(unix)'.dependencies]
+bollard = { workspace = true, features = ["ssh"] }
+
+[dev-dependencies]
+vt100 = "0.16.2"

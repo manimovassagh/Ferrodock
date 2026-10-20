@@ -353,7 +353,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn live_daemon_tags_saves_and_loads() {
-        use crate::docker::{Action, Resource};
+        use crate::{Action, Resource};
         let client = DockerClient::connect().unwrap();
         let Some(image) = client.list_images().await.unwrap().into_iter().next() else {
             return;

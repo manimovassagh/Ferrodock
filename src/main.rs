@@ -2,7 +2,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod app;
-mod docker;
+/// The Docker layer, shared with the CLI and the MCP server.
+use ferrodock_core as docker;
 mod theme;
 mod update;
 mod vm;

@@ -1,4 +1,6 @@
-//! Thin wrapper around the Docker Engine API (via `bollard`).
+//! `ferrodock-core`: Ferrodock's Docker layer, shared by the desktop app,
+//! the `fdock` CLI and the MCP server. A thin wrapper around the Docker
+//! Engine API (via `bollard`), with no UI code.
 //!
 //! On Windows this talks to the Docker engine over the
 //! `\\.\pipe\docker_engine` named pipe; elsewhere it uses the unix socket.
@@ -9,6 +11,7 @@
 
 mod actions;
 mod browse;
+pub mod builtin;
 mod compose;
 pub mod compose_cli;
 mod containers;
@@ -39,9 +42,7 @@ pub use actions::{Action, Task};
 pub use browse::VOLUME_ROOT;
 pub use compose::{ComposeProject, group_projects};
 pub use compose_cli::{ComposeAction, ComposeOp, ComposeTarget, next_job, split_log_line};
-#[cfg(test)]
-pub use containers::ComposeLabels;
-pub use containers::ContainerInfo;
+pub use containers::{ComposeLabels, ContainerInfo};
 pub use create::Change;
 pub use debug::{TARGET_ROOT, debug_image};
 pub use disk::{DiskUsage, PruneKind, Usage};
