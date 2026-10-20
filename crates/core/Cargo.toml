@@ -18,8 +18,11 @@ bytes.workspace = true
 futures-util.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+sha2.workspace = true
 tar.workspace = true
 tokio.workspace = true
+# Downloading Docker Compose where there's no `docker` command.
+ureq.workspace = true
 
 # Contexts over SSH run the system's ssh, which bollard supports on Unix.
 [target.'cfg(unix)'.dependencies]

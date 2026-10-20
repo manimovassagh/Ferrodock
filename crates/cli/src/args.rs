@@ -1,6 +1,10 @@
 //! What `fdock` takes on the command line.
 
+use std::path::PathBuf;
+
+use clap::builder::PossibleValuesParser;
 use clap::{Parser, Subcommand};
+use ferrodock_core::CLEAN_TARGETS;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -101,6 +105,31 @@ pub enum Command {
     Projects,
     /// Show disk usage: images, containers, volumes and build cache.
     Df,
+    /// Clean up what isn't used, and show the space it freed. `all` is
+    /// everything but volumes, which hold data.
+    Clean {
+        #[arg(
+            required = true,
+            value_name = "WHAT",
+            value_parser = PossibleValuesParser::new(CLEAN_TARGETS.map(|(name, _)| name))
+        )]
+        what: Vec<String>,
+    },
+    /// Remove every container, image and network, the build cache and the
+    /// volumes: a clean start. Needs --yes.
+    Reset {
+        /// Keep the volumes, and the data in them.
+        #[arg(long)]
+        keep_volumes: bool,
+        /// Really do it; without it, only says what would go.
+        #[arg(long)]
+        yes: bool,
+    },
+    /// Run Docker Compose on a project.
+    Compose {
+        #[command(subcommand)]
+        command: ComposeCommand,
+    },
     /// Run a popular service with settings for local development (postgres,
     /// redis…). Without a name, lists them.
     Quickstart {
@@ -122,7 +151,51 @@ pub enum Command {
         no_data: bool,
     },
     /// List engines and show which one is used.
-    Engine,
+    Engine {
+        #[command(subcommand)]
+        command: Option<EngineCommand>,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum EngineCommand {
+    /// Start the engine (Ferrodock's own by opening Ferrodock) and wait
+    /// until it answers.
+    Start,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ComposeCommand {
+    /// Create and start the services, in the background.
+    Up {
+        /// The Compose file, or the folder it's in.
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+    /// Stop and remove the services' containers and networks. Volumes stay.
+    Down {
+        /// The Compose file, or the folder it's in.
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+    /// Restart the services.
+    Restart {
+        /// The Compose file, or the folder it's in.
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+    /// Show the services' logs.
+    Logs {
+        /// The Compose file, or the folder it's in.
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        /// How many of the last lines of each service to show.
+        #[arg(short = 'n', long, default_value_t = 100)]
+        tail: usize,
+        /// Keep printing new output.
+        #[arg(short, long)]
+        follow: bool,
+    },
 }
 
 fn key_value(text: &str) -> Result<(String, String), String> {
@@ -166,6 +239,58 @@ mod tests {
         assert_eq!(values, [("POSTGRES_PASSWORD".to_owned(), "x=y".to_owned())]);
         assert!(Cli::try_parse_from(["fdock", "stop"]).is_err());
         Cli::command().debug_assert();
+    }
+
+    #[test]
+    fn parses_engine_clean_reset_and_compose() {
+        let cli = Cli::parse_from(["fdock", "engine"]);
+        assert!(matches!(cli.command, Command::Engine { command: None }));
+        let cli = Cli::parse_from(["fdock", "engine", "start", "--engine", "work"]);
+        assert!(matches!(
+            cli.command,
+            Command::Engine {
+                command: Some(EngineCommand::Start)
+            }
+        ));
+        assert_eq!(cli.engine.as_deref(), Some("work"));
+
+        let cli = Cli::parse_from(["fdock", "clean", "images", "build-cache", "--json"]);
+        let Command::Clean { what } = cli.command else {
+            panic!()
+        };
+        assert_eq!(what, ["images", "build-cache"]);
+        assert!(Cli::try_parse_from(["fdock", "clean"]).is_err());
+        assert!(Cli::try_parse_from(["fdock", "clean", "everything"]).is_err());
+
+        let cli = Cli::parse_from(["fdock", "reset", "--keep-volumes"]);
+        assert!(matches!(
+            cli.command,
+            Command::Reset {
+                keep_volumes: true,
+                yes: false
+            }
+        ));
+
+        let cli = Cli::parse_from(["fdock", "compose", "up"]);
+        let Command::Compose {
+            command: ComposeCommand::Up { path },
+        } = cli.command
+        else {
+            panic!()
+        };
+        assert_eq!(path, PathBuf::from("."));
+        let cli = Cli::parse_from(["fdock", "compose", "logs", "shop/compose.yaml", "-f"]);
+        assert!(matches!(
+            cli.command,
+            Command::Compose {
+                command: ComposeCommand::Logs {
+                    tail: 100,
+                    follow: true,
+                    ..
+                }
+            }
+        ));
+        assert!(Cli::try_parse_from(["fdock", "compose", "build"]).is_err());
     }
 
     use clap::CommandFactory;

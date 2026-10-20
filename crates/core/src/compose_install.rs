@@ -2,6 +2,7 @@
 //! Ferrodock's own engine: the official standalone `docker-compose`
 //! program, downloaded once from Compose's releases into Ferrodock's
 //! folder and checked against the SHA-256 below. Compose is Apache-2.0.
+//! The app, `fdock` and the MCP server all use the same copy.
 
 use std::io::Read;
 use std::path::Path;
@@ -46,6 +47,21 @@ const ASSET: Option<(&str, &str)> = if cfg!(all(target_os = "macos", target_arch
 } else {
     None
 };
+
+/// Downloads Ferrodock's copy of Compose first when there's neither one
+/// nor a `docker` command, calling `downloading` before it starts.
+pub async fn ensure(downloading: impl FnOnce()) -> Result<(), String> {
+    if super::compose_cli::program().is_some() {
+        return Ok(());
+    }
+    let target = super::builtin::Paths::locate()
+        .ok_or("No home folder for Docker Compose")?
+        .compose();
+    downloading();
+    tokio::task::spawn_blocking(move || install(&target))
+        .await
+        .map_err(|e| e.to_string())?
+}
 
 /// Downloads Compose to `target`, checked, and makes it runnable.
 pub fn install(target: &Path) -> Result<(), String> {

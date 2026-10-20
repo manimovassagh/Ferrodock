@@ -55,8 +55,45 @@ fdock inspect web                # image, environment, ports, mounts, health
 fdock images                     # also volumes, networks, projects
 fdock pull nginx:alpine
 fdock df                         # disk usage
+fdock clean images build-cache   # free space; see below
+fdock compose up ./shop          # also down, restart, logs [-f]
 fdock engine                     # the engines, and which one is used
+fdock engine start               # start it, and wait until it answers
+fdock reset --yes                # remove everything; see below
 ```
+
+### Compose
+
+`fdock compose up`, `down`, `restart` and `logs` take a Compose file, or the
+folder it's in (by default the current one), and run Docker Compose on the
+engine `fdock` uses. That's the `docker compose` command when there is one;
+without it (as with only Ferrodock's own engine), `fdock` downloads
+Ferrodock's copy of Compose once, the same one the app uses. `up` starts the
+services in the background; `logs -f` keeps printing new output.
+
+### Cleaning up
+
+`fdock clean` frees disk space and says how much: `containers` (stopped
+ones), `images` (every image no container uses), `dangling-images`
+(untagged ones), `volumes` (no container mounts them; their data goes too),
+`networks`, `build-cache`, or `all`: everything but volumes, like
+`docker system prune -a`. Name several at once: `fdock clean containers
+volumes`.
+
+`fdock reset` removes every container, image, network and volume, and the
+build cache, for a clean start; `--keep-volumes` keeps the volumes and
+their data. It never asks: without `--yes` it only says what it would
+remove, so a script can't reset by accident.
+
+### Starting the engine
+
+`fdock engine start` starts the engine `fdock` would use (or the one given
+with `--engine`), unless one answers already, and waits until it answers.
+Another engine starts the way Ferrodock starts it, such as the `docker`
+service on Linux. Ferrodock's own engine runs inside the app on macOS and
+Windows, so `fdock` opens Ferrodock in the background, which starts it (with
+**Start the Docker engine when Ferrodock opens** on, as it is by default);
+on Linux it starts the engine's service directly.
 
 ### Quick start
 
@@ -121,12 +158,15 @@ Give the full path if it isn't on the PATH, such as
 
 | Looks | Changes things |
 |---|---|
-| `engine_status`, `list_containers`, `container_logs`, `inspect_container`, `list_images`, `list_volumes`, `list_networks`, `list_projects`, `disk_usage`, `list_quickstart_templates` | `container_action` (start, stop, restart, pause, resume), `remove_container`, `pull_image`, `run_quickstart` |
+| `engine_status`, `list_containers`, `container_logs`, `inspect_container`, `list_images`, `list_volumes`, `list_networks`, `list_projects`, `disk_usage`, `list_quickstart_templates` | `container_action` (start, stop, restart, pause, resume), `remove_container`, `pull_image`, `run_quickstart`, `engine_start`, `compose_up`, `compose_down`, `clean`, `reset` |
 
 Tools that change something are marked that way, so your AI tool asks before
-it uses them; `remove_container` is marked destructive. Environment values
-that look like secrets (passwords, tokens, keys) are hidden in
-`inspect_container` unless asked for.
+it uses them; `remove_container`, `compose_down`, `clean` and `reset` are
+marked destructive. `reset` also does nothing unless it's called with
+`confirm: true`, and says it's only for when you've asked for it.
+`compose_up` and `compose_down` take a Compose file or its folder, as an
+absolute path. Environment values that look like secrets (passwords,
+tokens, keys) are hidden in `inspect_container` unless asked for.
 
 To let an AI tool look but never change anything, start the server with
 `--read-only`: the tools that change things aren't offered at all.

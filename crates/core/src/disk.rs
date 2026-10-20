@@ -92,6 +92,49 @@ impl PruneKind {
     }
 }
 
+/// What `fdock clean` and the MCP server's `clean` take, and what each
+/// cleans up, in order. `all` is everything unused but volumes, which hold
+/// data: like `docker system prune -a`.
+pub const CLEAN_TARGETS: [(&str, &[PruneKind]); 7] = [
+    ("containers", &[PruneKind::StoppedContainers]),
+    ("dangling-images", &[PruneKind::DanglingImages]),
+    ("images", &[PruneKind::UnusedImages]),
+    ("volumes", &[PruneKind::UnusedVolumes]),
+    ("networks", &[PruneKind::UnusedNetworks]),
+    ("build-cache", &[PruneKind::BuildCache]),
+    (
+        "all",
+        // Containers first, so the images and networks they used go too.
+        &[
+            PruneKind::StoppedContainers,
+            PruneKind::UnusedNetworks,
+            PruneKind::UnusedImages,
+            PruneKind::BuildCache,
+        ],
+    ),
+];
+
+/// What to clean up for `names` (see [`CLEAN_TARGETS`]), each kind once.
+pub fn clean_kinds<S: AsRef<str>>(names: &[S]) -> Result<Vec<PruneKind>, String> {
+    let mut kinds = Vec::new();
+    for name in names {
+        let name = name.as_ref();
+        let (_, more) = CLEAN_TARGETS
+            .iter()
+            .find(|(n, _)| *n == name)
+            .ok_or_else(|| {
+                let names: Vec<&str> = CLEAN_TARGETS.iter().map(|(n, _)| *n).collect();
+                format!("Can't clean up {name}. Choose from: {}", names.join(", "))
+            })?;
+        for kind in *more {
+            if !kinds.contains(kind) {
+                kinds.push(*kind);
+            }
+        }
+    }
+    Ok(kinds)
+}
+
 fn usage(
     total_size: Option<i64>,
     reclaimable: Option<i64>,
@@ -180,6 +223,15 @@ impl DockerClient {
         };
         reclaimed.map(Option::unwrap_or_default).map_err(describe)
     }
+
+    /// Cleans up each of `kinds` in turn. Returns the bytes each freed.
+    pub async fn clean(&self, kinds: &[PruneKind]) -> Result<Vec<(PruneKind, i64)>, String> {
+        let mut freed = Vec::new();
+        for &kind in kinds {
+            freed.push((kind, self.prune(kind).await?));
+        }
+        Ok(freed)
+    }
 }
 
 #[cfg(test)]
@@ -205,6 +257,23 @@ mod tests {
         assert_eq!(disk.reclaimable(), 90);
         assert!(disk.is_reported());
         assert!(!DiskUsage::default().is_reported());
+    }
+
+    #[test]
+    fn names_what_to_clean() {
+        assert_eq!(
+            clean_kinds(&["images", "build-cache"]).unwrap(),
+            [PruneKind::UnusedImages, PruneKind::BuildCache]
+        );
+        // `all` keeps the volumes, and nothing is cleaned twice.
+        let all = clean_kinds(&["containers", "all"]).unwrap();
+        assert_eq!(all.len(), 4);
+        assert!(!all.contains(&PruneKind::UnusedVolumes));
+        assert!(
+            clean_kinds(&["everything"])
+                .unwrap_err()
+                .contains("build-cache")
+        );
     }
 
     /// Talks to a real daemon: `cargo test -- --ignored`.

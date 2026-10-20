@@ -1794,8 +1794,10 @@ dependencies = [
  "futures-util",
  "serde",
  "serde_json",
+ "sha2",
  "tar",
  "tokio",
+ "ureq",
  "vt100",
 ]
 

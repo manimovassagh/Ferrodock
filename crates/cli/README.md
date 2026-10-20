@@ -10,7 +10,11 @@ fdock quickstart postgres     # a Postgres for local development; prints how to 
 fdock logs db -n 50 -f        # follow its logs
 fdock stop db                 # start, stop, restart, pause, unpause, rm
 fdock images | volumes | networks | projects | df
+fdock clean images build-cache  # free space; also containers, volumes, all…
+fdock compose up ./shop       # also down, restart, logs [-f]
 fdock engine                  # which engine is used
+fdock engine start            # start it, and wait until it answers
+fdock reset --yes             # remove everything (--keep-volumes keeps them)
 ```
 
 Every command takes `--json` for compact, stable JSON, cheap for scripts

@@ -2,16 +2,23 @@
 //! the same compact JSON (see `ferrodock_core::summary`). Every call
 //! connects afresh, so an engine started after the server just works.
 //!
-//! Tools that change something are marked so clients ask first; removing
-//! a container is marked destructive. `--read-only` leaves them out.
+//! Tools that change something are marked so clients ask first; those
+//! that remove things are marked destructive, and `reset` also needs
+//! `confirm`. `--read-only` leaves them out.
 
 use std::collections::BTreeMap;
+use std::path::Path;
 
-use ferrodock_core::connect::{Connection, connect};
+use ferrodock_core::compose_cli::{command, steps, stream, target_at};
+use ferrodock_core::compose_install;
+use ferrodock_core::connect::{self, Connection, connect};
 use ferrodock_core::summary::{
-    Container, Details, Disk, Engine, Image, Network, Project, Started, Template, Volume,
+    Cleaned, Container, Details, Disk, Engine, Image, Network, Project, Started, Template, Volume,
 };
-use ferrodock_core::{Action, Overrides, Resource, TEMPLATES, engines, group_projects, template};
+use ferrodock_core::{
+    Action, ComposeAction, Overrides, Resource, TEMPLATES, clean_kinds, engines, format_size,
+    group_projects, template,
+};
 use futures_util::StreamExt;
 use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
@@ -20,11 +27,16 @@ use rmcp::{ServerHandler, schemars, tool, tool_handler, tool_router};
 use serde::{Deserialize, Serialize};
 
 /// The tools that change something, left out with `--read-only`.
-pub const CHANGING: [&str; 4] = [
+pub const CHANGING: [&str; 9] = [
     "container_action",
     "remove_container",
     "pull_image",
     "run_quickstart",
+    "engine_start",
+    "clean",
+    "reset",
+    "compose_up",
+    "compose_down",
 ];
 
 /// The most log lines one call returns.
@@ -52,8 +64,35 @@ impl Ferrodock {
 
     async fn conn(&self) -> Result<Connection, String> {
         connect(self.engine.as_deref()).await.map_err(|e| {
-            format!("{e} (Is the engine running? The engine_status tool lists the engines.)")
+            format!(
+                "{e} (Is the engine running? The engine_status tool lists the engines; \
+                 engine_start starts one.)"
+            )
         })
+    }
+
+    /// Runs `action` on the Compose project at `path`, with Ferrodock's
+    /// own copy of Compose when there's no other (downloading it once).
+    async fn compose(&self, path: &str, action: ComposeAction) -> Result<String, String> {
+        let target = target_at(Path::new(path))?;
+        let conn = self.conn().await?;
+        compose_install::ensure(|| {}).await?;
+        let mut output = Vec::new();
+        for args in steps(&target, &action) {
+            let cmd = command(Some(&conn.engine), Some(&target.dir), &args);
+            if !stream(cmd, |line| output.push(line)).await? {
+                let start = output.len().saturating_sub(MAX_LINES);
+                return Err(format!(
+                    "docker compose failed:\n{}",
+                    output[start..].join("\n")
+                ));
+            }
+        }
+        let start = output.len().saturating_sub(MAX_LINES);
+        json(&serde_json::json!({
+            "project": target.label(),
+            "output": output[start..],
+        }))
     }
 }
 
@@ -140,6 +179,45 @@ pub struct QuickstartParams {
     pub keep_data: Option<bool>,
 }
 
+/// What `clean` cleans up.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum CleanWhat {
+    /// Stopped containers.
+    Containers,
+    /// Untagged images no container uses.
+    DanglingImages,
+    /// Every image no container uses.
+    Images,
+    /// Volumes no container mounts, with the data in them.
+    Volumes,
+    Networks,
+    BuildCache,
+    /// Everything above but volumes.
+    All,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct CleanParams {
+    /// What to clean up.
+    pub what: Vec<CleanWhat>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct ResetParams {
+    /// Keep the volumes, and the data in them.
+    #[serde(default)]
+    pub keep_volumes: bool,
+    /// Must be true: the user has agreed to remove everything.
+    pub confirm: bool,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct ComposeParams {
+    /// The Compose file, or the folder it's in, as an absolute path.
+    pub path: String,
+}
+
 #[derive(Serialize)]
 struct Status {
     engines: Vec<Engine>,
@@ -170,6 +248,25 @@ impl Ferrodock {
             engines,
             error: picked.err(),
         })
+    }
+
+    /// Starts the Docker engine the tools use, unless one answers already,
+    /// and waits (up to 3 minutes) until it answers. Ferrodock's own engine
+    /// is started by opening the Ferrodock app in the background.
+    #[tool(annotations(
+        title = "Start the engine",
+        read_only_hint = false,
+        destructive_hint = false,
+        idempotent_hint = true,
+        open_world_hint = false
+    ))]
+    async fn engine_start(&self) -> Result<String, String> {
+        let (conn, started) = connect::start(self.engine.as_deref(), |_| {}).await?;
+        json(&serde_json::json!({
+            "engine": conn.engine.name,
+            "version": conn.version,
+            "started": started,
+        }))
     }
 
     /// Containers with their state, image, published ports and Compose
@@ -375,6 +472,93 @@ impl Ferrodock {
         conn.client.run_template(template, &choices, |_| {}).await?;
         json(&Started::new(template, &choices))
     }
+
+    /// Cleans up what isn't used and returns the space freed: stopped
+    /// containers, dangling or all unused images, unused volumes (deleting
+    /// their data), unused networks, the build cache, or all of these but
+    /// volumes.
+    #[tool(annotations(
+        title = "Clean up unused things",
+        read_only_hint = false,
+        destructive_hint = true,
+        idempotent_hint = true,
+        open_world_hint = false
+    ))]
+    async fn clean(&self, Parameters(p): Parameters<CleanParams>) -> Result<String, String> {
+        let names: Vec<&'static str> = p.what.iter().map(|w| w.name()).collect();
+        let kinds = clean_kinds(&names)?;
+        let freed = self.conn().await?.client.clean(&kinds).await?;
+        json(&Cleaned::new(&freed))
+    }
+
+    /// DESTRUCTIVE: removes every container, image and network, the build
+    /// cache and (unless `keep_volumes`) every volume with its data, from
+    /// the engine. It can't be undone. Only call it when the user has asked
+    /// for it, with `confirm` set to true.
+    #[tool(annotations(
+        title = "Reset Docker (remove everything)",
+        read_only_hint = false,
+        destructive_hint = true,
+        idempotent_hint = true,
+        open_world_hint = false
+    ))]
+    async fn reset(&self, Parameters(p): Parameters<ResetParams>) -> Result<String, String> {
+        if !p.confirm {
+            return Err("Nothing was reset: set confirm to true once the user has agreed.".into());
+        }
+        let conn = self.conn().await?;
+        let freed = conn.client.reset(p.keep_volumes).await?;
+        json(&serde_json::json!({
+            "reset": conn.engine.name,
+            "freed": format_size(freed),
+            "volumes_kept": p.keep_volumes,
+        }))
+    }
+
+    /// Brings a Docker Compose project up (`docker compose up -d`), from
+    /// its file or the folder it's in, pulling images as needed. Returns
+    /// Compose's output.
+    #[tool(annotations(
+        title = "Compose up",
+        read_only_hint = false,
+        destructive_hint = false,
+        idempotent_hint = true,
+        open_world_hint = true
+    ))]
+    async fn compose_up(&self, Parameters(p): Parameters<ComposeParams>) -> Result<String, String> {
+        self.compose(&p.path, ComposeAction::Up).await
+    }
+
+    /// Takes a Docker Compose project down (`docker compose down`): stops
+    /// and removes its containers and networks. Volumes stay.
+    #[tool(annotations(
+        title = "Compose down",
+        read_only_hint = false,
+        destructive_hint = true,
+        idempotent_hint = true,
+        open_world_hint = false
+    ))]
+    async fn compose_down(
+        &self,
+        Parameters(p): Parameters<ComposeParams>,
+    ) -> Result<String, String> {
+        self.compose(&p.path, ComposeAction::Down).await
+    }
+}
+
+impl CleanWhat {
+    /// Its name, as `fdock clean` takes it.
+    fn name(self) -> &'static str {
+        match self {
+            CleanWhat::Containers => "containers",
+            CleanWhat::DanglingImages => "dangling-images",
+            CleanWhat::Images => "images",
+            CleanWhat::Volumes => "volumes",
+            CleanWhat::Networks => "networks",
+            CleanWhat::BuildCache => "build-cache",
+            CleanWhat::All => "all",
+        }
+    }
 }
 
 #[tool_handler(router = self.tool_router)]
@@ -388,8 +572,10 @@ impl ServerHandler for Ferrodock {
             .with_instructions(
                 "Ferrodock's Docker tools: see and manage containers, images, volumes, \
                  networks and Compose projects, read logs, and start popular services \
-                 (Postgres, Redis…) for local development with run_quickstart. Answers \
-                 are compact JSON. Containers are named by name or ID.",
+                 (Postgres, Redis…) for local development with run_quickstart. Also \
+                 starts the engine, brings Compose projects up and down, and frees \
+                 disk space. Answers are compact JSON. Containers are named by name \
+                 or ID.",
             )
     }
 }
@@ -405,7 +591,7 @@ mod tests {
         for name in CHANGING {
             assert!(names.contains(&name), "{name} missing from {names:?}");
         }
-        assert_eq!(names.len(), 14);
+        assert_eq!(names.len(), 19);
         // Every tool says what it does, and whether it only looks.
         for tool in &all {
             assert!(
@@ -428,10 +614,39 @@ mod tests {
                 .iter()
                 .all(|t| !CHANGING.contains(&t.name.as_ref()))
         );
-        let remove = all.iter().find(|t| t.name == "remove_container").unwrap();
-        assert_eq!(
-            remove.annotations.as_ref().and_then(|a| a.destructive_hint),
-            Some(true)
-        );
+        for name in ["remove_container", "clean", "reset", "compose_down"] {
+            let tool = all.iter().find(|t| t.name == name).unwrap();
+            assert_eq!(
+                tool.annotations.as_ref().and_then(|a| a.destructive_hint),
+                Some(true),
+                "{name}"
+            );
+        }
+        // A reset has to be confirmed.
+        let reset = all.iter().find(|t| t.name == "reset").unwrap();
+        let required = reset.input_schema.get("required").unwrap().to_string();
+        assert!(required.contains("confirm"), "{required}");
+    }
+
+    #[test]
+    fn cleans_what_fdock_cleans() {
+        let all = [
+            CleanWhat::Containers,
+            CleanWhat::DanglingImages,
+            CleanWhat::Images,
+            CleanWhat::Volumes,
+            CleanWhat::Networks,
+            CleanWhat::BuildCache,
+            CleanWhat::All,
+        ];
+        assert_eq!(all.len(), ferrodock_core::CLEAN_TARGETS.len());
+        for what in all {
+            // The name sent is the one `fdock clean` takes.
+            assert_eq!(serde_json::to_value(what).unwrap(), what.name());
+            assert!(clean_kinds(&[what.name()]).is_ok(), "{what:?}");
+        }
+        let p: ResetParams = serde_json::from_str(r#"{"confirm":false}"#).unwrap();
+        assert!(!p.confirm && !p.keep_volumes);
+        assert!(serde_json::from_str::<ResetParams>("{}").is_err());
     }
 }

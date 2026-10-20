@@ -14,6 +14,7 @@ mod browse;
 pub mod builtin;
 mod compose;
 pub mod compose_cli;
+pub mod compose_install;
 pub mod connect;
 mod containers;
 mod create;
@@ -47,7 +48,7 @@ pub use compose_cli::{ComposeAction, ComposeOp, ComposeTarget, next_job, split_l
 pub use containers::{ComposeLabels, ContainerInfo};
 pub use create::Change;
 pub use debug::{TARGET_ROOT, debug_image};
-pub use disk::{DiskUsage, PruneKind, Usage};
+pub use disk::{CLEAN_TARGETS, DiskUsage, PruneKind, Usage, clean_kinds};
 pub use engines::{Engine, builtin_engine, docker_dir, engines, pick};
 pub use events::EngineEvent;
 pub use files::{
@@ -56,7 +57,7 @@ pub use files::{
 pub use format::{format_size, plural, time_ago};
 pub use images::ImageInfo;
 pub use inspect::{Health, Inspection, RunSettings, looks_secret};
-pub use launch::{Starter, provider_app, starter};
+pub use launch::{Starter, ferrodock_app, provider_app, starter, starter_outside_app};
 pub use limits::{cpus_text, memory_text, parse_cpus, parse_memory};
 pub use networks::NetworkInfo;
 pub use ports::{PortMapping, engine_host};

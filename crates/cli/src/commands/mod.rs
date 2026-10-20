@@ -1,15 +1,17 @@
 //! What each command does. Every command but `engine` first connects to
 //! an engine (see [`ferrodock_core::connect`]).
 
+mod clean;
+mod compose;
 mod containers;
 mod engine;
 mod quickstart;
 mod resources;
 
 use ferrodock_core::connect::{Connection, connect};
-use ferrodock_core::{Action, Overrides, Resource};
+use ferrodock_core::{Action, ComposeAction, Overrides, Resource};
 
-use crate::args::{Cli, Command};
+use crate::args::{Cli, Command, ComposeCommand, EngineCommand};
 
 /// What every command gets: the engine, and how to print.
 pub struct Ctx {
@@ -18,8 +20,11 @@ pub struct Ctx {
 }
 
 pub async fn run(cli: Cli) -> Result<(), String> {
-    if let Command::Engine = cli.command {
-        return engine::show(cli.engine.as_deref(), cli.json).await;
+    if let Command::Engine { command } = &cli.command {
+        return match command {
+            None => engine::show(cli.engine.as_deref(), cli.json).await,
+            Some(EngineCommand::Start) => engine::start(cli.engine.as_deref(), cli.json).await,
+        };
     }
     let conn = connect(cli.engine.as_deref())
         .await
@@ -64,6 +69,18 @@ pub async fn run(cli: Cli) -> Result<(), String> {
         Command::Networks => resources::networks(&ctx).await,
         Command::Projects => resources::projects(&ctx).await,
         Command::Df => resources::df(&ctx).await,
+        Command::Clean { what } => clean::clean(&ctx, &what).await,
+        Command::Reset { keep_volumes, yes } => clean::reset(&ctx, keep_volumes, yes).await,
+        Command::Compose { command } => match command {
+            ComposeCommand::Up { path } => compose::run(&ctx, &path, ComposeAction::Up).await,
+            ComposeCommand::Down { path } => compose::run(&ctx, &path, ComposeAction::Down).await,
+            ComposeCommand::Restart { path } => {
+                compose::run(&ctx, &path, ComposeAction::Restart).await
+            }
+            ComposeCommand::Logs { path, tail, follow } => {
+                compose::logs(&ctx, &path, tail, follow).await
+            }
+        },
         Command::Quickstart {
             template,
             name,
@@ -81,6 +98,6 @@ pub async fn run(cli: Cli) -> Result<(), String> {
             };
             quickstart::run(&ctx, template.as_deref(), &overrides).await
         }
-        Command::Engine => unreachable!("handled above"),
+        Command::Engine { .. } => unreachable!("handled above"),
     }
 }

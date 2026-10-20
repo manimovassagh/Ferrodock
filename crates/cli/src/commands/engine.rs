@@ -1,6 +1,7 @@
-//! `fdock engine`: the engines Ferrodock knows of, and which one answers.
+//! `fdock engine`: the engines Ferrodock knows of, and which one answers;
+//! `fdock engine start` starts it.
 
-use ferrodock_core::connect::connect;
+use ferrodock_core::connect::{self, connect};
 use ferrodock_core::engines;
 use ferrodock_core::summary::Engine;
 use serde::Serialize;
@@ -48,8 +49,33 @@ pub async fn show(name: Option<&str>, json: bool) -> Result<(), String> {
         Ok(c) => println!("\nUsing {} (Docker {}).", c.engine.name, c.version),
         Err(e) => {
             println!("\nNo engine answered: {e}");
-            println!("Start Ferrodock (or your Docker engine), or pick one with --engine NAME.");
+            println!("Start it with `fdock engine start`, or pick one with --engine NAME.");
         }
     }
+    Ok(())
+}
+
+/// Starts the engine `fdock` would use (or the one called `name`) unless
+/// one answers already, and waits until it does.
+pub async fn start(name: Option<&str>, json: bool) -> Result<(), String> {
+    let (conn, started) = connect::start(name, |starter| {
+        if !json {
+            eprintln!("Starting {}…", starter.name());
+        }
+    })
+    .await?;
+    if json {
+        return output::json(&serde_json::json!({
+            "engine": conn.engine.name,
+            "version": conn.version,
+            "started": started,
+        }));
+    }
+    let how = if started {
+        "Started"
+    } else {
+        "Already running:"
+    };
+    println!("{how} {} (Docker {}).", conn.engine.name, conn.version);
     Ok(())
 }

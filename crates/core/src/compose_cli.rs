@@ -60,6 +60,9 @@ pub enum ComposeAction {
     Rebuild(Option<String>),
     /// Pull newer images and recreate the containers.
     PullRecreate,
+    /// Stop and remove the containers and networks; volumes stay.
+    Down,
+    Restart,
 }
 
 /// Something to run with `docker compose`.
@@ -76,9 +79,23 @@ pub enum ComposeOp {
     Cancel { job: u64 },
 }
 
-/// The arguments after `docker compose` for one step of `action`. Pulling
-/// and recreating takes two steps.
-pub fn steps(target: &ComposeTarget, action: &ComposeAction) -> Vec<Vec<String>> {
+/// The project in a file, or in a folder Compose looks in for its file
+/// (`compose.yaml`…): what `fdock compose` and the MCP server take.
+pub fn target_at(path: &Path) -> Result<ComposeTarget, String> {
+    let path = std::fs::canonicalize(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    if path.is_dir() {
+        return Ok(ComposeTarget {
+            name: None,
+            files: Vec::new(),
+            dir: path,
+        });
+    }
+    Ok(ComposeTarget::from_file(&path))
+}
+
+/// `-p` and `-f` for `target`: the arguments every command on it starts
+/// with.
+pub fn project_args(target: &ComposeTarget) -> Vec<String> {
     let mut base = Vec::new();
     if let Some(name) = &target.name {
         base.extend(["-p".into(), name.clone()]);
@@ -86,6 +103,13 @@ pub fn steps(target: &ComposeTarget, action: &ComposeAction) -> Vec<Vec<String>>
     for file in &target.files {
         base.extend(["-f".into(), file.display().to_string()]);
     }
+    base
+}
+
+/// The arguments after `docker compose` for one step of `action`. Pulling
+/// and recreating takes two steps.
+pub fn steps(target: &ComposeTarget, action: &ComposeAction) -> Vec<Vec<String>> {
+    let base = project_args(target);
     let with = |rest: &[&str]| {
         let mut args = base.clone();
         args.extend(rest.iter().map(|s| (*s).to_owned()));
@@ -101,6 +125,8 @@ pub fn steps(target: &ComposeTarget, action: &ComposeAction) -> Vec<Vec<String>>
             with(&["pull"]),
             with(&["up", "-d", "--force-recreate", "--remove-orphans"]),
         ],
+        ComposeAction::Down => vec![with(&["down", "--remove-orphans"])],
+        ComposeAction::Restart => vec![with(&["restart"])],
     }
 }
 
@@ -252,6 +278,34 @@ mod tests {
         assert_eq!(pull.len(), 2);
         assert!(pull[0].ends_with(&["pull".to_owned()]));
         assert_eq!(logs_args("shop")[..4], ["-p", "shop", "logs", "-f"]);
+        let down = steps(&target(), &ComposeAction::Down);
+        assert!(
+            down[0]
+                .join(" ")
+                .ends_with("compose.yaml down --remove-orphans")
+        );
+        assert_eq!(
+            steps(&target(), &ComposeAction::Restart)[0].last().unwrap(),
+            "restart"
+        );
+    }
+
+    #[test]
+    fn takes_a_file_or_a_folder() {
+        let dir = std::env::temp_dir().join(format!("ferrodock-target-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("compose.yaml");
+        std::fs::write(&file, "services: {}\n").unwrap();
+        let dir = std::fs::canonicalize(&dir).unwrap();
+        // A folder: Compose finds the file there itself.
+        let in_dir = target_at(&dir).unwrap();
+        assert!(in_dir.files.is_empty() && in_dir.dir == dir);
+        assert!(project_args(&in_dir).is_empty());
+        let of_file = target_at(&file).unwrap();
+        assert_eq!(of_file.files, [dir.join("compose.yaml")]);
+        assert_eq!(of_file.dir, dir);
+        assert!(target_at(&dir.join("missing.yaml")).is_err());
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
