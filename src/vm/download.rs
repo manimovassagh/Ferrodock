@@ -168,6 +168,9 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("ferrodock-version-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let paths = Paths::under(dir.clone());
+        // Set up before versions were recorded: that was 0.2.0.
+        assert_eq!(outdated(&paths), older(UNRECORDED, VERSION));
+        std::fs::write(&paths.version, "0.1.0").unwrap();
         assert!(outdated(&paths));
         record(&paths).unwrap();
         assert!(!outdated(&paths));
