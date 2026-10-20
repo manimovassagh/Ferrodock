@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.28.3](https://github.com/manimovassagh/Ferrodock/compare/v1.28.2...v1.28.3) - 2026-10-20
+
+### Documentation
+
+- AI skills to install Ferrodock and connect it to AI tools; a tighter landing hero
+
 ## [1.28.2](https://github.com/manimovassagh/Ferrodock/compare/v1.28.1...v1.28.2) - 2026-10-20
 
 ### Other
