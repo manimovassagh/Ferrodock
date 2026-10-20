@@ -15,6 +15,10 @@ remembered between runs. **Reset to defaults** puts everything back.
 
 - **Theme**: Light (the default), Dark, or System to follow your operating
   system.
+- **Editor themes**: the colours of popular code editor themes, to match
+  your editor and terminal: Tokyo Night, Catppuccin Mocha, Catppuccin
+  Latte, Gruvbox Dark, Nord and Rosé Pine. Pick Light, Dark or System to go
+  back to Ferrodock's own.
 - **Density**: Comfortable shows two lines per row; Compact fits about
   twice as many rows on screen.
 - **Interface size**: 90% to 125%.

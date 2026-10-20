@@ -327,7 +327,7 @@ pub fn primary_button(ui: &mut egui::Ui, label: &str) -> Response {
     let galley = ui.painter().layout_no_wrap(
         label.to_owned(),
         FontId::new(13.5, crate::theme::semibold()),
-        Color32::WHITE,
+        p.on_accent,
     );
     let size = vec2(galley.size().x + 32.0, 30.0);
     let (rect, response) = ui.allocate_exact_size(size, Sense::click());
@@ -342,7 +342,7 @@ pub fn primary_button(ui: &mut egui::Ui, label: &str) -> Response {
     };
     ui.painter().rect_filled(rect, CornerRadius::same(8), fill);
     ui.painter()
-        .galley(rect.center() - galley.size() / 2.0, galley, Color32::WHITE);
+        .galley(rect.center() - galley.size() / 2.0, galley, p.on_accent);
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, enabled, label));
     response.on_hover_cursor(egui::CursorIcon::PointingHand)
 }

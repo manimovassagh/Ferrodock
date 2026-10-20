@@ -150,11 +150,17 @@ pub fn show(ui: &mut egui::Ui, p: &Palette, screen: &vt100::Screen, focus: bool)
 
 /// A shade darker (or lighter) than the page, so the terminal stands out.
 fn terminal_background(p: &Palette) -> Color32 {
-    if p.bg.r() < 128 {
-        Color32::from_rgb(0x12, 0x12, 0x14)
+    let toward = |c: u8, to: u8, by: f32| (c as f32 + (to as f32 - c as f32) * by).round() as u8;
+    let (to, by) = if p.bg.r() < 128 {
+        (0, 0.35)
     } else {
-        Color32::from_rgb(0xfb, 0xfb, 0xfc)
-    }
+        (255, 0.6)
+    };
+    Color32::from_rgb(
+        toward(p.bg.r(), to, by),
+        toward(p.bg.g(), to, by),
+        toward(p.bg.b(), to, by),
+    )
 }
 
 /// A terminal colour; `None` for the default.

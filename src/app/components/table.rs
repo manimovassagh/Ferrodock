@@ -138,7 +138,7 @@ fn tick_box(ui: &mut egui::Ui, p: &Palette, state: Ticked, label: &str) -> bool 
         );
     } else {
         painter.rect_filled(rect, corner, p.accent);
-        let white = egui::Stroke::new(2.0, egui::Color32::WHITE);
+        let white = egui::Stroke::new(2.0, p.on_accent);
         let c = rect.center();
         if state == Ticked::All {
             painter.line(
