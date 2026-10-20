@@ -7,6 +7,13 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.28.1](https://github.com/manimovassagh/Ferrodock/compare/v1.28.0...v1.28.1) - 2026-10-20
+
+### Documentation
+
+- no full stops in headlines
+- a comparison page with team pricing, download sizes and engine memory, plus the benchmark script
+
 ## [1.28.0](https://github.com/manimovassagh/Ferrodock/compare/v1.27.2...v1.28.0) - 2026-10-20
 
 ### Added
