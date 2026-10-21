@@ -189,6 +189,21 @@ fn screenshots() {
     save(&mut h, "limits");
 }
 
+/// The smallest window Ferrodock allows, at the larger interface size:
+/// the sidebar's pages scroll rather than run under its bottom half.
+#[test]
+#[ignore]
+fn screenshots_of_short_window() {
+    for (scale, name) in [(1.0, "short-window"), (1.25, "short-window-125")] {
+        let mut h = harness_of_size(egui::vec2(820.0, 480.0));
+        h.state_mut().settings.scale = scale;
+        let ctx = h.ctx.clone();
+        h.state().settings.apply(&ctx);
+        settle(&mut h, Duration::from_secs(2));
+        save(&mut h, name);
+    }
+}
+
 /// The states new users see: nothing found, and no Docker at all.
 #[test]
 #[ignore]
