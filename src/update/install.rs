@@ -186,11 +186,7 @@ fn sha256_of(path: &Path) -> Result<String, String> {
         }
         hasher.update(&buf[..n]);
     }
-    Ok(hasher
-        .finalize()
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect())
+    Ok(ferrodock_core::hex(&hasher.finalize()))
 }
 
 #[cfg(test)]

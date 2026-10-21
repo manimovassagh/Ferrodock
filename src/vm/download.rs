@@ -101,7 +101,7 @@ pub fn fetch(mut progress: impl FnMut(u64, Option<u64>)) -> Result<Vec<u8>, Stri
         archive.extend_from_slice(&buffer[..n]);
         progress(archive.len() as u64, total);
     }
-    let actual = format!("{:x}", hasher.finalize());
+    let actual = ferrodock_core::hex(&hasher.finalize());
     if actual != expected {
         return Err("The engine download is damaged (checksum mismatch). Try again.".into());
     }

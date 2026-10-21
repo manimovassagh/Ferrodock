@@ -80,7 +80,7 @@ pub fn install(target: &Path) -> Result<(), String> {
 /// Writes `program` to `target` if its SHA-256 is `sha256`: to a
 /// temporary file first, so a half-written one is never run.
 fn save(program: &[u8], sha256: &str, target: &Path) -> Result<(), String> {
-    let digest = format!("{:x}", Sha256::digest(program));
+    let digest = crate::hex(&Sha256::digest(program));
     if digest != sha256 {
         return Err("The Docker Compose download doesn't match its checksum".into());
     }
@@ -113,7 +113,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("ferrodock-compose-{}", std::process::id()));
         let target = dir.join("bin").join("docker-compose");
         let program = b"#!/bin/sh\necho compose\n";
-        let good = format!("{:x}", Sha256::digest(program));
+        let good = crate::hex(&Sha256::digest(program));
         assert!(save(program, &"0".repeat(64), &target).is_err());
         assert!(!target.exists());
         save(program, &good, &target).unwrap();
