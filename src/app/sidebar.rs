@@ -44,73 +44,121 @@ pub fn show(
     });
 
     ui.add_space(22.0);
-    ui.label(RichText::new("DOCKER").size(11.0).color(p.muted));
-    ui.add_space(2.0);
     let mut clicked = None;
-    for (i, page) in pages.iter().enumerate().filter(|(_, page)| !page.bottom()) {
-        let item = widgets::nav_item(
-            ui,
-            p,
-            page.icon(),
-            page.title(),
-            &page.badge(store),
-            i == active,
-        );
-        if item.clicked() {
-            clicked = Some(Click::Page(i));
-        }
-    }
 
-    ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
-        if let Some(engine) = engine_picker(ui, p, store) {
-            clicked = Some(Click::Engine(engine));
-        }
-        ui.add_space(6.0);
-        let settings =
-            widgets::nav_item(ui, p, Icon::Gear, "Settings", "", false).on_hover_text(format!(
-                "Theme, density and interface size ({}{})",
-                super::keys::COMMAND,
-                ","
-            ));
-        if settings.clicked() {
-            clicked = Some(Click::Settings);
-        }
-        if let Some(click) = update_item(ui, p, update) {
-            clicked = Some(click);
-        }
-        ui.add_space(8.0);
-        let card =
-            widgets::feature_card(ui, p, Icon::Terminal, "CLI & MCP", "Terminal and AI tools")
-                .on_hover_text("Use Ferrodock from a terminal (fdock) and from AI tools (MCP)");
-        if card.clicked() {
-            clicked = Some(Click::Integrations);
-        }
-        // Drawn bottom-up: the pages, then their heading above them.
-        let bottom: Vec<(usize, &Box<dyn Page>)> = pages
-            .iter()
-            .enumerate()
-            .filter(|(_, page)| page.bottom())
-            .collect();
-        if !bottom.is_empty() {
-            ui.add_space(14.0);
-            for (i, page) in bottom.iter().rev() {
+    // The bottom half first, from the bottom up, so the pages above know
+    // how much room is left: in a short window they scroll rather than
+    // run under it.
+    let space = ui.available_rect_before_wrap();
+    let mut bottom_ui = ui.new_child(
+        egui::UiBuilder::new()
+            .max_rect(space)
+            .layout(Layout::bottom_up(Align::Min)),
+    );
+    bottom(
+        &mut bottom_ui,
+        p,
+        pages,
+        active,
+        store,
+        update,
+        &mut clicked,
+    );
+    let left = space.height() - bottom_ui.min_rect().height() - 8.0;
+
+    // A solid scroll bar, so pages out of view are seen to be there.
+    ui.style_mut().spacing.scroll = egui::style::ScrollStyle::solid();
+    egui::ScrollArea::vertical()
+        .id_salt("sidebar-pages")
+        .max_height(left.max(0.0))
+        .auto_shrink([false, true])
+        .show(ui, |ui| {
+            ui.label(RichText::new("DOCKER").size(11.0).color(p.muted));
+            ui.add_space(2.0);
+            for (i, page) in pages.iter().enumerate().filter(|(_, page)| !page.bottom()) {
                 let item = widgets::nav_item(
                     ui,
                     p,
                     page.icon(),
                     page.title(),
                     &page.badge(store),
-                    *i == active,
+                    i == active,
                 );
                 if item.clicked() {
-                    clicked = Some(Click::Page(*i));
+                    clicked = Some(Click::Page(i));
                 }
             }
-            ui.add_space(2.0);
-            ui.label(RichText::new("START").size(11.0).color(p.muted));
-        }
-    });
+        });
     clicked
+}
+
+/// Below this height (in points, under the logo) the sidebar is short.
+const SHORT: f32 = 560.0;
+
+/// The sidebar's bottom half: the Start pages, CLI & MCP, Settings, an
+/// update and the engine. Drawn bottom-up.
+fn bottom(
+    ui: &mut egui::Ui,
+    p: &Palette,
+    pages: &[Box<dyn Page>],
+    active: usize,
+    store: &Store,
+    update: &Status,
+    clicked: &mut Option<Click>,
+) {
+    // Short windows get a one-line CLI & MCP, leaving more room for
+    // the pages above.
+    let compact = ui.available_height() < SHORT;
+    if let Some(engine) = engine_picker(ui, p, store) {
+        *clicked = Some(Click::Engine(engine));
+    }
+    ui.add_space(6.0);
+    let settings =
+        widgets::nav_item(ui, p, Icon::Gear, "Settings", "", false).on_hover_text(format!(
+            "Theme, density and interface size ({}{})",
+            super::keys::COMMAND,
+            ","
+        ));
+    if settings.clicked() {
+        *clicked = Some(Click::Settings);
+    }
+    if let Some(click) = update_item(ui, p, update) {
+        *clicked = Some(click);
+    }
+    ui.add_space(if compact { 2.0 } else { 8.0 });
+    let card = if compact {
+        widgets::nav_item(ui, p, Icon::Terminal, "CLI & MCP", "", false)
+    } else {
+        widgets::feature_card(ui, p, Icon::Terminal, "CLI & MCP", "Terminal and AI tools")
+    }
+    .on_hover_text("Use Ferrodock from a terminal (fdock) and from AI tools (MCP)");
+    if card.clicked() {
+        *clicked = Some(Click::Integrations);
+    }
+    // Drawn bottom-up: the pages, then their heading above them.
+    let bottom: Vec<(usize, &Box<dyn Page>)> = pages
+        .iter()
+        .enumerate()
+        .filter(|(_, page)| page.bottom())
+        .collect();
+    if !bottom.is_empty() {
+        ui.add_space(if compact { 6.0 } else { 14.0 });
+        for (i, page) in bottom.iter().rev() {
+            let item = widgets::nav_item(
+                ui,
+                p,
+                page.icon(),
+                page.title(),
+                &page.badge(store),
+                *i == active,
+            );
+            if item.clicked() {
+                *clicked = Some(Click::Page(*i));
+            }
+        }
+        ui.add_space(2.0);
+        ui.label(RichText::new("START").size(11.0).color(p.muted));
+    }
 }
 
 /// Offers an available update, shows its progress, then a restart.
