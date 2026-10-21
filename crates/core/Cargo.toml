@@ -29,4 +29,4 @@ ureq.workspace = true
 bollard = { workspace = true, features = ["ssh"] }
 
 [dev-dependencies]
-vt100 = "0.16.2"
+vt100 = "0.17.0"
