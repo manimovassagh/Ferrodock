@@ -885,3 +885,33 @@ fn demo_frames() {
     r.live(&mut h, 800, 400);
     r.finish();
 }
+
+/// The lists with the details pane open in a small window: long names
+/// shortened in the middle, low-value columns dropped, anonymous volumes
+/// labelled by the container that uses them.
+#[test]
+#[ignore]
+fn screenshots_of_narrow_lists() {
+    let mut h = harness_of_size(egui::vec2(1000.0, 640.0));
+    settle(&mut h, Duration::from_secs(3));
+    set_theme(&mut h, Theme::Light);
+    let store = &h.state().store;
+    let image = store
+        .images
+        .iter()
+        .max_by_key(|i| i.name().len())
+        .map(|i| i.id.clone());
+    let volume = store
+        .volumes
+        .iter()
+        .find(|v| !store.containers_using_volume(&v.name).is_empty())
+        .or(store.volumes.first())
+        .map(|v| v.name.clone());
+    let network = store.networks.first().map(|n| n.id.clone());
+    open(&mut h, 2, image);
+    save(&mut h, "narrow-images");
+    open(&mut h, 3, volume);
+    save(&mut h, "narrow-volumes");
+    open(&mut h, 4, network);
+    save(&mut h, "narrow-networks");
+}

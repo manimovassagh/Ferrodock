@@ -8,6 +8,8 @@ use super::icons::{self, Icon};
 use crate::theme::Palette;
 
 const ROW_HEIGHT: f32 = 48.0;
+/// The narrowest a name column gets before other columns make way for it.
+const NAME_MIN: f32 = 180.0;
 const COMPACT_ROW_HEIGHT: f32 = 30.0;
 
 /// Switches every table between two-line and one-line rows.
@@ -76,6 +78,29 @@ impl Col {
             ticked: None,
         }
     }
+}
+
+/// Which of the `optional` column widths fit next to a name column of a
+/// readable width, given the widths of the always-shown columns. Columns
+/// are tried in order, so put the most useful first.
+pub fn fitting(ui: &egui::Ui, required: &[f32], optional: &[f32]) -> Vec<bool> {
+    let gap = ui.spacing().item_spacing.x;
+    let scroll = &ui.spacing().scroll;
+    let taken: f32 = required.iter().map(|w| w + gap).sum();
+    let mut room = ui.available_width()
+        - taken
+        - (NAME_MIN + gap)
+        - (scroll.bar_width + scroll.bar_outer_margin);
+    optional
+        .iter()
+        .map(|&width| {
+            let fits = width + gap <= room;
+            if fits {
+                room -= width + gap;
+            }
+            fits
+        })
+        .collect()
 }
 
 /// Asks the next table drawn to move its selection by `delta` rows (↑/↓),
@@ -258,19 +283,62 @@ pub fn with_icon(
 /// Primary text with a muted second line, e.g. name over image. In
 /// compact mode both go on one line.
 pub fn two_line(ui: &mut egui::Ui, p: &Palette, primary: &str, secondary: &str) {
-    let primary_text = RichText::new(primary)
-        .font(egui::FontId::new(13.5, crate::theme::semibold()))
-        .color(p.text);
+    let font = egui::FontId::new(13.5, crate::theme::semibold());
+    let primary_text = |ui: &egui::Ui| {
+        RichText::new(fit_middle(ui, primary, &font))
+            .font(font.clone())
+            .color(p.text)
+    };
     if is_compact(ui) {
+        let primary_text = primary_text(ui);
         label(ui, primary_text);
         label(ui, RichText::new(secondary).size(12.0).color(p.muted));
         return;
     }
     ui.vertical(|ui| {
         ui.add_space(6.0);
+        let primary_text = primary_text(ui);
         label(ui, primary_text);
         label(ui, RichText::new(secondary).size(12.0).color(p.muted));
     });
+}
+
+/// Shortens `text` in the middle until it fits the width left, keeping
+/// more of the end: that's what tells `mirror.gcr.io/…/ubuntu:act-22.04`
+/// from its neighbours, or `proj-web-1` from `proj-web-2`.
+fn fit_middle(ui: &egui::Ui, text: &str, font: &egui::FontId) -> String {
+    let width = ui.available_width();
+    let measure = |s: String| {
+        ui.fonts_mut(|f| f.layout_no_wrap(s, font.clone(), egui::Color32::PLACEHOLDER))
+            .size()
+            .x
+    };
+    if measure(text.to_owned()) <= width {
+        return text.to_owned();
+    }
+    let chars: Vec<char> = text.chars().collect();
+    // The most characters that still fit, by bisection.
+    let (mut lo, mut hi) = (0, chars.len());
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        if measure(squeeze(&chars, mid)) <= width {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    squeeze(&chars, lo)
+}
+
+/// `keep` characters of `chars`, a third from the start and the rest from
+/// the end, with "…" between.
+fn squeeze(chars: &[char], keep: usize) -> String {
+    let head = keep / 3;
+    let tail = keep - head;
+    let mut out: String = chars[..head].iter().collect();
+    out.push('…');
+    out.extend(&chars[chars.len() - tail..]);
+    out
 }
 
 /// Whether the pointer is over the row this cell belongs to.
@@ -300,7 +368,16 @@ fn label(ui: &mut egui::Ui, text: RichText) {
 
 #[cfg(test)]
 mod tests {
-    use super::step;
+    use super::{squeeze, step};
+
+    #[test]
+    fn squeezes_keeping_more_of_the_end() {
+        let chars: Vec<char> = "mirror.gcr.io/catthehacker/ubuntu:act-22.04"
+            .chars()
+            .collect();
+        assert_eq!(squeeze(&chars, 21), "mirror.…untu:act-22.04");
+        assert_eq!(squeeze(&chars, 0), "…");
+    }
 
     #[test]
     fn steps_through_rows() {

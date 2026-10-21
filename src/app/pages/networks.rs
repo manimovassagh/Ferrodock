@@ -98,13 +98,20 @@ impl Page for NetworksPage {
             .bar(ui, ctx, "network", Resource::Networks, &items);
         let marks = &self.marks;
         let mut ticks = Vec::new();
-        let columns = vec![
-            marks.column(&items),
-            table::Col::fill("NAME"),
-            table::Col::fixed("SUBNET", 150.0),
-            table::Col::fixed("CONTAINERS", 100.0),
-            table::Col::fixed("CREATED", 130.0),
-        ];
+        // With the details pane open, the subnet stays longest; all three
+        // are in the details pane too.
+        let fit = table::fitting(ui, &[28.0], &[150.0, 100.0, 130.0]);
+        let (show_subnet, show_attached, show_created) = (fit[0], fit[1], fit[2]);
+        let mut columns = vec![marks.column(&items), table::Col::fill("NAME")];
+        if show_subnet {
+            columns.push(table::Col::fixed("SUBNET", 150.0));
+        }
+        if show_attached {
+            columns.push(table::Col::fixed("CONTAINERS", 100.0));
+        }
+        if show_created {
+            columns.push(table::Col::fixed("CREATED", 130.0));
+        }
         let selected = self.selected.clone();
         let clicked = table::show(
             ui,
@@ -120,9 +127,17 @@ impl Page for NetworksPage {
                 row.col(|ui| {
                     table::with_icon(ui, p, Icon::Network, p.muted, &net.name, &net.driver)
                 });
-                row.col(|ui| table::text(ui, p, &widgets::join_or_dash(&net.subnets)));
-                row.col(|ui| table::text(ui, p, &attached.to_string()));
-                row.col(|ui| table::muted(ui, p, &net.created.map(time_ago).unwrap_or_default()));
+                if show_subnet {
+                    row.col(|ui| table::text(ui, p, &widgets::join_or_dash(&net.subnets)));
+                }
+                if show_attached {
+                    row.col(|ui| table::text(ui, p, &attached.to_string()));
+                }
+                if show_created {
+                    row.col(|ui| {
+                        table::muted(ui, p, &net.created.map(time_ago).unwrap_or_default())
+                    });
+                }
             },
         );
         self.marks.apply(ui, "networks", &items, ticks);
