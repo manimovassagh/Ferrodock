@@ -70,7 +70,9 @@ impl ImagesPage {
         let field = ui.add(
             egui::TextEdit::singleline(&mut self.pull_input)
                 .hint_text("Search Docker Hub or pull an image, e.g. nginx:alpine")
-                .desired_width(380.0),
+                // Narrower with the details pane open, leaving room for
+                // the Pull button.
+                .desired_width((ui.available_width() - 90.0).clamp(160.0, 380.0)),
         );
         if field.changed() {
             self.typed_at = Some(std::time::Instant::now());
@@ -267,14 +269,21 @@ impl Page for ImagesPage {
         self.marks.bar(ui, ctx, "image", Resource::Images, &items);
         let marks = &self.marks;
         let mut ticks = Vec::new();
-        let columns = vec![
-            marks.column(&items),
-            table::Col::fill("NAME"),
-            table::Col::fixed("USAGE", 110.0),
-            table::Col::fixed("SIZE", 100.0),
-            table::Col::fixed("CREATED", 130.0),
-            table::Col::fixed("", 40.0),
-        ];
+        // With the details pane open, size goes last, then usage and
+        // created; all three are in the details pane too.
+        let fit = table::fitting(ui, &[28.0, 40.0], &[100.0, 110.0, 130.0]);
+        let (show_size, show_usage, show_created) = (fit[0], fit[1], fit[2]);
+        let mut columns = vec![marks.column(&items), table::Col::fill("NAME")];
+        if show_usage {
+            columns.push(table::Col::fixed("USAGE", 110.0));
+        }
+        if show_size {
+            columns.push(table::Col::fixed("SIZE", 100.0));
+        }
+        if show_created {
+            columns.push(table::Col::fixed("CREATED", 130.0));
+        }
+        columns.push(table::Col::fixed("", 40.0));
         let mut run = None;
         let selected = self.selected.clone();
         let clicked = table::show(
@@ -292,9 +301,15 @@ impl Page for ImagesPage {
                     let line = secondary_line(image);
                     table::with_icon(ui, p, Icon::Layers, p.accent, image.name(), &line)
                 });
-                row.col(|ui| usage_pill(ui, p, users));
-                row.col(|ui| table::text(ui, p, &format_size(image.size)));
-                row.col(|ui| table::muted(ui, p, &time_ago(image.created)));
+                if show_usage {
+                    row.col(|ui| usage_pill(ui, p, users));
+                }
+                if show_size {
+                    row.col(|ui| table::text(ui, p, &format_size(image.size)));
+                }
+                if show_created {
+                    row.col(|ui| table::muted(ui, p, &time_ago(image.created)));
+                }
                 row.col(|ui| {
                     if (selected.as_deref() == Some(image.id.as_str()) || table::row_hovered(ui))
                         && widgets::icon_button(ui, Icon::Play, "Run as a container").clicked()

@@ -157,12 +157,17 @@ impl Page for VolumesPage {
         self.marks.bar(ui, ctx, "volume", Resource::Volumes, &items);
         let marks = &self.marks;
         let mut ticks = Vec::new();
-        let columns = vec![
-            marks.column(&items),
-            table::Col::fill("NAME"),
-            table::Col::fixed("USAGE", 110.0),
-            table::Col::fixed("CREATED", 130.0),
-        ];
+        // With the details pane open, created goes first; both are in the
+        // details pane too.
+        let fit = table::fitting(ui, &[28.0], &[110.0, 130.0]);
+        let (show_usage, show_created) = (fit[0], fit[1]);
+        let mut columns = vec![marks.column(&items), table::Col::fill("NAME")];
+        if show_usage {
+            columns.push(table::Col::fixed("USAGE", 110.0));
+        }
+        if show_created {
+            columns.push(table::Col::fixed("CREATED", 130.0));
+        }
         let selected = self.selected.clone();
         let clicked = table::show(
             ui,
@@ -175,22 +180,18 @@ impl Page for VolumesPage {
             },
             |i, row| {
                 let volume = visible[i];
-                let users = store.containers_using_volume(&volume.name).len();
+                let users = store.containers_using_volume(&volume.name);
+                let (name, line) = label(volume, &users);
                 row.col(|ui| ticks.extend(marks.cell(ui, p, &items[i])));
-                row.col(|ui| {
-                    table::with_icon(
-                        ui,
-                        p,
-                        Icon::Database,
-                        p.accent,
-                        &volume.name,
-                        &volume.driver,
-                    )
-                });
-                row.col(|ui| usage_pill(ui, p, users));
-                row.col(|ui| {
-                    table::muted(ui, p, &volume.created.map(time_ago).unwrap_or_default())
-                });
+                row.col(|ui| table::with_icon(ui, p, Icon::Database, p.accent, &name, &line));
+                if show_usage {
+                    row.col(|ui| usage_pill(ui, p, users.len()));
+                }
+                if show_created {
+                    row.col(|ui| {
+                        table::muted(ui, p, &volume.created.map(time_ago).unwrap_or_default())
+                    });
+                }
             },
         );
         self.marks.apply(ui, "volumes", &items, ticks);
@@ -322,4 +323,36 @@ fn unused(store: &Store) -> Vec<Task> {
         .filter(|v| store.containers_using_volume(&v.name).is_empty())
         .map(|v| remove_task(Resource::Volumes, &v.name, &v.name))
         .collect()
+}
+
+/// Whether Docker named the volume itself: a 64-character hex ID, made
+/// for a `VOLUME` in an image or a bare `-v /path`.
+fn is_anonymous(name: &str) -> bool {
+    name.len() == 64 && name.bytes().all(|b| b.is_ascii_hexdigit())
+}
+
+/// The name and second line a volume shows in the list. An anonymous
+/// volume is named after the container that uses it, with its short ID
+/// on the second line.
+fn label(volume: &VolumeInfo, users: &[&str]) -> (String, String) {
+    if !is_anonymous(&volume.name) {
+        return (volume.name.clone(), volume.driver.clone());
+    }
+    let name = match users.first() {
+        Some(user) => format!("anonymous · {user}"),
+        None => "anonymous".to_owned(),
+    };
+    (name, format!("{} · {}", &volume.name[..12], volume.driver))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_anonymous;
+
+    #[test]
+    fn tells_anonymous_volumes() {
+        assert!(is_anonymous(&"0b0e380b057f".repeat(6)[..64]));
+        assert!(!is_anonymous("act-toolcache"));
+        assert!(!is_anonymous(&"g".repeat(64)));
+    }
 }

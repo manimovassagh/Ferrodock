@@ -53,23 +53,33 @@ pub fn header(
     refresh
 }
 
-/// A rounded search field with a magnifier icon.
+/// A rounded search field with a magnifier icon, one line high. It
+/// shrinks to fit beside the title rather than run over the summary.
 fn search_box(ui: &mut egui::Ui, p: &Palette, hint: &str, search: &mut String) {
+    let width = (ui.available_width() - 24.0).clamp(120.0, 200.0);
     egui::Frame::new()
         .fill(p.raised)
         .corner_radius(egui::CornerRadius::same(8))
         .inner_margin(egui::Margin::symmetric(9, 0))
         .show(ui, |ui| {
-            ui.set_width(240.0);
-            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+            ui.set_width(width);
+            // Left to right inside the header's right-to-left row, and
+            // only as tall as the field.
+            let layout = egui::Layout::left_to_right(egui::Align::Center);
+            ui.allocate_ui_with_layout(egui::vec2(width, 30.0), layout, |ui| {
+                ui.set_min_height(30.0);
                 icons::show(ui, Icon::Search, 14.0, p.muted);
                 ui.add(
                     egui::TextEdit::singleline(search)
                         .id(search_id())
                         .hint_text(hint)
                         .frame(egui::Frame::NONE)
-                        .desired_width(220.0)
-                        .margin(egui::vec2(2.0, 5.0)),
+                        .desired_width(width - 20.0)
+                        // As tall as the box, with the text centred on the
+                        // magnifier.
+                        .margin(egui::vec2(2.0, 0.0))
+                        .min_size(egui::vec2(0.0, 30.0))
+                        .align(egui::Align2::LEFT_CENTER),
                 )
                 .on_hover_text(format!(
                     "Press / to search this page, {}K to search everything",
