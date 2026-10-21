@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.28.8](https://github.com/manimovassagh/Ferrodock/compare/v1.28.7...v1.28.8) - 2026-10-21
+
+### Fixed
+
+- *(ui)* lists fit beside the details pane, smaller header search
+
 ## [1.28.7](https://github.com/manimovassagh/Ferrodock/compare/v1.28.6...v1.28.7) - 2026-10-21
 
 ### Documentation
