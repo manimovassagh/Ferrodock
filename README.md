@@ -99,17 +99,11 @@ has the details for each platform.
 
 | | Ferrodock | Docker Desktop | OrbStack | Rancher Desktop | Podman Desktop |
 | --- | --- | --- | --- | --- | --- |
-| Free for companies | ✅ | Paid above 250 employees or $10M revenue | Paid for commercial use | ✅ | ✅ |
 | macOS, Windows and Linux | ✅ | ✅ | macOS only | ✅ | ✅ |
 | App built with | Rust, native | Electron | Swift, native | Electron | Electron |
 | Docker engine included | ✅ | ✅ | ✅ | ✅ | Podman |
 | Open source | ✅ MIT | ❌ | ❌ | ✅ Apache-2.0 | ✅ Apache-2.0 |
 | CLI and MCP server for AI tools, built in | ✅ | MCP Toolkit | ❌ | ❌ | ❌ |
-
-As of October 2026; check each project's site for its current terms. Where
-others are ahead: OrbStack has years of tuning behind its Mac file sharing
-and networking, and Docker Desktop has the largest ecosystem of extensions.
-**[Prices for a team, download sizes and memory, side by side →](https://manimovassagh.github.io/Ferrodock/compare)**
 
 ## Ferrodock's own engine
 

@@ -320,7 +320,6 @@ const YES = "✓";
 const COMPARE = {
   tools: ["Ferrodock", "Docker Desktop", "OrbStack", "Rancher Desktop", "Podman Desktop"],
   rows: [
-    ["Free for companies", YES, "Paid above 250 people or $10M revenue", "Paid for commercial use", YES, YES],
     ["macOS, Windows and Linux", YES, YES, "macOS only", YES, YES],
     ["App built with", "Rust, native", "Electron", "Swift, native", "Electron", "Electron"],
     ["Docker engine included", YES, YES, YES, YES, "Podman"],
@@ -335,7 +334,7 @@ function Compare() {
       <div className="container">
         <h2 className={styles.sectionTitle}>How it compares</h2>
         <p className={styles.sectionLead}>
-          The only one that's free, native and on every platform, with its own engine on each.
+          How Ferrodock's design differs from other Docker desktop apps.
         </p>
         <div className={styles.compareWrap}>
           <table className={styles.compare}>

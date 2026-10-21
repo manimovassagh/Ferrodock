@@ -70,7 +70,6 @@ const config = {
         items: [
           { type: "docSidebar", sidebarId: "docs", position: "left", label: "Docs" },
           { to: "/docs/releases", label: "Releases", position: "left" },
-          { to: "/compare", label: "Compare", position: "left" },
           {
             href: "https://github.com/manimovassagh/Ferrodock/releases/latest",
             label: "Download",
