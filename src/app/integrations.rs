@@ -11,8 +11,9 @@ const GUIDE: &str = "https://manimovassagh.github.io/Ferrodock/docs/cli-and-mcp"
 
 /// The full path of `program`, for config files: the apps that read them
 /// don't always see the PATH a terminal has.
-fn full_path(program: &str) -> String {
-    cli_install::installed(program)
+fn full_path(program: &str, found: Option<&cli_install::Found>) -> String {
+    found
+        .and_then(|f| f.path(program).cloned())
         .or_else(|| {
             let file = if cfg!(windows) {
                 format!("{program}.exe")
@@ -34,54 +35,57 @@ enum Setup {
 
 struct Tool {
     name: &'static str,
-    /// The setup, for the server started by this command.
-    setup: fn(&str) -> Setup,
+    /// The setup, for the server started by the command (first), which
+    /// is at the full path (second).
+    setup: fn(&str, &str) -> Setup,
 }
 
 /// The AI tools with a known setup, most used first.
 const TOOLS: &[Tool] = &[
     Tool {
         name: "Claude Code",
-        setup: |server| Setup::Command(format!("claude mcp add ferrodock -- {server}")),
+        setup: |server, _| Setup::Command(format!("claude mcp add ferrodock -- {server}")),
     },
     Tool {
         name: "Codex",
-        setup: |server| Setup::Command(format!("codex mcp add ferrodock -- {server}")),
+        setup: |server, _| Setup::Command(format!("codex mcp add ferrodock -- {server}")),
     },
     Tool {
         name: "GitHub Copilot",
-        setup: |server| {
+        setup: |server, _| {
             let entry = serde_json::json!({ "name": "ferrodock", "command": unquote(server) });
             Setup::Command(format!("code --add-mcp '{entry}'"))
         },
     },
     Tool {
         name: "Gemini CLI",
-        setup: |server| Setup::Command(format!("gemini mcp add ferrodock {server}")),
+        setup: |server, _| Setup::Command(format!("gemini mcp add ferrodock {server}")),
     },
     Tool {
         name: "Cursor",
-        setup: |_| Setup::Config {
+        setup: |_, path| Setup::Config {
             file: "~/.cursor/mcp.json",
-            json: mcp_config(&full_path("ferrodock-mcp")),
+            json: mcp_config(path),
         },
     },
     Tool {
         name: "Windsurf",
-        setup: |_| Setup::Config {
+        setup: |_, path| Setup::Config {
             file: "~/.codeium/windsurf/mcp_config.json",
-            json: mcp_config(&full_path("ferrodock-mcp")),
+            json: mcp_config(path),
         },
     },
     Tool {
         name: "Claude Desktop",
-        setup: |_| Setup::Config {
+        setup: |_, path| Setup::Config {
             file: if cfg!(windows) {
                 r"%APPDATA%\Claude\claude_desktop_config.json"
-            } else {
+            } else if cfg!(target_os = "macos") {
                 "~/Library/Application Support/Claude/claude_desktop_config.json"
+            } else {
+                "~/.config/Claude/claude_desktop_config.json"
             },
-            json: mcp_config(&full_path("ferrodock-mcp")),
+            json: mcp_config(path),
         },
     },
 ];
@@ -125,9 +129,14 @@ fn heading(ui: &mut egui::Ui, p: &Palette, text: &str) {
 
 /// Whether `fdock` is on the PATH, with a button to put it there and the
 /// steps to do it by hand.
-fn cli_status(ui: &mut egui::Ui, p: &Palette) {
+fn cli_status(ui: &mut egui::Ui, p: &Palette, found: Option<&cli_install::Found>) {
+    // Still looking: say nothing rather than something that may be wrong.
+    let Some(found) = found else {
+        ui.spinner();
+        return;
+    };
     let Some(dir) = cli_install::bundled_dir() else {
-        if !cli_install::is_installed() {
+        if !found.installed() {
             ui.label(
                 RichText::new(
                     "fdock isn't next to this copy of Ferrodock. It comes with every \
@@ -140,7 +149,7 @@ fn cli_status(ui: &mut egui::Ui, p: &Palette) {
         return;
     };
     let progress = cli_install::progress();
-    if cli_install::is_installed() {
+    if found.installed() {
         ui.horizontal(|ui| {
             widgets::dot(ui, p.success);
             ui.label(
@@ -234,7 +243,9 @@ pub fn show(ui: &mut egui::Ui, p: &Palette) -> bool {
                     .color(p.text),
                 );
                 ui.add_space(8.0);
-                cli_status(ui, p);
+                let ctx = ui.ctx().clone();
+                let found = cli_install::found(move || ctx.request_repaint());
+                cli_status(ui, p, found.as_ref());
                 ui.add_space(8.0);
                 command_row(ui, p, "fdock ps");
                 ui.add_space(4.0);
@@ -266,7 +277,8 @@ pub fn show(ui: &mut egui::Ui, p: &Palette) -> bool {
                 });
                 ui.ctx().data_mut(|d| d.insert_temp(picked_id, picked));
                 ui.add_space(6.0);
-                match (TOOLS[picked].setup)("ferrodock-mcp") {
+                let path = full_path("ferrodock-mcp", found.as_ref());
+                match (TOOLS[picked].setup)("ferrodock-mcp", &path) {
                     Setup::Command(command) => command_row(ui, p, &command),
                     Setup::Config { file, json } => {
                         ui.label(
@@ -310,7 +322,8 @@ mod tests {
     #[test]
     fn every_tool_has_a_setup() {
         for tool in TOOLS {
-            match (tool.setup)("\"C:\\Program Files\\ferrodock-mcp.exe\"") {
+            let server = "\"C:\\Program Files\\ferrodock-mcp.exe\"";
+            match (tool.setup)(server, server) {
                 Setup::Command(command) => {
                     assert!(command.contains("ferrodock"), "{}", tool.name);
                     if let Some(json) = command.split('\'').nth(1) {
