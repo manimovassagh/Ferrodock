@@ -361,12 +361,6 @@ function Compare() {
             </tbody>
           </table>
         </div>
-        <p className={styles.compareNote}>
-          As of October 2026; check each project's site for its current terms. Where others are
-          ahead: OrbStack has years of tuning behind its Mac file sharing and networking, and Docker
-          Desktop has the largest ecosystem of extensions.{" "}
-          <Link to="/compare">Prices, download sizes and memory, side by side →</Link>
-        </p>
       </div>
     </section>
   );
