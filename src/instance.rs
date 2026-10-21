@@ -20,8 +20,10 @@ use std::time::{Duration, Instant};
 pub const AFTER_UPDATE_FLAG: &str = "--after-update";
 
 /// How long the new version waits for the old one to quit after an
-/// update. The old one stops its engine first, which takes a few seconds.
-const HANDOFF: Duration = Duration::from_secs(20);
+/// update. The old one stops its engine first: usually a few seconds,
+/// but on Windows up to 20 for containers to stop, then WSL's own
+/// shutdown, so this leaves plenty of room over that.
+const HANDOFF: Duration = Duration::from_secs(120);
 
 /// How long to keep trying to reach the Ferrodock that runs: it may have
 /// just taken the lock and not written its port yet.
@@ -55,13 +57,17 @@ pub fn start(background: bool) -> Start {
     let Some(dir) = crate::vm::Paths::locate().map(|p| p.dir) else {
         return Start::Run(None);
     };
-    let wait = if std::env::args().any(|a| a == AFTER_UPDATE_FLAG) {
+    let after_update = std::env::args().any(|a| a == AFTER_UPDATE_FLAG);
+    let wait = if after_update {
         HANDOFF
     } else {
         Duration::ZERO
     };
     match claim(&dir, wait) {
         Ok(Some(instance)) => Start::Run(Some(instance)),
+        // The old version is still quitting, so there's no one to hand
+        // over to: exiting now would leave no Ferrodock at all.
+        Ok(None) if after_update => Start::Run(None),
         Ok(None) => {
             if !background {
                 wake(&dir);

@@ -206,6 +206,20 @@ impl Engine {
         }
     }
 
+    /// Moves to `next` if the engine is in a state `from` accepts, checked
+    /// and changed under one lock: a second click (or auto-start racing a
+    /// click) then finds the engine busy instead of booting it twice.
+    fn claim(&self, from: impl Fn(&State) -> bool, next: State) -> bool {
+        let Ok(mut s) = self.state.lock() else {
+            return false;
+        };
+        if !from(&s) {
+            return false;
+        }
+        *s = next;
+        true
+    }
+
     /// Shows the engine as `state`, for screenshots.
     #[cfg(test)]
     pub fn pretend(&self, state: State) {
@@ -215,7 +229,7 @@ impl Engine {
     /// Downloads the image if needed, then boots the engine. `repaint`
     /// wakes the UI as things change.
     pub fn start(&self, resources: Resources, repaint: impl Fn() + Send + 'static) {
-        if self.state().busy() || self.state() == State::Running {
+        if !self.claim(|s| !s.busy() && *s != State::Running, State::Starting) {
             return;
         }
         let Some(boot) = self.boot(resources, repaint) else {
@@ -227,7 +241,7 @@ impl Engine {
     /// Stops the engine and boots it again, with `resources`. Only where
     /// Ferrodock runs the engine itself (not the Linux service).
     pub fn restart(&self, resources: Resources, repaint: impl Fn() + Send + 'static) {
-        if self.state().busy() || !Self::RESTARTS {
+        if !Self::RESTARTS || !self.claim(|s| !s.busy(), State::Starting) {
             return;
         }
         let Some(boot) = self.boot(resources, repaint) else {
@@ -235,8 +249,6 @@ impl Engine {
         };
         #[cfg(engine)]
         let engine = self.running.lock().ok().and_then(|mut slot| slot.take());
-        let state = self.state.clone();
-        Self::set(&state, State::Starting);
         std::thread::spawn(move || {
             #[cfg(engine)]
             if let Some(engine) = engine {
@@ -249,14 +261,13 @@ impl Engine {
     /// Stops the engine when the user asks: on Linux too, where it's a
     /// service that otherwise keeps running.
     pub fn shut_down(&self, repaint: impl Fn() + Send + 'static) {
-        if self.state() != State::Running {
+        if !self.claim(|s| *s == State::Running, State::Stopping) {
             return;
         }
         #[cfg(engine)]
         let engine = self.running.lock().ok().and_then(|mut slot| slot.take());
         let state = self.state.clone();
         let given = self.given.clone();
-        Self::set(&state, State::Stopping);
         std::thread::spawn(move || {
             let result = Ok(());
             #[cfg(engine)]
@@ -278,7 +289,7 @@ impl Engine {
     /// Stops the engine, deletes everything in it (images, containers,
     /// volumes) and starts it again, empty, with `resources`.
     pub fn reset(&self, resources: Resources, repaint: impl Fn() + Send + Sync + 'static) {
-        if self.state().busy() {
+        if !self.claim(|s| !s.busy(), State::Stopping) {
             return;
         }
         let repaint = Arc::new(repaint);
@@ -290,7 +301,6 @@ impl Engine {
         #[cfg(engine)]
         let engine = self.running.lock().ok().and_then(|mut slot| slot.take());
         let state = self.state.clone();
-        Self::set(&state, State::Stopping);
         std::thread::spawn(move || {
             #[cfg(engine)]
             {
@@ -471,6 +481,19 @@ impl Engine {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    #[test]
+    fn a_second_start_finds_the_engine_busy() {
+        let engine = Engine::new();
+        engine.pretend(State::Stopped);
+        let ready = |s: &State| !s.busy() && *s != State::Running;
+        assert!(engine.claim(ready, State::Starting));
+        assert!(!engine.claim(ready, State::Starting));
+        assert_eq!(engine.state(), State::Starting);
+        // Nor can it be stopped or reset halfway through.
+        assert!(!engine.claim(|s| *s == State::Running, State::Stopping));
+        assert!(!engine.claim(|s| !s.busy(), State::Stopping));
+    }
 
     #[test]
     #[cfg(unix)]

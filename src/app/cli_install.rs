@@ -162,20 +162,55 @@ pub enum Progress {
 }
 
 static PROGRESS: Mutex<Progress> = Mutex::new(Progress::Idle);
-/// Whether the programs are on the PATH, worked out once (on Windows it
-/// takes a moment) and again after an install.
-static INSTALLED: Mutex<Option<bool>> = Mutex::new(None);
+
+/// Where each of [`PROGRAMS`] is found from a new terminal.
+#[derive(Clone, Default)]
+pub struct Found([Option<PathBuf>; PROGRAMS.len()]);
+
+impl Found {
+    /// Whether every program is on the PATH.
+    pub fn installed(&self) -> bool {
+        self.0.iter().all(Option::is_some)
+    }
+
+    pub fn path(&self, program: &str) -> Option<&PathBuf> {
+        let i = PROGRAMS.iter().position(|p| *p == program)?;
+        self.0[i].as_ref()
+    }
+}
+
+enum Lookup {
+    Unknown,
+    Looking,
+    Done(Found),
+}
+
+/// The last [`Found`]. Looking takes a moment on Windows (it asks
+/// PowerShell for the user's Path), so it's done once, off the UI thread,
+/// and again after an install.
+static FOUND: Mutex<Lookup> = Mutex::new(Lookup::Unknown);
 
 pub fn progress() -> Progress {
     PROGRESS.lock().map(|p| p.clone()).unwrap_or(Progress::Idle)
 }
 
-/// [`all_installed`], remembered.
-pub fn is_installed() -> bool {
-    let Ok(mut known) = INSTALLED.lock() else {
-        return false;
-    };
-    *known.get_or_insert_with(all_installed)
+/// Where the programs are, once known. The first call starts looking on
+/// a background thread and returns None; `repaint` runs when it's done.
+pub fn found(repaint: impl FnOnce() + Send + 'static) -> Option<Found> {
+    let mut lookup = FOUND.lock().ok()?;
+    match &*lookup {
+        Lookup::Done(found) => return Some(found.clone()),
+        Lookup::Looking => return None,
+        Lookup::Unknown => *lookup = Lookup::Looking,
+    }
+    std::thread::spawn(move || {
+        let found = Found(PROGRAMS.map(installed));
+        if let Ok(mut lookup) = FOUND.lock() {
+            *lookup = Lookup::Done(found);
+        }
+        repaint();
+    });
+    None
 }
 
 /// Installs in the background; `done` runs when it's finished.
@@ -188,8 +223,8 @@ pub fn start(dir: PathBuf, done: impl FnOnce() + Send + 'static) {
     }
     std::thread::spawn(move || {
         let result = install(&dir);
-        if let Ok(mut known) = INSTALLED.lock() {
-            *known = None;
+        if let Ok(mut lookup) = FOUND.lock() {
+            *lookup = Lookup::Unknown;
         }
         if let Ok(mut progress) = PROGRESS.lock() {
             *progress = match result {
