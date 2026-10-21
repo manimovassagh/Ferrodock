@@ -18,7 +18,7 @@ use super::CONTEXT;
 fn folder(dir: &Path, name: &str) -> PathBuf {
     dir.join("contexts")
         .join("meta")
-        .join(format!("{:x}", Sha256::digest(name.as_bytes())))
+        .join(ferrodock_core::hex(&Sha256::digest(name.as_bytes())))
 }
 
 /// The context's `meta.json`.

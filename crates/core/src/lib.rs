@@ -124,6 +124,11 @@ fn describe(err: bollard::errors::Error) -> String {
     }
 }
 
+/// `bytes` as lowercase hex, the way `sha256sum` prints a digest.
+pub fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
 /// Docker IDs look like `sha256:abc…`; this returns the familiar 12-char form.
 fn short_id(id: &str) -> &str {
     let id = id.strip_prefix("sha256:").unwrap_or(id);
@@ -138,6 +143,11 @@ mod tests {
     fn shortens_ids() {
         assert_eq!(short_id("sha256:0123456789abcdef"), "0123456789ab");
         assert_eq!(short_id("abc"), "abc");
+    }
+
+    #[test]
+    fn hex_is_lowercase_and_padded() {
+        assert_eq!(hex(&[0x00, 0x0f, 0xab]), "000fab");
     }
 
     /// Talks to a real daemon: `cargo test -- --ignored`.
