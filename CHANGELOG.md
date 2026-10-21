@@ -7,6 +7,16 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.28.6](https://github.com/manimovassagh/Ferrodock/compare/v1.28.5...v1.28.6) - 2026-10-21
+
+### Fixed
+
+- engine double boot, update handoff on Windows, CLI dialog stutter
+
+### Other
+
+- Merge pull request #222 from manimovassagh/release-plz-2026-10-21T13-02-38Z
+
 ## [1.28.5](https://github.com/manimovassagh/Ferrodock/compare/v1.28.4...v1.28.5) - 2026-10-21
 
 ### Fixed
