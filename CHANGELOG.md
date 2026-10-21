@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.28.7](https://github.com/manimovassagh/Ferrodock/compare/v1.28.6...v1.28.7) - 2026-10-21
+
+### Documentation
+
+- *(website)* remove the Compare page and the pricing row
+
 ## [1.28.6](https://github.com/manimovassagh/Ferrodock/compare/v1.28.5...v1.28.6) - 2026-10-21
 
 ### Fixed
