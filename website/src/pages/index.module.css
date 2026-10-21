@@ -445,14 +445,6 @@
   font-weight: 700;
 }
 
-.compareNote {
-  text-align: center;
-  font-size: 0.9rem;
-  color: var(--ifm-color-emphasis-600);
-  max-width: 44rem;
-  margin: 1.5rem auto 0;
-}
-
 .whyGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
