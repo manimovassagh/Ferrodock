@@ -25,8 +25,12 @@ env:
   TAG: ${{ inputs.tag }}
 
 jobs:
+  # Each build has a time limit: a runner that hangs (one starved of memory
+  # linking with full LTO once ran for 46 minutes) fails the build instead
+  # of leaving the release a draft with nobody told; see `report` below.
   windows:
     runs-on: windows-latest
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7
         with:
@@ -47,6 +51,8 @@ jobs:
 
   macos:
     runs-on: macos-latest
+    # Builds for both Apple Silicon and Intel: about 20 minutes.
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v7
         with:
@@ -62,6 +68,7 @@ jobs:
 
   linux:
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
@@ -97,21 +104,26 @@ jobs:
         run: sha256sum Ferrodock-* | tee SHA256SUMS.txt
       - name: Attach to the release
         run: gh release upload "$TAG" dist/* --clobber
-      - name: Publish the release
-        run: |
-          read -r draft prerelease < <(gh release view "$TAG" --json isDraft,isPrerelease -q '"\(.isDraft) \(.isPrerelease)"')
-          if [ "$draft" != "true" ]; then
-            echo "Already published; assets updated."
-          elif [ "$prerelease" = "true" ]; then
-            gh release edit "$TAG" --draft=false
-          else
-            gh release edit "$TAG" --draft=false --latest
-          fi
-      - name: Is this the latest release?
+      # Two releases can finish in either order (v1.24.0 once published two
+      # minutes before v1.23.0). Only the highest version is marked latest
+      # and updates the Homebrew cask, whichever finishes last.
+      - name: Is this the highest version?
         id: latest
         run: |
-          latest=$(gh release view --json tagName -q .tagName)
-          echo "latest=$([ "$latest" = "$TAG" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          prerelease=$(gh release view "$TAG" --json isPrerelease -q .isPrerelease)
+          highest=$({ gh release list --exclude-drafts --exclude-pre-releases --limit 100 --json tagName -q '.[].tagName'; echo "$TAG"; } | sort -V | tail -n 1)
+          latest=$([ "$prerelease" != "true" ] && [ "$highest" = "$TAG" ] && echo true || echo false)
+          echo "Highest published version: $highest; this is the latest: $latest"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+      - name: Publish the release
+        env:
+          LATEST: ${{ steps.latest.outputs.latest }}
+        run: |
+          if [ "$(gh release view "$TAG" --json isDraft -q .isDraft)" != "true" ]; then
+            echo "Already published; assets updated."
+          else
+            gh release edit "$TAG" --draft=false --latest="$LATEST"
+          fi
 
   # Points the Homebrew cask (Casks/ferrodock.rb) at the new DMG.
   homebrew:
@@ -144,13 +156,21 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "chore: update Homebrew cask to ${TAG}"
-          git push
+          # main may have moved on while this ran, e.g. the next release PR
+          # was merged: rebase onto it and try again.
+          for attempt in 1 2 3; do
+            git push && exit 0
+            sleep $((attempt * 5))
+            git pull --rebase origin main
+          done
+          exit 1
 
   # Publishes the crate to crates.io, so `cargo install ferrodock` works.
-  # Needs a CARGO_REGISTRY_TOKEN secret; without it this step is skipped.
+  # Every release, not just the latest: crates.io takes an older version
+  # after a newer one. Needs a CARGO_REGISTRY_TOKEN secret; without it this
+  # step is skipped.
   crates:
     needs: publish
-    if: needs.publish.outputs.latest == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -175,3 +195,42 @@ jobs:
               cargo publish --locked -p "$crate"
             fi
           done
+
+  # A build that failed, hung or was cancelled leaves the release a draft
+  # with no downloads. Say so in an issue, with how to finish it.
+  report:
+    needs: [windows, macos, linux, publish, homebrew, crates]
+    if: always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      RESULTS: ${{ toJSON(needs) }}
+    steps:
+      - name: Open an issue
+        run: |
+          title="Release $TAG didn't finish"
+          if gh issue list --state open --search "\"$title\" in:title" --json title -q '.[].title' | grep -qxF "$title"; then
+            echo "Already reported."
+            exit 0
+          fi
+          jobs=$(jq -r 'to_entries[] | "- \(.key): \(.value.result)"' <<< "$RESULTS")
+          gh issue create --title "$title" --label release --body "$(cat <<BODY
+          The [release run]($RUN) for $TAG stopped before it finished:
+
+          $jobs
+
+          Until it does, the release may be a draft with no downloads, or
+          Homebrew and crates.io may be behind. To finish it, run **Release
+          assets** again for the tag (it only redoes what's missing):
+
+              gh workflow run release-assets.yml -f tag=$TAG
+
+          Re-running the **Release** workflow doesn't help: the tag already
+          exists, so it builds nothing.
+          BODY
+          )"

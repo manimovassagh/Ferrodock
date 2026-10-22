@@ -54,8 +54,12 @@ jobs:
     with:
       tag: ${{ needs.release.outputs.tag }}
 
+  # After the release job, so the tag of a release PR merged by this push
+  # exists before the next version is worked out from the tags. Otherwise
+  # it works out the same version again and opens a second release PR.
   release-pr:
     name: Update the release PR
+    needs: release
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -68,8 +72,20 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      # A newer push to main has its own run, which updates the PR from
+      # there; this one would only work from a stale version.
+      - name: Is main still here?
+        id: main
+        run: |
+          head=$(git ls-remote origin refs/heads/main | cut -f1)
+          if [ "$head" != "$GITHUB_SHA" ]; then
+            echo "::notice::main has moved on to $head; its own run updates the release PR."
+            echo "moved=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: dtolnay/rust-toolchain@stable
+        if: steps.main.outputs.moved != 'true'
       - uses: release-plz/action@v0.5
+        if: steps.main.outputs.moved != 'true'
         with:
           command: release-pr
         env:

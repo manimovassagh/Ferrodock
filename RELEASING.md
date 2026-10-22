@@ -21,7 +21,13 @@ GitHub Actions. Nobody edits version numbers or the changelog by hand.
       release.
 
 Users never see a release without downloads: it stays a draft until every
-platform has built.
+platform has built. If a build fails, hangs (each has a time limit) or is
+cancelled, the workflow opens an issue, "Release vX.Y.Z didn't finish",
+saying how to finish it (see below).
+
+When two release PRs are merged close together, their releases can finish
+in either order. Only the highest version is marked **latest** and goes
+into the Homebrew cask, so neither goes backwards.
 
 ## How the version is chosen
 
@@ -53,9 +59,13 @@ pre-release such as `1.0.0-rc.1`. It's published as a GitHub
 ## Rebuilding the binaries of a release
 
 If a platform build fails, or a release needs fresh binaries, run
-**Actions → Release assets → Run workflow** with the tag (e.g. `v0.3.0`).
-It rebuilds from that tag, replaces the files, and publishes the release if
-it's still a draft.
+**Actions → Release assets → Run workflow** with the tag (e.g. `v0.3.0`),
+or `gh workflow run release-assets.yml -f tag=v0.3.0`. It rebuilds from
+that tag, replaces the files, and publishes the release if it's still a
+draft.
+
+Re-running the **Release** workflow instead doesn't help: the tag already
+exists, so it builds nothing.
 
 ## One-time repository settings
 
