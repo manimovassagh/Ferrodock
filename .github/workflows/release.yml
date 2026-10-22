@@ -45,8 +45,12 @@ jobs:
     name: Build and publish
     needs: release
     if: needs.release.outputs.created == 'true'
+    # Everything the called workflow's jobs ask for: GitHub won't start it
+    # if a job there asks for more than this. `issues` is for its report of
+    # a release that didn't finish.
     permissions:
       contents: write
+      issues: write
     uses: ./.github/workflows/release-assets.yml
     # Called workflows don't see the repository's secrets unless passed on;
     # the crates.io step needs CARGO_REGISTRY_TOKEN.
