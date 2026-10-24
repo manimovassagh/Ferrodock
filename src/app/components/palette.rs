@@ -115,7 +115,12 @@ impl CommandPalette {
     }
 }
 
-fn row(ui: &mut egui::Ui, p: &Palette, entry: &Entry, highlighted: bool) -> egui::Response {
+pub(super) fn row(
+    ui: &mut egui::Ui,
+    p: &Palette,
+    entry: &Entry,
+    highlighted: bool,
+) -> egui::Response {
     let (rect, response) =
         ui.allocate_exact_size(vec2(ui.available_width(), ROW_HEIGHT), Sense::click());
     let painter = ui.painter();
@@ -143,6 +148,18 @@ fn row(ui: &mut egui::Ui, p: &Palette, entry: &Entry, highlighted: bool) -> egui
         label,
         p.text,
     );
+    // Painted by hand, so say what it is: an option of the list, with its
+    // detail ("Container · running"), and whether it's the one Enter picks.
+    let spoken = if entry.detail.is_empty() {
+        entry.label.clone()
+    } else {
+        format!("{}, {}", entry.label, entry.detail)
+    };
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::ListBoxOption, true, &spoken));
+    // Selected, not "checked" as WidgetInfo would have it.
+    response.ctx.accesskit_node_builder(response.id, |node| {
+        node.set_selected(highlighted);
+    });
     response
 }
 
