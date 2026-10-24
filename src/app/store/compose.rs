@@ -1,5 +1,6 @@
-//! `docker compose` jobs the UI shows: the last command run (up, rebuild,
-//! pull & recreate) and the logs being followed.
+//! Jobs whose output the UI shows: the last `docker compose` command run
+//! (up, rebuild, pull & recreate), the logs being followed, and the last
+//! image build.
 
 use std::collections::VecDeque;
 
@@ -35,6 +36,8 @@ impl Job {
 pub struct ComposeJobs {
     pub run: Option<Job>,
     pub logs: Option<Job>,
+    /// The last image build (Images page).
+    pub build: Option<Job>,
 }
 
 impl ComposeJobs {
@@ -78,8 +81,17 @@ impl ComposeJobs {
         }
     }
 
+    /// Records a build of `spec`.
+    pub fn build_requested(&mut self, spec: &crate::docker::BuildSpec) {
+        self.build = Some(Job::new(
+            spec.job,
+            format!("Building {}", spec.tag),
+            spec.tag.clone(),
+        ));
+    }
+
     fn job(&mut self, id: u64) -> Option<&mut Job> {
-        [self.run.as_mut(), self.logs.as_mut()]
+        [self.run.as_mut(), self.logs.as_mut(), self.build.as_mut()]
             .into_iter()
             .flatten()
             .find(|j| j.id == id)
@@ -97,7 +109,9 @@ impl ComposeJobs {
     /// Marks a job ended. Returns what to tell the user when a command
     /// (not the logs) finished.
     pub fn done(&mut self, id: u64, error: Option<String>) -> Option<(String, bool)> {
-        let is_run = self.run.as_ref().is_some_and(|j| j.id == id);
+        let is_run = [&self.run, &self.build]
+            .iter()
+            .any(|j| j.as_ref().is_some_and(|j| j.id == id));
         let job = self.job(id)?;
         let notice = is_run.then(|| match &error {
             None => (format!("{}: done", job.title), false),

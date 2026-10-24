@@ -54,6 +54,7 @@ fdock rm web -f                  # remove; -f stops it first
 fdock inspect web                # image, environment, ports, mounts, health
 fdock images                     # also volumes, networks, projects
 fdock pull nginx:alpine
+fdock build . -t my-app:1.0 --build-arg VERSION=1.0
 fdock df                         # disk usage
 fdock clean images build-cache   # free space; see below
 fdock compose up ./shop          # also down, restart, logs [-f]
@@ -158,7 +159,7 @@ Give the full path if it isn't on the PATH, such as
 
 | Looks | Changes things |
 |---|---|
-| `engine_status`, `list_containers`, `container_logs`, `inspect_container`, `list_images`, `list_volumes`, `list_networks`, `list_projects`, `disk_usage`, `list_quickstart_templates` | `container_action` (start, stop, restart, pause, resume), `remove_container`, `pull_image`, `run_quickstart`, `engine_start`, `compose_up`, `compose_down`, `clean`, `reset` |
+| `engine_status`, `list_containers`, `container_logs`, `inspect_container`, `list_images`, `list_volumes`, `list_networks`, `list_projects`, `disk_usage`, `list_quickstart_templates` | `container_action` (start, stop, restart, pause, resume), `remove_container`, `pull_image`, `build_image`, `run_quickstart`, `engine_start`, `compose_up`, `compose_down`, `clean`, `reset` |
 
 Tools that change something are marked that way, so your AI tool asks before
 it uses them; `remove_container`, `compose_down`, `clean` and `reset` are

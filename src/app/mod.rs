@@ -364,6 +364,10 @@ impl FerrodockApp {
                     ImageOp::Push(reference) => Some((reference.clone(), Action::Push)),
                     ImageOp::Save(image) => Some((image.clone(), Action::Save)),
                     ImageOp::Load(path) => Some((path.display().to_string(), Action::Load)),
+                    ImageOp::Build(spec) => {
+                        self.store.compose.build_requested(spec);
+                        None
+                    }
                 };
                 if let Some((id, action)) = busy {
                     self.store.pending.insert(id, action);

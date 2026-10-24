@@ -1,4 +1,4 @@
-//! Running [`ImageOp`]s: search, tag, push, save and load.
+//! Running [`ImageOp`]s: search, tag, push, save, load and build.
 
 use std::time::{Duration, Instant};
 
@@ -7,6 +7,17 @@ use crate::docker::{Action, DockerClient, ImageOp, Resource, Task, downloads_dir
 
 pub(super) async fn handle(client: &DockerClient, shared: &Shared, op: ImageOp) {
     let (task, result) = match op {
+        ImageOp::Build(spec) => {
+            let mut out = super::compose::Batch::new(shared, spec.job);
+            let result = client.build_image(&spec, |line| out.push(line)).await;
+            out.flush();
+            shared.send(Response::ComposeDone {
+                job: spec.job,
+                error: result.err(),
+            });
+            refresh(client, shared, Resource::Images).await;
+            return;
+        }
         ImageOp::Search(term) => {
             let results = client.search_images(&term).await;
             shared.send(Response::SearchResults { term, results });

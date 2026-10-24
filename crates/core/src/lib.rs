@@ -11,6 +11,7 @@
 
 mod actions;
 mod browse;
+mod build;
 pub mod builtin;
 mod compose;
 pub mod compose_cli;
@@ -43,6 +44,7 @@ mod volumes;
 
 pub use actions::{Action, Task};
 pub use browse::VOLUME_ROOT;
+pub use build::{BuildSpec, Ignore};
 pub use compose::{ComposeProject, group_projects};
 pub use compose_cli::{ComposeAction, ComposeOp, ComposeTarget, next_job, split_log_line};
 pub use containers::{ComposeLabels, ContainerInfo};

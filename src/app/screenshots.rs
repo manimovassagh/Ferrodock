@@ -915,3 +915,27 @@ fn screenshots_of_narrow_lists() {
     open(&mut h, 4, network);
     save(&mut h, "narrow-networks");
 }
+
+/// An image build's output on the Images page, streamed as it runs.
+#[test]
+#[ignore]
+fn screenshots_of_build() {
+    use crate::docker::{BuildSpec, ImageOp};
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(3));
+    set_theme(&mut h, Theme::Light);
+    open(&mut h, 2, None);
+    let context = std::env::var("BUILD_CONTEXT").unwrap_or_else(|_| ".".into());
+    h.state_mut()
+        .handle_intent(super::page::Intent::Image(ImageOp::Build(BuildSpec {
+            job: crate::docker::next_job(),
+            context: context.into(),
+            dockerfile: "Dockerfile".into(),
+            tag: "hello-build:latest".into(),
+            args: vec![("GREETING".into(), "hello".into())],
+            no_cache: true,
+            ..Default::default()
+        })));
+    settle(&mut h, Duration::from_secs(8));
+    save(&mut h, "build");
+}

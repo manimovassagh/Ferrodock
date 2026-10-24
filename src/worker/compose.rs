@@ -104,7 +104,7 @@ async fn ensure_compose(out: &mut Batch<'_>) -> Result<(), String> {
 }
 
 /// Output lines, sent together.
-struct Batch<'a> {
+pub(super) struct Batch<'a> {
     shared: &'a Shared,
     job: u64,
     lines: Vec<String>,
@@ -112,7 +112,7 @@ struct Batch<'a> {
 }
 
 impl<'a> Batch<'a> {
-    fn new(shared: &'a Shared, job: u64) -> Self {
+    pub(super) fn new(shared: &'a Shared, job: u64) -> Self {
         Self {
             shared,
             job,
@@ -121,14 +121,14 @@ impl<'a> Batch<'a> {
         }
     }
 
-    fn push(&mut self, line: String) {
+    pub(super) fn push(&mut self, line: String) {
         self.lines.push(line);
         if self.sent.elapsed() >= FLUSH_EVERY {
             self.flush();
         }
     }
 
-    fn flush(&mut self) {
+    pub(super) fn flush(&mut self) {
         if !self.lines.is_empty() {
             self.shared.send(Response::ComposeOutput {
                 job: self.job,

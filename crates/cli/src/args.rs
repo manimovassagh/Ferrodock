@@ -97,6 +97,27 @@ pub enum Command {
     Images,
     /// Pull an image, e.g. nginx:alpine.
     Pull { image: String },
+    /// Build an image from a folder with a Dockerfile, with the engine's
+    /// own builder (no Docker CLI needed). Honours `.dockerignore`.
+    Build {
+        /// The build context.
+        #[arg(default_value = ".")]
+        path: std::path::PathBuf,
+        /// Name the image, e.g. my-app:1.0.
+        #[arg(short, long)]
+        tag: String,
+        /// The Dockerfile, relative to the context.
+        #[arg(short, long, default_value = "Dockerfile")]
+        file: String,
+        /// KEY=value; repeat for more.
+        #[arg(long = "build-arg", value_name = "KEY=VALUE")]
+        build_args: Vec<String>,
+        /// The stage to stop at.
+        #[arg(long, default_value = "")]
+        target: String,
+        #[arg(long)]
+        no_cache: bool,
+    },
     /// List volumes.
     Volumes,
     /// List networks.
