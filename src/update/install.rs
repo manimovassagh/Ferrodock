@@ -230,6 +230,187 @@ mod tests {
         fs::remove_dir_all(dir).unwrap();
     }
 
+    /// A fresh, empty directory for one test.
+    fn scratch(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("ferrodock-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    /// Serves `files` (path, body) over plain HTTP on localhost, one
+    /// request per connection, until the test ends.
+    fn serve(files: Vec<(&'static str, Vec<u8>)>) -> String {
+        use std::io::{BufRead, BufReader, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(mut stream) = stream else { continue };
+                let mut reader = BufReader::new(stream.try_clone().unwrap());
+                let mut request = String::new();
+                let _ = reader.read_line(&mut request);
+                // The rest of the headers, up to the blank line.
+                let mut line = String::new();
+                while reader.read_line(&mut line).is_ok_and(|n| n > 2) {
+                    line.clear();
+                }
+                let path = request.split(' ').nth(1).unwrap_or_default();
+                let response = match files.iter().find(|(p, _)| *p == path) {
+                    Some((_, body)) => {
+                        let mut r = format!(
+                            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                            body.len()
+                        )
+                        .into_bytes();
+                        r.extend_from_slice(body);
+                        r
+                    }
+                    None => {
+                        b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                            .to_vec()
+                    }
+                };
+                let _ = stream.write_all(&response);
+            }
+        });
+        base
+    }
+
+    /// A `.tar.gz` holding one executable file `name`.
+    fn tar_gz(name: &str, contents: &[u8]) -> Vec<u8> {
+        let gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+        let mut tar = tar::Builder::new(gz);
+        let mut header = tar::Header::new_gnu();
+        header.set_size(contents.len() as u64);
+        header.set_mode(0o755);
+        header.set_cksum();
+        tar.append_data(&mut header, name, contents).unwrap();
+        tar.into_inner().unwrap().finish().unwrap()
+    }
+
+    fn available(base: &str, sums: bool) -> Available {
+        Available {
+            version: "9.9.9".into(),
+            notes: String::new(),
+            asset_name: "Ferrodock-9.9.9-linux-x64.tar.gz".into(),
+            asset_url: format!("{base}/Ferrodock-9.9.9-linux-x64.tar.gz"),
+            sums_url: sums.then(|| format!("{base}/SHA256SUMS.txt")),
+        }
+    }
+
+    #[test]
+    fn prepares_a_verified_download() {
+        let archive = tar_gz("ferrodock", b"new build");
+        let sum = ferrodock_core::hex(&Sha256::digest(&archive));
+        let base = serve(vec![
+            ("/Ferrodock-9.9.9-linux-x64.tar.gz", archive),
+            (
+                "/SHA256SUMS.txt",
+                format!("{sum}  Ferrodock-9.9.9-linux-x64.tar.gz\n").into_bytes(),
+            ),
+        ]);
+        let work = scratch("prepare-ok");
+        let unpacked = prepare(&available(&base, true), |_, _| {}, &work, false).unwrap();
+        assert_eq!(fs::read(unpacked.join("ferrodock")).unwrap(), b"new build");
+        fs::remove_dir_all(work).unwrap();
+    }
+
+    #[test]
+    fn refuses_a_corrupted_download() {
+        let base = serve(vec![
+            (
+                "/Ferrodock-9.9.9-linux-x64.tar.gz",
+                tar_gz("ferrodock", b"tampered"),
+            ),
+            (
+                "/SHA256SUMS.txt",
+                format!("{}  Ferrodock-9.9.9-linux-x64.tar.gz\n", "0".repeat(64)).into_bytes(),
+            ),
+        ]);
+        let work = scratch("prepare-corrupt");
+        let error = prepare(&available(&base, true), |_, _| {}, &work, false).unwrap_err();
+        assert!(error.contains("checksum mismatch"), "{error}");
+        assert!(!work.join("unpacked").exists());
+        fs::remove_dir_all(work).unwrap();
+    }
+
+    #[test]
+    fn refuses_a_download_the_sums_dont_list() {
+        let base = serve(vec![
+            (
+                "/Ferrodock-9.9.9-linux-x64.tar.gz",
+                tar_gz("ferrodock", b"new build"),
+            ),
+            ("/SHA256SUMS.txt", b"abc  something-else.zip\n".to_vec()),
+        ]);
+        let work = scratch("prepare-unlisted");
+        let error = prepare(&available(&base, true), |_, _| {}, &work, false).unwrap_err();
+        assert!(error.contains("no checksum"), "{error}");
+        fs::remove_dir_all(work).unwrap();
+    }
+
+    #[test]
+    fn reports_a_failed_download() {
+        let base = serve(Vec::new());
+        let work = scratch("prepare-404");
+        assert!(prepare(&available(&base, true), |_, _| {}, &work, false).is_err());
+        fs::remove_dir_all(work).unwrap();
+    }
+
+    /// A fake installed `Ferrodock.app` in `dir`, holding `marker`.
+    fn fake_app(dir: &Path, marker: &str) -> PathBuf {
+        let macos = dir.join("Ferrodock.app/Contents/MacOS");
+        fs::create_dir_all(&macos).unwrap();
+        fs::write(macos.join("ferrodock"), marker).unwrap();
+        macos.join("ferrodock")
+    }
+
+    #[test]
+    fn swaps_the_app_bundle() {
+        let dir = scratch("swap-app");
+        let exe = fake_app(&dir.join("Applications"), "old");
+        let work = dir.join("work");
+        fake_app(&work.join("unpacked"), "new");
+        let relaunch = swap(&exe, &work.join("unpacked"), &work).unwrap();
+        assert_eq!(
+            relaunch,
+            Relaunch::App(dir.join("Applications/Ferrodock.app"))
+        );
+        assert_eq!(fs::read_to_string(&exe).unwrap(), "new");
+        // The old one waits in the work folder, which `install` removes.
+        assert_eq!(
+            fs::read_to_string(work.join("previous.app/Contents/MacOS/ferrodock")).unwrap(),
+            "old"
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn keeps_the_app_when_the_download_has_none() {
+        let dir = scratch("swap-missing");
+        let exe = fake_app(&dir.join("Applications"), "old");
+        let work = dir.join("work");
+        fs::create_dir_all(work.join("unpacked")).unwrap();
+        let error = swap(&exe, &work.join("unpacked"), &work).unwrap_err();
+        assert!(error.contains("Ferrodock.app"), "{error}");
+        assert_eq!(fs::read_to_string(&exe).unwrap(), "old");
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn keeps_the_binary_when_the_download_has_none() {
+        let dir = scratch("swap-exe-missing");
+        let exe = dir.join("bin/ferrodock");
+        fs::create_dir_all(exe.parent().unwrap()).unwrap();
+        fs::write(&exe, "old").unwrap();
+        fs::create_dir_all(dir.join("work/unpacked")).unwrap();
+        let error = swap(&exe, &dir.join("work/unpacked"), &dir.join("work")).unwrap_err();
+        assert!(error.contains("doesn't contain"), "{error}");
+        assert_eq!(fs::read_to_string(&exe).unwrap(), "old");
+        fs::remove_dir_all(dir).unwrap();
+    }
+
     /// Downloads, verifies and unpacks the real latest release from GitHub
     /// (without installing it): `cargo test -- --ignored`.
     #[test]
