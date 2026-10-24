@@ -33,6 +33,34 @@ const USAGE_INTERVAL: Duration = Duration::from_secs(4);
 /// Events arriving this close together are handled as one batch.
 const EVENT_BATCH: Duration = Duration::from_millis(200);
 
+/// What to do with registry logins.
+#[derive(Clone, PartialEq, Eq)]
+pub enum RegistryOp {
+    List,
+    SignIn {
+        registry: String,
+        username: String,
+        password: String,
+    },
+    SignOut(String),
+}
+
+/// Never prints the password.
+impl std::fmt::Debug for RegistryOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RegistryOp::List => f.write_str("List"),
+            RegistryOp::SignIn {
+                registry, username, ..
+            } => write!(
+                f,
+                "SignIn {{ registry: {registry:?}, username: {username:?} }}"
+            ),
+            RegistryOp::SignOut(registry) => write!(f, "SignOut({registry:?})"),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum Request {
     /// Reload one list now.
@@ -53,6 +81,8 @@ pub enum Request {
     Change(Change),
     /// List the processes running in a container.
     Processes(String),
+    /// Read, add or remove registry logins.
+    Registry(RegistryOp),
     /// Load the layers of an image.
     History(String),
     /// Create and start a container.
@@ -90,6 +120,12 @@ pub enum Response {
     Alert(String),
     Inspected(Inspection),
     Processes(Result<Processes, (String, String)>),
+    /// The registry logins now, and how the request went (None for a
+    /// plain listing).
+    Registries {
+        logins: Vec<crate::docker::Login>,
+        outcome: Option<Result<String, String>>,
+    },
     History {
         image: String,
         layers: Vec<Layer>,
@@ -378,6 +414,34 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
                     }
                     refresh(&docker, &shared, affected).await;
                     refresh(&docker, &shared, Resource::Containers).await;
+                });
+            }
+            Request::Registry(op) => {
+                tokio::spawn(async move {
+                    // Helpers and the registry are slow, blocking work.
+                    let answer = tokio::task::spawn_blocking(move || {
+                        use crate::docker::{registry_label, sign_in, sign_out};
+                        let outcome = match op {
+                            RegistryOp::List => None,
+                            RegistryOp::SignIn {
+                                registry,
+                                username,
+                                password,
+                            } => Some(sign_in(&registry, &username, &password).map(|saved| {
+                                format!("Signed in to {} ({saved})", registry_label(&registry))
+                            })),
+                            RegistryOp::SignOut(registry) => {
+                                Some(sign_out(&registry).map(|()| {
+                                    format!("Signed out of {}", registry_label(&registry))
+                                }))
+                            }
+                        };
+                        (crate::docker::logins(), outcome)
+                    })
+                    .await;
+                    if let Ok((logins, outcome)) = answer {
+                        shared.send(Response::Registries { logins, outcome });
+                    }
                 });
             }
             Request::Processes(id) => {
@@ -670,5 +734,22 @@ async fn refresh(client: &DockerClient, shared: &Shared, resource: Resource) {
         Ok(Some(response)) => shared.send(response),
         Ok(None) => {}
         Err(e) => shared.disconnected(e),
+    }
+}
+
+#[cfg(test)]
+mod registry_tests {
+    use super::RegistryOp;
+
+    #[test]
+    fn never_prints_the_password() {
+        let op = RegistryOp::SignIn {
+            registry: "ghcr.io".into(),
+            username: "me".into(),
+            password: "hunter2".into(),
+        };
+        let printed = format!("{op:?}");
+        assert!(printed.contains("ghcr.io") && printed.contains("me"));
+        assert!(!printed.contains("hunter2"));
     }
 }

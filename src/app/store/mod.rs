@@ -93,6 +93,8 @@ pub struct Store {
     pub pending: HashMap<String, Action>,
     /// Logs and stats of the container being watched, if any.
     pub live: Option<Live>,
+    /// Registry logins, for Settings.
+    pub registries: crate::app::registries::Registries,
 }
 
 impl Store {
@@ -121,6 +123,7 @@ impl Store {
             volume_browser: None,
             pending: HashMap::new(),
             live: None,
+            registries: Default::default(),
         }
     }
 
@@ -204,6 +207,7 @@ impl Store {
                     *slot = Some(results);
                 }
             }
+            Response::Registries { logins, outcome } => self.registries.answer(logins, outcome),
             Response::VolumeHelper { volume, result } => {
                 if let Some((asked, slot)) = &mut self.volume_browser
                     && *asked == volume

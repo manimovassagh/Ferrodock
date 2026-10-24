@@ -168,6 +168,7 @@ pub fn show(
     settings: &mut Settings,
     updater: &Updater,
     engine: &vm::Engine,
+    registries: &mut super::registries::Registries,
 ) -> bool {
     let before = settings.clone();
     let mut close = false;
@@ -299,6 +300,10 @@ pub fn show(
                         "Keep running there when the window is closed",
                     );
                 }
+
+                ui.add_space(18.0);
+                heading(ui, p, "Registries");
+                registries.show(ui, p);
 
                 ui.add_space(18.0);
                 heading(ui, p, "Updates");
