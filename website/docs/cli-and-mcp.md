@@ -1,6 +1,7 @@
 ---
 sidebar_position: 5.5
 title: Command line and AI tools
+description: "Use Ferrodock from a terminal with fdock, and let AI tools such as Claude see and manage your containers through its MCP server."
 ---
 
 # Command line and AI tools

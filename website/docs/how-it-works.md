@@ -1,6 +1,7 @@
 ---
 sidebar_position: 8
 title: How Ferrodock works
+description: "How Ferrodock works: a native Rust app drawn with egui, talking to the Docker Engine API, with its own engine on every platform."
 ---
 
 # How Ferrodock works
