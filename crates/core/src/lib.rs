@@ -45,7 +45,7 @@ pub use actions::{Action, Task};
 pub use browse::VOLUME_ROOT;
 pub use compose::{ComposeProject, group_projects};
 pub use compose_cli::{ComposeAction, ComposeOp, ComposeTarget, next_job, split_log_line};
-pub use containers::{ComposeLabels, ContainerInfo};
+pub use containers::{ComposeLabels, ContainerInfo, HealthStatus};
 pub use create::Change;
 pub use debug::{TARGET_ROOT, debug_image};
 pub use disk::{CLEAN_TARGETS, DiskUsage, PruneKind, Usage, clean_kinds};
