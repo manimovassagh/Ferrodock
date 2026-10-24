@@ -14,6 +14,7 @@ mod keys;
 mod notify;
 mod page;
 mod pages;
+mod registries;
 #[cfg(test)]
 mod screenshots;
 mod settings;
@@ -610,7 +611,11 @@ impl eframe::App for FerrodockApp {
                 &mut self.settings,
                 &self.updater,
                 &self.engine_starter.builtin,
+                &mut self.store.registries,
             );
+            if let Some(op) = self.store.registries.request.take() {
+                self.worker.send(Request::Registry(op));
+            }
         }
         if self.show_integrations {
             self.show_integrations = integrations::show(ui, p);

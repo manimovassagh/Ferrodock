@@ -915,3 +915,26 @@ fn screenshots_of_narrow_lists() {
     open(&mut h, 4, network);
     save(&mut h, "narrow-networks");
 }
+
+/// Settings → Registries, signed in to one: set `DOCKER_CONFIG` to a
+/// config with a login to see it listed.
+#[test]
+#[ignore]
+fn screenshots_of_registries() {
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(2));
+    set_theme(&mut h, Theme::Light);
+    h.state_mut().show_settings = true;
+    settle(&mut h, Duration::from_secs(2));
+    let center = h.ctx.content_rect().center();
+    h.event(egui::Event::PointerMoved(center));
+    h.event(egui::Event::MouseWheel {
+        unit: egui::MouseWheelUnit::Point,
+        delta: egui::vec2(0.0, -420.0),
+        phase: egui::TouchPhase::Move,
+        source: egui::MouseWheelSource::Unknown,
+        modifiers: egui::Modifiers::NONE,
+    });
+    h.run_steps(6);
+    save(&mut h, "registries");
+}

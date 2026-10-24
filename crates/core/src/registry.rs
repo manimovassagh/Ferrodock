@@ -15,7 +15,7 @@ use super::run::PullProgress;
 use super::{DockerClient, describe};
 
 /// The key Docker Hub's login is stored under.
-const DOCKER_HUB: &str = "https://index.docker.io/v1/";
+pub(crate) const DOCKER_HUB: &str = "https://index.docker.io/v1/";
 
 /// A Docker Hub search result.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -87,7 +87,7 @@ fn without_emoji(text: &str) -> String {
 }
 
 /// The Docker CLI's config file.
-fn config_path() -> Option<PathBuf> {
+pub(crate) fn config_path() -> Option<PathBuf> {
     if let Some(dir) = std::env::var_os("DOCKER_CONFIG") {
         return Some(PathBuf::from(dir).join("config.json"));
     }
@@ -120,8 +120,8 @@ fn credentials_in(config: &Value, registry: &str) -> Option<DockerCredentials> {
 /// Asks `docker-credential-<helper>` for the login of `registry`.
 fn from_helper(helper: &str, registry: &str) -> Option<DockerCredentials> {
     use std::io::Write;
-    use std::process::{Command, Stdio};
-    let mut child = Command::new(format!("docker-credential-{helper}"))
+    use std::process::Stdio;
+    let mut child = helper_command(helper)
         .arg("get")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -153,6 +153,35 @@ fn from_helper(helper: &str, registry: &str) -> Option<DockerCredentials> {
     })
 }
 
+/// The command for `docker-credential-<helper>`, with no window flashing
+/// up on Windows.
+pub(crate) fn helper_command(helper: &str) -> std::process::Command {
+    #[allow(unused_mut)]
+    let mut command = std::process::Command::new(format!("docker-credential-{helper}"));
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    command
+}
+
+/// The (registry, username) pairs a credential helper keeps.
+pub(crate) fn from_helper_list(helper: &str) -> Vec<(String, String)> {
+    let Ok(output) = helper_command(helper)
+        .arg("list")
+        .stdin(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .output()
+    else {
+        return Vec::new();
+    };
+    serde_json::from_slice::<std::collections::BTreeMap<String, String>>(&output.stdout)
+        .map(|map| map.into_iter().collect())
+        .unwrap_or_default()
+}
+
 /// The login to use for `reference`, if the Docker CLI has one.
 pub fn credentials_for(reference: &str) -> Option<DockerCredentials> {
     let text = std::fs::read_to_string(config_path()?).ok()?;
@@ -161,7 +190,7 @@ pub fn credentials_for(reference: &str) -> Option<DockerCredentials> {
 }
 
 /// Standard base64, as the Docker config stores logins.
-fn base64_decode(input: &str) -> Option<String> {
+pub(crate) fn base64_decode(input: &str) -> Option<String> {
     const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut bits = 0u32;
     let mut count = 0;

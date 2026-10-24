@@ -67,6 +67,20 @@ Shown once [Ferrodock's own engine](../engine.md) is set up.
 **Keep running there when the window is closed** (macOS and Windows). Turn
 it off to quit when you close the window.
 
+### Registries
+
+Sign in to a registry to push your images and pull private ones. Leave
+**Registry** empty for Docker Hub, or type one such as `ghcr.io`; use a
+password, or an access token where the registry offers one (Docker Hub and
+GitHub do).
+
+The login is checked with the registry first, then kept where the Docker
+CLI keeps it: in your system's keychain through a credential helper
+(`docker-credential-osxkeychain`, `-wincred`, `-secretservice` or `-pass`)
+when one is set up or installed, otherwise in `~/.docker/config.json`,
+readable only by you. So `docker`, Compose and Ferrodock all use the same
+logins. **Sign out** forgets one.
+
 ### Updates
 
 **Check for updates when Ferrodock starts**, and **Check now**. See
