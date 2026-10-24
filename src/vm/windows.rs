@@ -11,13 +11,13 @@ use std::collections::HashMap;
 use std::os::windows::process::CommandExt;
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::{Arc, Mutex, mpsc};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::windows::named_pipe::{NamedPipeServer, ServerOptions};
-use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
+use tokio::sync::mpsc::{self, UnboundedSender, unbounded_channel};
 
 use super::wsl::{Wsl, decode, linux_path, pem, readiness};
 use super::{Paths, Resources, download, mux};
@@ -39,6 +39,14 @@ const REBOOT: i32 = 3010;
 /// Where each connection's data from the engine goes; None once the
 /// engine has sent everything.
 type Connections = Arc<Mutex<HashMap<u32, UnboundedSender<Option<Vec<u8>>>>>>;
+
+/// Frames on their way to the agent, at most [`QUEUED`] of them: a client
+/// sending faster than WSL takes it in (a `docker load`, a big build
+/// context) waits, instead of the frames piling up in memory.
+type ToAgent = mpsc::Sender<Vec<u8>>;
+
+/// Frames of up to 64 KiB each, so 16 MiB at most.
+const QUEUED: usize = 256;
 
 /// Runs `wsl.exe` with `args` and returns what it printed.
 fn wsl(args: &[&str]) -> Result<String, String> {
@@ -231,7 +239,7 @@ pub struct Running {
     child: Mutex<Child>,
     /// Frames for the agent. An empty one closes its input, which stops
     /// the engine.
-    to_agent: mpsc::Sender<Vec<u8>>,
+    to_agent: ToAgent,
     runtime: Mutex<Option<tokio::runtime::Runtime>>,
 }
 
@@ -259,10 +267,10 @@ impl Running {
             return Err("Couldn't start the engine".into());
         };
 
-        let (to_agent, frames) = mpsc::channel::<Vec<u8>>();
+        let (to_agent, mut frames) = mpsc::channel::<Vec<u8>>(QUEUED);
         thread::spawn(move || {
             use std::io::Write;
-            for frame in frames {
+            while let Some(frame) = frames.blocking_recv() {
                 if frame.is_empty() || input.write_all(&frame).is_err() {
                     break;
                 }
@@ -308,7 +316,7 @@ impl Running {
                     // Ferrodock's own pipe is a must; the Docker CLI's is a
                     // bonus, left to whoever has it.
                     Err(e) if i == 0 => {
-                        let _ = to_agent.send(Vec::new());
+                        let _ = to_agent.try_send(Vec::new());
                         let _ = child.kill();
                         return Err(format!("{name}: {e}"));
                     }
@@ -339,7 +347,9 @@ impl Running {
     /// Stops the engine, giving its containers time to shut down, then
     /// the distro.
     pub fn stop(&self) {
-        let _ = self.to_agent.send(Vec::new());
+        // Never waits: with the queue full, the agent is stopped below
+        // once the grace time is up.
+        let _ = self.to_agent.try_send(Vec::new());
         if let Ok(mut child) = self.child.lock() {
             let waited = std::time::Instant::now();
             while matches!(child.try_wait(), Ok(None)) && waited.elapsed() < GRACE {
@@ -358,12 +368,17 @@ impl Running {
 async fn listen(
     name: &'static str,
     mut server: NamedPipeServer,
-    to_agent: mpsc::Sender<Vec<u8>>,
+    to_agent: ToAgent,
     connections: Connections,
 ) {
     static NEXT: AtomicU32 = AtomicU32::new(1);
     loop {
         let connected = server.connect().await.is_ok();
+        if !connected {
+            // Not straight round again: a pipe that keeps failing would
+            // spin a core.
+            tokio::time::sleep(Duration::from_millis(200)).await;
+        }
         // The next client needs a fresh instance of the pipe.
         let next = loop {
             match ServerOptions::new().create(name) {
@@ -380,17 +395,12 @@ async fn listen(
 }
 
 /// Carries one client's connection to the engine and back.
-async fn serve(
-    pipe: NamedPipeServer,
-    id: u32,
-    to_agent: mpsc::Sender<Vec<u8>>,
-    connections: Connections,
-) {
+async fn serve(pipe: NamedPipeServer, id: u32, to_agent: ToAgent, connections: Connections) {
     let (inbox, mut messages) = unbounded_channel();
     if let Ok(mut map) = connections.lock() {
         map.insert(id, inbox);
     }
-    let _ = to_agent.send(mux::encode(id, mux::OPEN, b""));
+    let _ = to_agent.send(mux::encode(id, mux::OPEN, b"")).await;
     let (mut reader, mut writer) = tokio::io::split(pipe);
     let up = async {
         let mut buffer = vec![0u8; 64 * 1024];
@@ -400,6 +410,7 @@ async fn serve(
                 Ok(n) => {
                     if to_agent
                         .send(mux::encode(id, mux::DATA, &buffer[..n]))
+                        .await
                         .is_err()
                     {
                         break;
@@ -424,5 +435,5 @@ async fn serve(
     if let Ok(mut map) = connections.lock() {
         map.remove(&id);
     }
-    let _ = to_agent.send(mux::encode(id, mux::CLOSE, b""));
+    let _ = to_agent.send(mux::encode(id, mux::CLOSE, b"")).await;
 }
