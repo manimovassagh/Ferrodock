@@ -27,7 +27,9 @@ pub struct Available {
     pub notes: String,
     asset_name: String,
     asset_url: String,
-    sums_url: Option<String>,
+    /// Its `SHA256SUMS.txt`. A release without one is never offered: the
+    /// download couldn't be checked.
+    sums_url: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -145,7 +147,7 @@ impl Available {
             notes: "### Added\n- In-app updates".into(),
             asset_name: String::new(),
             asset_url: String::new(),
-            sums_url: None,
+            sums_url: String::new(),
         }
     }
 }
@@ -177,7 +179,12 @@ fn latest() -> Result<Option<Available>, String> {
         .into_iter()
         // Pre-releases (1.0.0-rc.1) are opt-in elsewhere; never offer them.
         .filter(|r| !r.version().contains('-'))
-        .find(|r| r.assets().iter().any(|a| a.name().ends_with(suffix)));
+        // Only releases whose download can be checked: a release still
+        // being published, or one missing its checksums, is skipped.
+        .find(|r| {
+            r.assets().iter().any(|a| a.name().ends_with(suffix))
+                && r.assets().iter().any(|a| a.name() == "SHA256SUMS.txt")
+        });
     let Some(release) = newest else {
         return Ok(None);
     };
@@ -193,7 +200,9 @@ fn latest() -> Result<Option<Available>, String> {
         .assets()
         .iter()
         .find(|a| a.name() == "SHA256SUMS.txt")
-        .map(|a| a.download_url().to_owned());
+        .expect("filtered above")
+        .download_url()
+        .to_owned();
     Ok(Some(Available {
         version: release.version().to_owned(),
         notes: release.body().unwrap_or_default().to_owned(),

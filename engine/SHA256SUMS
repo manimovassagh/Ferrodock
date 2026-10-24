@@ -1,0 +1,10 @@
+# The engine image this Ferrodock downloads, and the only files it
+# accepts: written by the Engine workflow once that version is published
+# (engine/VERSION is the next one to build). Published images never
+# change, so neither do these lines.
+engine-v0.3.0
+155b361f8b6da2ba20af8638f3dd2af1f0b91cb621eb8b2cfd9f5900077965b3  ferrodock-engine-amd64.tar.zst
+6b1db9b0c8f8c678d72df5a0cb3bab4374489551d675484b4d95f613ed4bcb51  ferrodock-engine-arm64.tar.zst
+b8fc1d2bd991655fc941180142c2ed9ee6cefe050c8a9f959e2f5f59b3cce23a  ferrodock-engine-linux-amd64.tar.zst
+920261475e2a8b54d3ceadff3441883a31073f7a65e940bfcb776d3808a74fd6  ferrodock-engine-linux-arm64.tar.zst
+942c4207f9af4bae513d280bc4e19bfe779629dfeea721b85df8688e250a6f59  ferrodock-engine-wsl-amd64.tar.zst
