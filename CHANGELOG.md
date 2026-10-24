@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.28.9](https://github.com/manimovassagh/Ferrodock/compare/v1.28.8...v1.28.9) - 2026-10-24
+
+### Security
+
+- *(linux)* own group for the engine socket, setup can't be swapped
+
 ## [1.28.8](https://github.com/manimovassagh/Ferrodock/compare/v1.28.7...v1.28.8) - 2026-10-21
 
 ### Fixed
