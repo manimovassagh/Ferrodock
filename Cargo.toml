@@ -108,3 +108,5 @@ LegalCopyright = "Copyright (c) 2026 Mani Movassagh. MIT License."
 
 [dev-dependencies]
 egui_kittest = { version = "0.37", features = ["wgpu", "snapshot", "eframe"] }
+# Building .tar.gz updates in the updater tests.
+flate2 = "1.1"
