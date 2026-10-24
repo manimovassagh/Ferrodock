@@ -180,3 +180,38 @@ jobs:
               --notes "The images of Ferrodock's own Docker engine: a Linux VM for Macs (arm64 for Apple Silicon, amd64 for Intel), a WSL distro for Windows (wsl-amd64), and the Docker engine's programs for Linux (linux-amd64, linux-arm64). Ferrodock downloads the one it needs by itself; there's no need to get them by hand. Built from engine/ and agent/ at ${{ github.sha }}. Free and open source: see NOTICE.md for what's inside, its licenses and sources." \
               *
           fi
+
+      # The app downloads the version engine/SHA256SUMS names, and accepts
+      # only the images it lists: pin this one now that it's out. From the
+      # release itself, so the lines are those of the files people get.
+      - name: Pin it for the app
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(tr -d '[:space:]' < engine/VERSION)
+          tag="engine-v$version"
+          dir=$(mktemp -d)
+          gh release download "$tag" --pattern '*.tar.zst.sha256' --dir "$dir"
+          {
+            sed -n '/^#/p' engine/SHA256SUMS
+            echo "$tag"
+            cat "$dir"/*.sha256 | sort -k2
+          } > SHA256SUMS.new
+          for arch in arm64 amd64 wsl-amd64 linux-amd64 linux-arm64; do
+            grep -q " ferrodock-engine-$arch.tar.zst$" SHA256SUMS.new \
+              || { echo "::error::$tag has no ferrodock-engine-$arch.tar.zst"; exit 1; }
+          done
+          mv SHA256SUMS.new engine/SHA256SUMS
+          if git diff --quiet engine/SHA256SUMS; then
+            echo "Already pinned."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(engine): use $tag" engine/SHA256SUMS
+          for attempt in 1 2 3; do
+            git push origin HEAD:main && exit 0
+            sleep $((attempt * 5))
+            git pull --rebase origin main
+          done
+          exit 1
