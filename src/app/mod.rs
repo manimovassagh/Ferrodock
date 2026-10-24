@@ -550,14 +550,14 @@ impl eframe::App for FerrodockApp {
                     .inner_margin(Margin::symmetric(22, 18)),
             )
             .show(ui, |ui| {
-                let summary = page.summary(&self.store);
+                let summary = (!self.store.is_disconnected()).then(|| page.summary(&self.store));
                 // The toolbar sees this frame's search text; the box edits a copy.
                 let mut search = self.search.clone();
                 refresh = shell::header(
                     ui,
                     p,
                     page.title(),
-                    &summary,
+                    summary.as_deref(),
                     page.search_hint(),
                     &mut search,
                     |ui| {
@@ -571,8 +571,16 @@ impl eframe::App for FerrodockApp {
                 ui.add_space(12.0);
                 if let Connection::Disconnected { reason } = &self.store.connection {
                     let offer = self.engine_starter.offer(&self.store, &self.settings);
-                    match shell::disconnected(ui, p, reason, &offer) {
+                    let instead = self
+                        .engine_starter
+                        .builtin_instead(&self.store, &self.settings);
+                    match shell::disconnected(ui, p, reason, &offer, instead) {
                         Some(shell::Click::Retry) => refresh = true,
+                        Some(shell::Click::UseBuiltIn) => {
+                            switch_to = self
+                                .engine_starter
+                                .start_builtin(&self.store, &self.settings);
+                        }
                         Some(shell::Click::Start) => {
                             switch_to = self.engine_starter.start(
                                 &self.store,
