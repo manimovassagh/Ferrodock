@@ -18,6 +18,20 @@ pub enum Change {
         name: String,
         driver: String,
     },
+    /// Save a volume's files to a `.tar.gz` in the Downloads folder.
+    BackUpVolume {
+        name: String,
+    },
+    /// Make a new volume from a backup.
+    RestoreVolume {
+        name: String,
+        archive: std::path::PathBuf,
+    },
+    /// Make a new volume `to` with a copy of `from`'s files.
+    CloneVolume {
+        from: String,
+        to: String,
+    },
     CreateNetwork {
         name: String,
         driver: String,
@@ -72,6 +86,27 @@ impl Change {
                 Action::Create(Resource::Volumes),
                 name.clone(),
                 format!("volume {name}"),
+            ),
+            Change::BackUpVolume { name } => (
+                Action::Save,
+                name.clone(),
+                format!("volume {name} to your Downloads folder"),
+            ),
+            Change::RestoreVolume { name, archive } => (
+                Action::Create(Resource::Volumes),
+                name.clone(),
+                format!(
+                    "volume {name} from {}",
+                    archive
+                        .file_name()
+                        .map(|f| f.to_string_lossy())
+                        .unwrap_or_default()
+                ),
+            ),
+            Change::CloneVolume { from, to } => (
+                Action::Create(Resource::Volumes),
+                to.clone(),
+                format!("volume {to} from {from}"),
             ),
             Change::CreateNetwork { name, .. } => (
                 Action::Create(Resource::Networks),
@@ -194,6 +229,16 @@ impl DockerClient {
                 running,
                 spec,
             } => return self.recreate(&id, &name, running, &spec).await,
+            Change::BackUpVolume { name } => {
+                return self
+                    .back_up_volume(&name, &super::downloads_dir())
+                    .await
+                    .map(drop);
+            }
+            Change::RestoreVolume { name, archive } => {
+                return self.restore_volume(&name, &archive).await;
+            }
+            Change::CloneVolume { from, to } => return self.clone_volume(&from, &to).await,
             Change::Disconnect { network, container } => {
                 docker
                     .disconnect_network(

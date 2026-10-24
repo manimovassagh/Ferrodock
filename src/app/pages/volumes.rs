@@ -12,7 +12,7 @@ use crate::app::components::icons::Icon;
 use crate::app::components::{details, table, widgets};
 use crate::app::page::{Command, Intent, Page, PageCtx, toggle_selection};
 use crate::app::store::Store;
-use crate::docker::{FileOp, Resource, Task, VOLUME_ROOT, VolumeInfo, plural, time_ago};
+use crate::docker::{Change, FileOp, Resource, Task, VOLUME_ROOT, VolumeInfo, plural, time_ago};
 
 #[derive(Default)]
 pub struct VolumesPage {
@@ -113,6 +113,13 @@ impl Page for VolumesPage {
     fn toolbar(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
         let unused = unused(ctx.store);
         remove_unused_button(ui, ctx, "volume", unused);
+        if widgets::button(ui, Icon::Folder, "Restore…")
+            .on_hover_text("Make a volume from a backup (.tar.gz)")
+            .clicked()
+            && let Some(archive) = pick_backup()
+        {
+            self.create = Some(CreateForm::restore(archive));
+        }
         if widgets::button(ui, Icon::Database, "New volume").clicked() {
             self.create = Some(CreateForm::new(Kind::Volume));
         }
@@ -243,6 +250,20 @@ impl Page for VolumesPage {
                 }));
             }
             if !ctx.store.pending.contains_key(&volume.name) {
+                if widgets::button(ui, Icon::Download, "Back up")
+                    .on_hover_text("Save its files to a .tar.gz in your Downloads folder")
+                    .clicked()
+                {
+                    ctx.request(Intent::Change(Change::BackUpVolume {
+                        name: volume.name.clone(),
+                    }));
+                }
+                if widgets::button(ui, Icon::Layers, "Clone…")
+                    .on_hover_text("Make a new volume with a copy of its files")
+                    .clicked()
+                {
+                    self.create = Some(CreateForm::clone_of(&volume.name));
+                }
                 remove_button(ui, ctx, "volume", task, blocked);
             } else {
                 ui.spinner();
@@ -314,6 +335,14 @@ impl Page for VolumesPage {
         }
         list
     }
+}
+
+/// Asks for a volume backup with the system's file picker.
+fn pick_backup() -> Option<std::path::PathBuf> {
+    rfd::FileDialog::new()
+        .set_title("Restore a volume from a backup")
+        .add_filter("Volume backup", &["gz", "tgz", "tar"])
+        .pick_file()
 }
 
 /// Removal tasks for every volume no container mounts.
