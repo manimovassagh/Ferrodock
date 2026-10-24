@@ -149,6 +149,18 @@ impl State {
     }
 }
 
+/// Creates Ferrodock's folder (or `dir` in it) readable by this user
+/// only: it holds the engine's socket, disk and the window's port token.
+pub fn private_dir(dir: &std::path::Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(dir)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700))?;
+    }
+    Ok(())
+}
+
 /// The engine, driven from the UI. Long work (downloading, booting) runs on
 /// its own thread; `state()` says how it goes.
 pub struct Engine {
@@ -360,7 +372,7 @@ impl Engine {
         let running = self.running.clone();
         Some(move || {
             let result = (|| {
-                std::fs::create_dir_all(&paths.dir).map_err(|e| e.to_string())?;
+                private_dir(&paths.dir).map_err(|e| e.to_string())?;
                 #[cfg(engine)]
                 {
                     let fetch = |update| {
