@@ -85,20 +85,30 @@ impl Updater {
         (self.repaint)();
     }
 
-    /// Whether a check or download is running, so another can't start.
-    fn busy(&self) -> bool {
-        matches!(
-            self.status(),
+    /// Moves to `next` unless a check or download is running, checked and
+    /// changed under one lock: two clicks never start two downloads into
+    /// the same folder.
+    fn claim(&self, next: Status) -> bool {
+        let Ok(mut current) = self.status.lock() else {
+            return false;
+        };
+        if matches!(
+            *current,
             Status::Checking | Status::Downloading { .. } | Status::Ready { .. }
-        )
+        ) {
+            return false;
+        }
+        *current = next;
+        drop(current);
+        (self.repaint)();
+        true
     }
 
     /// Looks for a newer release in the background.
     pub fn check(&self) {
-        if self.busy() {
+        if !self.claim(Status::Checking) {
             return;
         }
-        self.set(Status::Checking);
         let this = self.clone();
         thread::spawn(move || {
             let status = match latest() {
@@ -112,7 +122,12 @@ impl Updater {
 
     /// Downloads and installs `available` in the background.
     pub fn install(&self, available: Available) {
-        if self.busy() {
+        let starting = Status::Downloading {
+            version: available.version.clone(),
+            done: 0,
+            total: None,
+        };
+        if !self.claim(starting) {
             return;
         }
         let this = self.clone();
@@ -231,6 +246,23 @@ pub fn installed_with_homebrew() -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_one_check_or_download_at_a_time() {
+        let updater = Updater::new(|| {});
+        assert!(updater.claim(Status::Checking));
+        assert!(!updater.claim(Status::Checking));
+        let downloading = Status::Downloading {
+            version: "9.9.9".into(),
+            done: 0,
+            total: None,
+        };
+        assert!(!updater.claim(downloading.clone()));
+        updater.set(Status::UpToDate);
+        assert!(updater.claim(downloading.clone()));
+        assert!(!updater.claim(Status::Checking));
+        assert_eq!(updater.status(), downloading);
+    }
 
     #[test]
     fn compares_versions() {
