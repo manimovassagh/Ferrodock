@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import Layout from "@theme/Layout";
+import Head from "@docusaurus/Head";
 import Link from "@docusaurus/Link";
 import useBaseUrl from "@docusaurus/useBaseUrl";
 import clsx from "clsx";
@@ -178,7 +179,7 @@ function Hero() {
 
 const STATS = [
   ["0%", "CPU when idle"],
-  ["< 20 MB", "download"],
+  ["< 35 MB", "download"],
   ["1", "native executable"],
   ["3", "platforms"],
 ];
@@ -460,12 +461,30 @@ function FinalCta() {
   );
 }
 
+// What search engines show as the app: name, platforms, price, license.
+const SOFTWARE = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Ferrodock",
+  description: "The native container manager, written in Rust",
+  applicationCategory: "DeveloperApplication",
+  operatingSystem: "macOS 11+, Windows 10 and 11, Linux",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+  license: "https://opensource.org/licenses/MIT",
+  url: "https://manimovassagh.github.io/Ferrodock/",
+  downloadUrl: "https://github.com/manimovassagh/Ferrodock/releases/latest",
+  codeRepository: "https://github.com/manimovassagh/Ferrodock",
+};
+
 export default function Home() {
   return (
     <Layout
       title="The native container manager, written in Rust"
       description="Ferrodock is a free, open-source desktop app for Docker on macOS, Windows and Linux, written in Rust, with its own Docker engine, a CLI and an MCP server for AI tools."
     >
+      <Head>
+        <script type="application/ld+json">{JSON.stringify(SOFTWARE)}</script>
+      </Head>
       <main className={styles.page}>
         <Hero />
         <Stats />

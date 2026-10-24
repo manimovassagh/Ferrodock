@@ -1,6 +1,7 @@
 ---
 sidebar_position: 4
 title: Ferrodock's own engine
+description: "Ferrodock's own Docker engine: a light VM on macOS, a WSL distro on Windows and a system service on Linux, set up in one click."
 ---
 
 # Ferrodock's own engine

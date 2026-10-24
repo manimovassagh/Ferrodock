@@ -1,6 +1,7 @@
 ---
 sidebar_position: 8
 title: Disk cleanup and reset
+description: "See what takes space in your Docker engine, free it safely, or reset the engine to start clean."
 ---
 
 # Disk cleanup and reset

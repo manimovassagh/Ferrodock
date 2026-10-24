@@ -1,6 +1,7 @@
 ---
 sidebar_position: 3
 title: Logs, stats, terminal and files
+description: "Follow a container's logs and stats, open a terminal in it, and browse its files in Ferrodock."
 ---
 
 # Logs, stats, terminal and files

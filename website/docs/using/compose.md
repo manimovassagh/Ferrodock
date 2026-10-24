@@ -1,6 +1,7 @@
 ---
 sidebar_position: 4
 title: Compose
+description: "Run, rebuild, stop and follow Docker Compose projects in Ferrodock, with or without Docker Compose installed."
 ---
 
 # Compose
