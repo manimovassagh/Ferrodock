@@ -158,6 +158,12 @@ pub(super) fn show(
             }
             Row::Group { .. } => false,
         },
+        |i| match &rows[i] {
+            Row::Item { container: c, .. } => format!("Container {}, {}", c.name, c.status),
+            Row::Group { project, .. } => {
+                format!("Project {}", project.unwrap_or("other containers"))
+            }
+        },
         |i, row| {
             let (c, indented) = match &rows[i] {
                 Row::Item { container, grouped } => (*container, *grouped),

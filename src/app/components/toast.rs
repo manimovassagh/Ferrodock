@@ -50,7 +50,22 @@ impl Toast {
                         ui.set_max_width(420.0);
                         ui.horizontal(|ui| {
                             widgets::dot(ui, color);
-                            ui.label(RichText::new(&self.text).color(p.text));
+                            let text = ui.label(RichText::new(&self.text).color(p.text));
+                            // Read out when it appears, without moving focus:
+                            // errors at once, the rest when the reader is free.
+                            let live = if self.is_error {
+                                egui::accesskit::Live::Assertive
+                            } else {
+                                egui::accesskit::Live::Polite
+                            };
+                            ui.ctx().accesskit_node_builder(text.id, |node| {
+                                node.set_role(if self.is_error {
+                                    egui::accesskit::Role::Alert
+                                } else {
+                                    egui::accesskit::Role::Status
+                                });
+                                node.set_live(live);
+                            });
                             dismissed =
                                 widgets::icon_button(ui, super::icons::Icon::Close, "Dismiss")
                                     .clicked();
