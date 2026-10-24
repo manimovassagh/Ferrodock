@@ -169,7 +169,8 @@ absolute path. Environment values that look like secrets (passwords,
 tokens, keys) are hidden in `inspect_container` unless asked for.
 
 To let an AI tool look but never change anything, start the server with
-`--read-only`: the tools that change things aren't offered at all.
+`--read-only`: the tools that change things aren't offered at all, and
+secret-looking environment values (passwords, tokens) always stay hidden.
 
 ```bash
 claude mcp add ferrodock -- ferrodock-mcp --read-only
