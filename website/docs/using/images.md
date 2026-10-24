@@ -34,6 +34,25 @@ select it and click **Run…**. The dialog asks for:
 The equivalent `docker run` command is shown as you type, with a **Copy**
 button, so you can reuse it in scripts.
 
+## Build an image
+
+**Build…** at the top of the page builds an image from a folder with a
+Dockerfile. Pick the folder, then check:
+
+- **Dockerfile**, if it has another name or lives in a subfolder.
+- **Name**, made from the folder's name (`my-app:latest`).
+- **Build arguments**, one `KEY=value` per line, and the **Target stage**
+  for a multi-stage Dockerfile.
+- **Don't use the build cache** to run every step again.
+
+The build's output streams above the list, and the new image appears when
+it's done. Files your `.dockerignore` excludes aren't sent.
+
+Ferrodock uses the engine's own builder, so no Docker CLI is needed. That
+builder doesn't support BuildKit-only Dockerfile features, such as
+`RUN --mount=type=cache`, heredocs or a `# syntax=` line; for those, use
+`docker build` (or `docker buildx build`) in a terminal.
+
 ## Tag, push, save and load
 
 In an image's details, the **⋯** menu has:

@@ -40,6 +40,9 @@ pub enum ImageOp {
     Save(String),
     /// Load the images in a `.tar` file.
     Load(PathBuf),
+    /// Build an image from a Dockerfile; its output streams like a
+    /// Compose job's.
+    Build(super::BuildSpec),
 }
 
 /// The registry an image reference lives on, as the Docker config keys it:

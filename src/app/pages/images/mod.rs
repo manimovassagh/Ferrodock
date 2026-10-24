@@ -2,6 +2,7 @@
 //! pulling, Docker Hub search, tagging, pushing, and saving and loading
 //! `.tar` files.
 
+mod build_dialog;
 mod search;
 mod tag_dialog;
 
@@ -16,7 +17,8 @@ use crate::app::components::icons::Icon;
 use crate::app::components::{details, inspect, table, widgets};
 use crate::app::page::{Command, Intent, Page, PageCtx, toggle_selection};
 use crate::app::store::Store;
-use crate::docker::{ImageInfo, ImageOp, Resource, Task, format_size, plural, time_ago};
+use crate::docker::{BuildSpec, ImageInfo, ImageOp, Resource, Task, format_size, plural, time_ago};
+use build_dialog::BuildForm;
 use tag_dialog::TagForm;
 
 #[derive(Default)]
@@ -34,6 +36,10 @@ pub struct ImagesPage {
     typed_at: Option<std::time::Instant>,
     /// Rows ticked for removing together.
     marks: Marks,
+    /// The Build dialog, while it's open.
+    build_form: Option<BuildForm>,
+    /// The build whose output was closed.
+    closed_build: Option<u64>,
 }
 
 /// How long typing has to pause before Docker Hub is searched.
@@ -160,6 +166,22 @@ impl ImagesPage {
         }
     }
 
+    /// The Build dialog, while it's open.
+    fn build_dialog(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
+        let Some(form) = &mut self.build_form else {
+            return;
+        };
+        match build_dialog::show(ui, ctx.palette, form) {
+            Some(Some(spec)) => {
+                let job = crate::docker::next_job();
+                ctx.request(Intent::Image(ImageOp::Build(BuildSpec { job, ..spec })));
+                self.build_form = None;
+            }
+            Some(None) => self.build_form = None,
+            None => {}
+        }
+    }
+
     /// The Tag dialog, while it's open.
     fn tag_dialog(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
         let Some(form) = &mut self.tag_form else {
@@ -216,10 +238,17 @@ impl Page for ImagesPage {
 
     fn toolbar(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
         remove_unused_button(ui, ctx, "image", unused(ctx.store));
+        if widgets::button(ui, Icon::Folder, "Build…")
+            .on_hover_text("Build an image from a folder with a Dockerfile")
+            .clicked()
+            && let Some(folder) = build_dialog::pick_folder()
+        {
+            self.build_form = Some(BuildForm::for_folder(&folder));
+        }
     }
 
     fn has_overlay(&self) -> bool {
-        self.run_form.is_some() || self.tag_form.is_some()
+        self.run_form.is_some() || self.tag_form.is_some() || self.build_form.is_some()
     }
 
     fn show(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
@@ -227,9 +256,16 @@ impl Page for ImagesPage {
         let store = ctx.store;
         self.run_dialog(ui, ctx);
         self.tag_dialog(ui, ctx);
+        self.build_dialog(ui, ctx);
         self.loads(ui, ctx);
         ui.horizontal(|ui| self.pull_box(ui, ctx));
         ui.add_space(8.0);
+        if let Some(job) = &store.compose.build
+            && Some(job.id) != self.closed_build
+            && !super::job_output(ui, p, job)
+        {
+            self.closed_build = Some(job.id);
+        }
         if self.searching {
             let mut run = None;
             self.searching = search::show(ui, ctx, &mut run);

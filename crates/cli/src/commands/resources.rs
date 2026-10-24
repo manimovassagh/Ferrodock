@@ -1,4 +1,4 @@
-//! `images`, `pull`, `volumes`, `networks`, `projects` and `df`.
+//! `images`, `pull`, `build`, `volumes`, `networks`, `projects` and `df`.
 
 use ferrodock_core::summary::{Disk, Image, Network, Project, Space, Volume};
 use ferrodock_core::{format_size, group_projects};
@@ -53,6 +53,25 @@ pub async fn pull(ctx: &Ctx, image: &str) -> Result<(), String> {
         return output::json(&serde_json::json!({ "pulled": image }));
     }
     println!("Pulled {image}");
+    Ok(())
+}
+
+pub async fn build(ctx: &Ctx, spec: &ferrodock_core::BuildSpec) -> Result<(), String> {
+    // The build's own output goes to stderr with --json, so stdout stays
+    // one JSON value.
+    ctx.conn
+        .client
+        .build_image(spec, |line| {
+            if ctx.json {
+                eprintln!("{line}");
+            } else {
+                println!("{line}");
+            }
+        })
+        .await?;
+    if ctx.json {
+        return output::json(&serde_json::json!({ "built": spec.tag }));
+    }
     Ok(())
 }
 

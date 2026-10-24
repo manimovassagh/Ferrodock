@@ -8,7 +8,7 @@ mod files;
 mod live;
 mod terminal;
 
-pub use compose::ComposeJobs;
+pub use compose::{ComposeJobs, Job};
 pub use files::FileView;
 pub use terminal::Terminal;
 

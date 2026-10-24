@@ -127,49 +127,8 @@ pub(super) fn bar(ui: &mut egui::Ui, ctx: &mut PageCtx, path: &mut String) {
 /// The output of the last command, until closed. Returns false once the
 /// user closes it.
 pub(super) fn output(ui: &mut egui::Ui, ctx: &PageCtx) -> bool {
-    let p = ctx.palette;
-    let Some(job) = &ctx.store.compose.run else {
-        return true;
-    };
-    let mut open = true;
-    egui::Frame::new()
-        .fill(p.bg)
-        .stroke(Stroke::new(1.0, p.border))
-        .corner_radius(CornerRadius::same(8))
-        .inner_margin(egui::Margin::same(10))
-        .show(ui, |ui| {
-            ui.set_width(ui.available_width());
-            ui.horizontal(|ui| {
-                match &job.ended {
-                    None => {
-                        ui.spinner();
-                    }
-                    Some(None) => widgets::dot(ui, p.success),
-                    Some(Some(_)) => widgets::dot(ui, p.danger),
-                }
-                ui.label(RichText::new(&job.title).strong().color(p.text));
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if job.ended.is_some()
-                        && widgets::icon_button(ui, Icon::Close, "Close the output").clicked()
-                    {
-                        open = false;
-                    }
-                });
-            });
-            if let Some(Some(error)) = &job.ended {
-                ui.label(RichText::new(error).color(p.danger));
-            }
-            egui::ScrollArea::vertical()
-                .id_salt(("compose-output", job.id))
-                .max_height(180.0)
-                .stick_to_bottom(true)
-                .auto_shrink([false, true])
-                .show(ui, |ui| {
-                    for line in &job.lines {
-                        ui.label(RichText::new(line).monospace().size(12.0).color(p.muted));
-                    }
-                });
-        });
-    ui.add_space(8.0);
-    open
+    match &ctx.store.compose.run {
+        Some(job) => super::super::job_output(ui, ctx.palette, job),
+        None => true,
+    }
 }
