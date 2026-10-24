@@ -28,6 +28,21 @@ volume read-only and never runs. It's hidden from the container list, and
 removed when you click **Done browsing**, when the volume is removed, or the
 next time Ferrodock starts.
 
+## Backing up, restoring and cloning
+
+- **Back up** in a volume's details saves its files to `<volume>.tar.gz` in
+  your Downloads folder, numbered if that name is taken.
+- **Restore…** at the top of the page makes a new volume from a backup (a
+  `.tar.gz`, or any `.tar` of files). It's named after the backup; change
+  the name before clicking **Restore**.
+- **Clone…** makes a new volume with a copy of another one's files.
+
+A volume that exists already is never overwritten: pick a new name instead.
+It works the same way as browsing, through a helper container that never
+runs, so nothing needs to be installed and no container has to be stopped.
+Stop the containers that write to a volume first if you need a consistent
+copy (a database, say).
+
 ## Connecting containers to a network
 
 In a network's details, **Disconnect** takes a container off it, and the

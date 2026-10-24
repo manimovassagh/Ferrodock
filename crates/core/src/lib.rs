@@ -39,6 +39,7 @@ mod stats;
 pub mod summary;
 mod templates;
 mod terminal;
+mod volume_backup;
 mod volumes;
 
 pub use actions::{Action, Task};

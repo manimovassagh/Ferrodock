@@ -915,3 +915,23 @@ fn screenshots_of_narrow_lists() {
     open(&mut h, 4, network);
     save(&mut h, "narrow-networks");
 }
+
+/// A volume's Back up and Clone… buttons, and the Clone dialog.
+#[test]
+#[ignore]
+fn screenshots_of_volume_backup() {
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(3));
+    set_theme(&mut h, Theme::Light);
+    let volume = h
+        .state()
+        .store
+        .volumes
+        .iter()
+        .find(|v| v.name.len() < 64)
+        .map(|v| v.name.clone());
+    open(&mut h, 3, volume);
+    save(&mut h, "volume-backup");
+    click(&mut h, "Clone…");
+    save(&mut h, "volume-clone");
+}
