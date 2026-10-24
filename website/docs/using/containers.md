@@ -11,6 +11,11 @@ current CPU (with a short trend line, amber above 80%), memory and
 published ports. Use **All / Running / Stopped** to filter, and the search
 box to find a container by name, image or ID.
 
+Containers with a healthcheck show its result with their state:
+**Running · healthy**, **Running · checking** while the first checks run,
+or **Running · unhealthy** in red. It updates as soon as Docker reports a
+change.
+
 ![The containers page](/img/containers.png)
 
 ## Everyday actions

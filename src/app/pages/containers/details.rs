@@ -34,7 +34,7 @@ pub(super) fn show(page: &mut ContainersPage, ui: &mut egui::Ui, ctx: &mut PageC
     }
     ui.horizontal(|ui| {
         status::pill(ui, p, c, ctx.store.pending.get(&c.id).copied());
-        ui.label(RichText::new(&c.status).color(p.muted));
+        ui.label(RichText::new(c.uptime()).color(p.muted));
     });
     ui.add_space(10.0);
     let busy = ctx.store.pending.contains_key(&c.id);

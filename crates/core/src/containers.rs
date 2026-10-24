@@ -75,6 +75,39 @@ impl ContainerInfo {
     pub fn is_active(&self) -> bool {
         self.is_running() || self.is_paused()
     }
+
+    /// What the container's healthcheck says, read from Docker's status
+    /// ("Up 5 minutes (healthy)"). None without a healthcheck.
+    pub fn health(&self) -> Option<HealthStatus> {
+        let (_, note) = self.status.rsplit_once('(')?;
+        match note.strip_suffix(')')? {
+            "healthy" => Some(HealthStatus::Healthy),
+            "unhealthy" => Some(HealthStatus::Unhealthy),
+            "health: starting" => Some(HealthStatus::Starting),
+            _ => None,
+        }
+    }
+
+    /// Docker's status without the health note, which is shown on its own:
+    /// "Up 5 minutes".
+    pub fn uptime(&self) -> &str {
+        match self.health() {
+            Some(_) => self
+                .status
+                .rsplit_once('(')
+                .map_or("", |(up, _)| up.trim_end()),
+            None => &self.status,
+        }
+    }
+}
+
+/// A container's healthcheck result.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HealthStatus {
+    /// Not checked enough times yet.
+    Starting,
+    Healthy,
+    Unhealthy,
 }
 
 impl From<ContainerSummary> for ContainerInfo {
@@ -195,6 +228,33 @@ impl DockerClient {
 mod tests {
     use super::*;
     use bollard::models::{PortSummary, PortSummaryTypeEnum};
+
+    #[test]
+    fn reads_health_from_the_status() {
+        let with = |status: &str| ContainerInfo {
+            status: status.into(),
+            ..Default::default()
+        };
+        let c = with("Up 5 minutes (healthy)");
+        assert_eq!(c.health(), Some(HealthStatus::Healthy));
+        assert_eq!(c.uptime(), "Up 5 minutes");
+        let c = with("Up 3 seconds (health: starting)");
+        assert_eq!(c.health(), Some(HealthStatus::Starting));
+        assert_eq!(c.uptime(), "Up 3 seconds");
+        assert_eq!(
+            with("Up 2 hours (unhealthy)").health(),
+            Some(HealthStatus::Unhealthy)
+        );
+        // No healthcheck, or a note that isn't one.
+        for status in [
+            "Up 5 minutes",
+            "Up 1 second (Paused)",
+            "Exited (0) 2 hours ago",
+        ] {
+            assert_eq!(with(status).health(), None, "{status}");
+            assert_eq!(with(status).uptime(), status);
+        }
+    }
 
     #[test]
     fn converts_summary() {

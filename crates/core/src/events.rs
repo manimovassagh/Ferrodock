@@ -33,11 +33,12 @@ impl EngineEvent {
         };
         let actor = m.actor.unwrap_or_default();
         let attributes = actor.attributes.unwrap_or_default();
-        // Exec and health-check chatter ("exec_start: …", "health_status: …")
-        // doesn't change any list.
+        // Exec chatter ("exec_start: …", every healthcheck run) doesn't
+        // change any list. "health_status: …" does: Docker sends it only
+        // when the health changes, and the list shows it.
         let action = m.action.unwrap_or_default();
         let action = action.split(':').next().unwrap_or_default().to_owned();
-        if action.starts_with("exec_") || action == "health_status" || action == "top" {
+        if action.starts_with("exec_") || action == "top" {
             return None;
         }
         Some(Self {
@@ -111,11 +112,18 @@ mod tests {
     }
 
     #[test]
-    fn ignores_exec_and_health_chatter() {
-        for action in ["exec_start: sh", "health_status: healthy", "exec_die"] {
+    fn ignores_exec_chatter() {
+        for action in ["exec_start: sh", "exec_die"] {
             let m = message(EventMessageTypeEnum::CONTAINER, action, &[]);
             assert!(EngineEvent::from_message(m).is_none(), "{action}");
         }
+        let m = message(
+            EventMessageTypeEnum::CONTAINER,
+            "health_status: unhealthy",
+            &[],
+        );
+        let e = EngineEvent::from_message(m).unwrap();
+        assert_eq!(e.action, "health_status");
         let m = message(EventMessageTypeEnum::DAEMON, "reload", &[]);
         assert!(EngineEvent::from_message(m).is_none());
     }

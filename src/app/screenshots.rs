@@ -974,3 +974,31 @@ fn screenshots_of_no_engine() {
     save(&mut h, "no-engine");
     unsafe { std::env::remove_var("DOCKER_HOST") };
 }
+
+/// Containers with healthchecks: the health next to the state, wide and
+/// narrow, and in the details.
+#[test]
+#[ignore]
+fn screenshots_of_health() {
+    for (size, name) in [
+        (SIZE, "health"),
+        (egui::vec2(1000.0, 640.0), "health-narrow"),
+    ] {
+        let mut h = harness_of_size(size);
+        settle(&mut h, Duration::from_secs(3));
+        set_theme(&mut h, Theme::Light);
+        let unhealthy = h
+            .state()
+            .store
+            .containers
+            .iter()
+            .find(|c| c.health() == Some(crate::docker::HealthStatus::Unhealthy))
+            .map(|c| c.id.clone());
+        open(&mut h, 0, None);
+        save(&mut h, name);
+        if size == SIZE {
+            open(&mut h, 0, unhealthy);
+            save(&mut h, "health-details");
+        }
+    }
+}
