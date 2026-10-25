@@ -81,19 +81,18 @@ fn prepare(
         .download_to(file)
         .map_err(|e| e.to_string())?;
 
-    if let Some(sums_url) = &available.sums_url {
-        let mut sums = Vec::new();
-        Download::from_url(sums_url)
-            .request_header("Accept", "application/octet-stream")
-            .download_to(&mut sums)
-            .map_err(|e| e.to_string())?;
-        let sums = String::from_utf8_lossy(&sums);
-        let expected = expected_sum(&sums, &available.asset_name)
-            .ok_or("the release has no checksum for this download")?;
-        let actual = sha256_of(&archive)?;
-        if !expected.eq_ignore_ascii_case(&actual) {
-            return Err("the download is corrupted (checksum mismatch)".into());
-        }
+    // Always checked: an update is never installed unverified.
+    let mut sums = Vec::new();
+    Download::from_url(&available.sums_url)
+        .request_header("Accept", "application/octet-stream")
+        .download_to(&mut sums)
+        .map_err(|e| e.to_string())?;
+    let sums = String::from_utf8_lossy(&sums);
+    let expected = expected_sum(&sums, &available.asset_name)
+        .ok_or("the release has no checksum for this download")?;
+    let actual = sha256_of(&archive)?;
+    if !expected.eq_ignore_ascii_case(&actual) {
+        return Err("the download is corrupted (checksum mismatch)".into());
     }
 
     let unpacked = work.join("unpacked");
@@ -263,7 +262,9 @@ mod tests {
                 .assets()
                 .iter()
                 .find(|a| a.name() == "SHA256SUMS.txt")
-                .map(|a| a.download_url().into()),
+                .unwrap()
+                .download_url()
+                .into(),
         };
         let work = std::env::temp_dir().join(format!("ferrodock-prepare-{}", std::process::id()));
         fs::create_dir_all(&work).unwrap();
