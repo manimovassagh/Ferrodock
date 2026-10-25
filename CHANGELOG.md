@@ -7,6 +7,22 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.29.0](https://github.com/manimovassagh/Ferrodock/compare/v1.28.9...v1.29.0) - 2026-10-25
+
+### Added
+
+- healthchecks, volume backup, image build and registry sign-in ([#255](https://github.com/manimovassagh/Ferrodock/pull/255))
+- *(ui)* an activity log, so errors can be read again ([#253](https://github.com/manimovassagh/Ferrodock/pull/253))
+
+### Fixed
+
+- engine, UI, accessibility, docs, build size and tests ([#254](https://github.com/manimovassagh/Ferrodock/pull/254))
+- *(ui)* data in the data colour, Disk options say what they free ([#241](https://github.com/manimovassagh/Ferrodock/pull/241))
+
+### Security
+
+- combined hardening and open-source setup ([#252](https://github.com/manimovassagh/Ferrodock/pull/252))
+
 ## [1.28.9](https://github.com/manimovassagh/Ferrodock/compare/v1.28.8...v1.28.9) - 2026-10-24
 
 ### Security
