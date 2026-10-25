@@ -1,6 +1,7 @@
 //! Getting the engine image: downloaded from the project's releases on
-//! first use, checked against its published SHA-256, and unpacked: on a
-//! Mac the kernel and root disk, on Windows the distro's files for WSL.
+//! first use, checked against the SHA-256 built into this Ferrodock, and
+//! unpacked: on a Mac the kernel and root disk, on Windows the distro's
+//! files for WSL.
 //! The version set up is recorded, so the newer image that comes with a
 //! newer Ferrodock is downloaded on the engine's next start.
 
@@ -14,8 +15,37 @@ use sha2::{Digest, Sha256};
 
 use super::Paths;
 
-/// The engine image this build of Ferrodock uses.
-pub const VERSION: &str = include_str!("../../engine/VERSION");
+/// The engine image this build of Ferrodock uses, and the SHA-256 of each
+/// of its files. Built in rather than downloaded next to the image, so
+/// whoever could replace a release's files still couldn't get a different
+/// image accepted.
+const PINNED: &str = include_str!("../../engine/SHA256SUMS");
+
+/// The version of the engine image this build of Ferrodock uses: the
+/// `engine-v…` line of [`PINNED`].
+pub static VERSION: std::sync::LazyLock<&'static str> = std::sync::LazyLock::new(|| {
+    lines()
+        .find_map(|line| line.strip_prefix("engine-v"))
+        .expect("engine/SHA256SUMS names its version")
+});
+
+/// [`PINNED`] without its comments and blank lines.
+fn lines() -> impl Iterator<Item = &'static str> {
+    PINNED
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+}
+
+/// The pinned SHA-256 of `asset`.
+fn pinned(asset: &str) -> Option<String> {
+    lines().find_map(|line| {
+        let (digest, file) = line.split_once(char::is_whitespace)?;
+        (file.trim() == asset)
+            .then(|| parse_checksum(digest))
+            .flatten()
+    })
+}
 
 /// The image for this platform: kernel and root disk for the Mac's VM
 /// (Apple Silicon or Intel), a root filesystem for WSL, or the engine's
@@ -35,7 +65,7 @@ pub const ASSET: &str = if cfg!(windows) {
 fn base_url() -> String {
     format!(
         "https://github.com/manimovassagh/Ferrodock/releases/download/engine-v{}",
-        VERSION.trim()
+        *VERSION
     )
 }
 
@@ -66,25 +96,23 @@ const UNRECORDED: &str = "0.2.0";
 pub fn outdated(paths: &Paths) -> bool {
     let installed =
         std::fs::read_to_string(&paths.version).unwrap_or_else(|_| UNRECORDED.to_owned());
-    older(&installed, VERSION)
+    older(&installed, &VERSION)
 }
 
 /// Records that this build's image is the one set up.
 pub fn record(paths: &Paths) -> Result<(), String> {
-    std::fs::write(&paths.version, VERSION.trim())
+    std::fs::write(&paths.version, *VERSION)
         .map_err(|e| format!("{}: {e}", paths.version.display()))
 }
 
 /// Downloads the image, calling `progress` with (done, total) bytes, and
-/// checks it against its published checksum. The image is still
+/// checks it against its pinned checksum. The image is still
 /// zstd-compressed.
 pub fn fetch(mut progress: impl FnMut(u64, Option<u64>)) -> Result<Vec<u8>, String> {
     let get = |url: &str| ureq::get(url).call().map_err(|e| format!("{url}: {e}"));
-    let checksum = get(&format!("{}/{ASSET}.sha256", base_url()))?
-        .body_mut()
-        .read_to_string()
-        .map_err(|e| e.to_string())?;
-    let expected = parse_checksum(&checksum).ok_or("the engine's checksum file is malformed")?;
+    let expected = pinned(ASSET).ok_or_else(|| {
+        format!("This Ferrodock has no checksum for {ASSET}, so it can't check it.")
+    })?;
 
     let mut response = get(&format!("{}/{ASSET}", base_url()))?;
     let total = response.body().content_length();
@@ -103,7 +131,11 @@ pub fn fetch(mut progress: impl FnMut(u64, Option<u64>)) -> Result<Vec<u8>, Stri
     }
     let actual = ferrodock_core::hex(&hasher.finalize());
     if actual != expected {
-        return Err("The engine download is damaged (checksum mismatch). Try again.".into());
+        return Err(
+            "The engine download isn't the one this Ferrodock expects (checksum mismatch). \
+             Try again; if it keeps happening, please report it."
+                .into(),
+        );
     }
     Ok(archive)
 }
@@ -154,7 +186,29 @@ mod tests {
         );
         assert_eq!(parse_checksum("nope file"), None);
         assert_eq!(parse_checksum(""), None);
-        assert_eq!(VERSION.trim().split('.').count(), 3);
+    }
+
+    #[test]
+    fn pins_every_platforms_image() {
+        assert_eq!(VERSION.split('.').count(), 3, "{}", *VERSION);
+        for arch in ["arm64", "amd64", "wsl-amd64", "linux-amd64", "linux-arm64"] {
+            let asset = format!("ferrodock-engine-{arch}.tar.zst");
+            assert!(pinned(&asset).is_some(), "no pinned checksum for {asset}");
+        }
+        assert!(pinned(ASSET).is_some());
+        assert_eq!(pinned("ferrodock-engine-arm64.tar.zst.sha256"), None);
+    }
+
+    /// The pinned engine is the one built from engine/VERSION, or one
+    /// before it while that's being built and published.
+    #[test]
+    fn pins_a_published_version() {
+        let next = include_str!("../../engine/VERSION");
+        assert!(
+            !older(next, &VERSION),
+            "pinned {} is newer than {next}",
+            *VERSION
+        );
     }
 
     #[test]
@@ -172,7 +226,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let paths = Paths::under(dir.clone());
         // Set up before versions were recorded: that was 0.2.0.
-        assert_eq!(outdated(&paths), older(UNRECORDED, VERSION));
+        assert_eq!(outdated(&paths), older(UNRECORDED, &VERSION));
         std::fs::write(&paths.version, "0.1.0").unwrap();
         assert!(outdated(&paths));
         record(&paths).unwrap();
