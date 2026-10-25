@@ -312,14 +312,24 @@ impl DiskPage {
                             };
                             ui.label(RichText::new(what).color(p.muted));
                             match choice {
+                                // Each says what it frees: the Images card
+                                // counts all unused images, so "Untagged
+                                // only" freeing nothing would otherwise
+                                // look like a contradiction.
                                 Choice::Images => {
+                                    let label = |name: &str, kind| match freeable(store, disk, kind)
+                                    {
+                                        Some(bytes) if bytes > 0 => {
+                                            format!("{name} ({})", format_size(bytes))
+                                        }
+                                        _ => format!("{name} (nothing)"),
+                                    };
+                                    let untagged =
+                                        label("Untagged only", PruneKind::DanglingImages);
+                                    let unused = label("All unused", PruneKind::UnusedImages);
                                     ui.horizontal(|ui| {
-                                        ui.radio_value(
-                                            &mut self.all_images,
-                                            false,
-                                            "Untagged only",
-                                        );
-                                        ui.radio_value(&mut self.all_images, true, "All unused");
+                                        ui.radio_value(&mut self.all_images, false, untagged);
+                                        ui.radio_value(&mut self.all_images, true, unused);
                                     });
                                 }
                                 Choice::Volumes => {
@@ -513,7 +523,8 @@ fn card(ui: &mut egui::Ui, p: &Palette, title: &str, usage: Option<&Usage>, noun
         });
 }
 
-/// A thin bar: the freeable share of `total` in the accent colour.
+/// A thin bar: the freeable share of `total`, in the theme's data colour
+/// (the accent reads as a warning, which freeable space isn't).
 fn bar(ui: &mut egui::Ui, p: &Palette, part: i64, total: i64) {
     let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 6.0), Sense::hover());
     let painter = ui.painter();
@@ -522,7 +533,7 @@ fn bar(ui: &mut egui::Ui, p: &Palette, part: i64, total: i64) {
         let share = (part as f32 / total as f32).clamp(0.0, 1.0);
         let mut filled = rect;
         filled.set_width((rect.width() * share).max(4.0));
-        painter.rect_filled(filled, CornerRadius::same(3), p.accent);
+        painter.rect_filled(filled, CornerRadius::same(3), p.glow);
     }
 }
 
