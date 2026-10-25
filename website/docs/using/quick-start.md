@@ -1,6 +1,7 @@
 ---
 sidebar_position: 7
 title: Quick start
+description: "Start Postgres, Redis, MySQL and other popular services for local development in one click with Ferrodock's Quick start."
 ---
 
 # Quick start

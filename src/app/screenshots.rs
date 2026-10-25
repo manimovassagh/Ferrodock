@@ -944,6 +944,34 @@ fn screenshots_of_health() {
     }
 }
 
+/// The activity log after a few notices, one an error, and the sidebar
+/// with its unread-errors badge.
+#[test]
+#[ignore]
+fn screenshots_of_activity() {
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(2));
+    set_theme(&mut h, Theme::Light);
+    for (text, is_error) in [
+        ("Pulled nginx:alpine", false),
+        (
+            "Couldn't remove web-1: container is running: stop the container before removing",
+            true,
+        ),
+        ("Started web-2", false),
+    ] {
+        h.state_mut().handle_intent(super::page::Intent::Notify {
+            text: text.into(),
+            is_error,
+        });
+    }
+    h.run_steps(4);
+    save(&mut h, "activity-badge");
+    click(&mut h, "Activity");
+    h.run_steps(4);
+    save(&mut h, "activity");
+}
+
 /// The Disk page with its usage cards and clean-up options, and a
 /// container's CPU chart: data in the theme's data colour.
 #[test]
@@ -959,4 +987,18 @@ fn screenshots_of_disk_and_charts() {
     open(&mut h, 0, busy);
     settle(&mut h, Duration::from_secs(6));
     save(&mut h, "containers-cpu");
+}
+
+/// The first screen without a Docker engine: what a new user sees.
+#[test]
+#[ignore]
+fn screenshots_of_no_engine() {
+    // SAFETY: tests that use DOCKER_HOST run one at a time (`--ignored`,
+    // single test); nothing else reads it concurrently here.
+    unsafe { std::env::set_var("DOCKER_HOST", "unix:///nonexistent/docker.sock") };
+    let mut h = harness_of_size(egui::vec2(1000.0, 680.0));
+    set_theme(&mut h, Theme::Light);
+    settle(&mut h, Duration::from_secs(3));
+    save(&mut h, "no-engine");
+    unsafe { std::env::remove_var("DOCKER_HOST") };
 }

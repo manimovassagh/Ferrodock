@@ -97,6 +97,12 @@ impl Running {
         let _ = std::fs::remove_file(&paths.socket);
         let listener = UnixListener::bind(&paths.socket)
             .map_err(|e| format!("{}: {e}", paths.socket.display()))?;
+        // Access to the engine is root in the VM: this user's only.
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&paths.socket, std::fs::Permissions::from_mode(0o600))
+                .map_err(|e| format!("{}: {e}", paths.socket.display()))?;
+        }
         let bridge = machine.clone();
         thread::Builder::new()
             .name("engine-socket".into())

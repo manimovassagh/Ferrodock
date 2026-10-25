@@ -1,6 +1,7 @@
 ---
 sidebar_position: 6
 title: Volumes and networks
+description: "Browse volumes and their files, create networks, and connect or disconnect containers in Ferrodock."
 ---
 
 # Volumes and networks

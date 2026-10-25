@@ -4,6 +4,7 @@
 //! the [`Store`], lays out the shell, lets the active [`Page`] draw itself
 //! and turns the page's [`Intent`]s into worker requests.
 
+mod activity;
 mod autostart;
 mod cli_install;
 mod commands;
@@ -45,6 +46,8 @@ pub struct FerrodockApp {
     active: usize,
     search: String,
     toast: Option<Toast>,
+    /// Every toast shown, to read again.
+    activity: activity::Activity,
     /// A destructive action waiting for the user to confirm it.
     confirmation: Option<Confirmation>,
     /// The container being streamed, and whether it was running when the
@@ -108,6 +111,7 @@ impl FerrodockApp {
             active: 0,
             search: String::new(),
             toast: None,
+            activity: Default::default(),
             confirmation: None,
             watching: None,
             palette: None,
@@ -227,7 +231,7 @@ impl FerrodockApp {
                 if notice.alert && away && self.settings.notify_crashes {
                     notify::send(notice.text.clone());
                 }
-                self.toast = Some(Toast::new(notice.text, notice.is_error));
+                self.notify(notice.text, notice.is_error);
             }
         }
     }
@@ -257,6 +261,7 @@ impl FerrodockApp {
             || self.show_help
             || self.show_integrations
             || self.show_settings
+            || self.activity.open
             || self.confirmation.is_some()
     }
 
@@ -332,6 +337,12 @@ impl FerrodockApp {
         }
     }
 
+    /// Shows a toast and records it in the activity log.
+    fn notify(&mut self, text: String, is_error: bool) {
+        self.activity.push(&text, is_error);
+        self.toast = Some(Toast::new(text, is_error));
+    }
+
     fn handle_intent(&mut self, intent: Intent) {
         match intent {
             Intent::Run(task) => self.run(task),
@@ -403,7 +414,7 @@ impl FerrodockApp {
                 self.store.history = Some((image.clone(), None));
                 self.worker.send(Request::History(image));
             }
-            Intent::Notify { text, is_error } => self.toast = Some(Toast::new(text, is_error)),
+            Intent::Notify { text, is_error } => self.notify(text, is_error),
             Intent::Open { page, id } => {
                 if let Some(index) = self.pages.iter().position(|p| p.title() == page) {
                     self.open_page(index);
@@ -495,12 +506,14 @@ impl eframe::App for FerrodockApp {
                     self.active,
                     &self.store,
                     &self.updater.status(),
+                    &self.activity.badge(),
                 )
             })
             .inner;
         match clicked_page {
             Some(sidebar::Click::Page(index)) => self.open_page(index),
             Some(sidebar::Click::Settings) => self.show_settings = true,
+            Some(sidebar::Click::Activity) => self.activity.open = true,
             Some(sidebar::Click::Integrations) => self.show_integrations = true,
             Some(sidebar::Click::Engine(engine)) => self.switch_engine(engine),
             Some(sidebar::Click::Update) => {
@@ -518,7 +531,7 @@ impl eframe::App for FerrodockApp {
                             ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
                         }
                         Err(e) => {
-                            self.toast = Some(Toast::new(format!("Couldn't restart: {e}"), true));
+                            self.notify(format!("Couldn't restart: {e}"), true);
                         }
                     }
                 }
@@ -550,14 +563,14 @@ impl eframe::App for FerrodockApp {
                     .inner_margin(Margin::symmetric(22, 18)),
             )
             .show(ui, |ui| {
-                let summary = page.summary(&self.store);
+                let summary = (!self.store.is_disconnected()).then(|| page.summary(&self.store));
                 // The toolbar sees this frame's search text; the box edits a copy.
                 let mut search = self.search.clone();
                 refresh = shell::header(
                     ui,
                     p,
                     page.title(),
-                    &summary,
+                    summary.as_deref(),
                     page.search_hint(),
                     &mut search,
                     |ui| {
@@ -571,8 +584,16 @@ impl eframe::App for FerrodockApp {
                 ui.add_space(12.0);
                 if let Connection::Disconnected { reason } = &self.store.connection {
                     let offer = self.engine_starter.offer(&self.store, &self.settings);
-                    match shell::disconnected(ui, p, reason, &offer) {
+                    let instead = self
+                        .engine_starter
+                        .builtin_instead(&self.store, &self.settings);
+                    match shell::disconnected(ui, p, reason, &offer, instead) {
                         Some(shell::Click::Retry) => refresh = true,
+                        Some(shell::Click::UseBuiltIn) => {
+                            switch_to = self
+                                .engine_starter
+                                .start_builtin(&self.store, &self.settings);
+                        }
                         Some(shell::Click::Start) => {
                             switch_to = self.engine_starter.start(
                                 &self.store,
@@ -603,6 +624,7 @@ impl eframe::App for FerrodockApp {
         table::clear_step(ui.ctx());
         self.show_confirmation(ui, p);
         self.show_palette(ui, p);
+        self.activity.show(ui, p);
         if self.show_settings {
             self.show_settings = settings::show(
                 ui,

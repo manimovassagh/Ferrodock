@@ -166,6 +166,9 @@ async fn serve(listeners: Vec<TcpListener>, port: u16, target: Target) {
         async move {
             loop {
                 let Ok((mut client, _)) = listener.accept().await else {
+                    // Out of file descriptors, most likely: not straight
+                    // round again, which would spin a core.
+                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
                     continue;
                 };
                 let target = target.clone();
