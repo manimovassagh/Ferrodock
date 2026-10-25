@@ -194,8 +194,10 @@ fn step(current: Option<usize>, delta: i32, rows: usize) -> Option<usize> {
 }
 
 /// Draws a table with `rows` rows. `add_row` fills in the cells of one row
-/// (one `row.col(..)` per column). Returns the index of a row that was
-/// clicked or stepped to with the keyboard.
+/// (one `row.col(..)` per column); `label` names a row for screen readers.
+/// Returns the index of a row that was clicked or stepped to with the
+/// keyboard.
+#[allow(clippy::too_many_arguments)]
 pub fn show(
     ui: &mut egui::Ui,
     p: &Palette,
@@ -203,6 +205,7 @@ pub fn show(
     columns: Vec<Col>,
     rows: usize,
     is_selected: impl Fn(usize) -> bool,
+    label: impl Fn(usize) -> String,
     mut add_row: impl FnMut(usize, &mut TableRow<'_, '_>),
 ) -> Option<usize> {
     let row_height = if is_compact(ui) {
@@ -248,9 +251,18 @@ pub fn show(
         .body(|body| {
             body.rows(row_height, rows, |mut row| {
                 let index = row.index();
-                row.set_selected(is_selected(index));
+                let selected = is_selected(index);
+                row.set_selected(selected);
                 add_row(index, &mut row);
-                if row.response().clicked() {
+                let response = row.response();
+                // A row, not just a clickable area: its name, and whether
+                // it's selected.
+                response.ctx.accesskit_node_builder(response.id, |node| {
+                    node.set_role(egui::accesskit::Role::Row);
+                    node.set_label(label(index));
+                    node.set_selected(selected);
+                });
+                if response.clicked() {
                     clicked = Some(index);
                 }
             });

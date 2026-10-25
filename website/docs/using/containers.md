@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
 title: Containers
+description: "Start, stop, restart and remove containers in Ferrodock, and see their CPU, memory and ports at a glance."
 ---
 
 # Containers

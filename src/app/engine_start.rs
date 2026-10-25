@@ -118,17 +118,35 @@ impl EngineStarter {
                 worker.send(Request::StartEngine(starter));
                 None
             }
-            Plan::BuiltIn => {
-                let ctx = self.repaint.clone();
-                self.builtin.start(settings.resources(), move || {
-                    if let Some(ctx) = &ctx {
-                        ctx.request_repaint();
-                    }
-                });
-                let in_use = engine(store).is_some_and(|(name, _)| name == vm::NAME);
-                if in_use { None } else { builtin_engine() }
-            }
+            Plan::BuiltIn => self.boot_builtin(store, settings),
         }
+    }
+
+    /// Whether Ferrodock's own engine could be used instead of the
+    /// engine in use, when that one's app or service won't start: a way
+    /// forward for someone with a Docker that's broken or half installed.
+    pub fn builtin_instead(&self, store: &Store, settings: &Settings) -> bool {
+        matches!(Self::plan(store, settings), Some(Plan::App(_)))
+            && vm::SUPPORTED
+            && !self.builtin.state().busy()
+    }
+
+    /// Sets up or starts Ferrodock's own engine, and switches to it.
+    pub fn start_builtin(&mut self, store: &Store, settings: &Settings) -> Option<Engine> {
+        self.started = None;
+        self.error = None;
+        self.boot_builtin(store, settings)
+    }
+
+    fn boot_builtin(&mut self, store: &Store, settings: &Settings) -> Option<Engine> {
+        let ctx = self.repaint.clone();
+        self.builtin.start(settings.resources(), move || {
+            if let Some(ctx) = &ctx {
+                ctx.request_repaint();
+            }
+        });
+        let in_use = engine(store).is_some_and(|(name, _)| name == vm::NAME);
+        if in_use { None } else { builtin_engine() }
     }
 
     /// A start finished (the command ran; the engine may still be booting).

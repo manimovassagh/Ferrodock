@@ -11,6 +11,11 @@ on:
   push:
     branches: [main]
 
+# Read-only unless a job says otherwise: the build scripts of a few
+# hundred crates run here, and none of them needs to write anything.
+permissions:
+  contents: read
+
 jobs:
   release:
     name: Tag and draft release
@@ -24,13 +29,15 @@ jobs:
       created: ${{ steps.release-plz.outputs.releases_created }}
       tag: ${{ steps.tag.outputs.tag }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
       - id: release-plz
-        uses: release-plz/action@v0.5
+        uses: release-plz/action@b2baf303c463c223526d52a8a91b0777f052cf3f # v0.5.146
         with:
           command: release
         env:
@@ -47,10 +54,11 @@ jobs:
     if: needs.release.outputs.created == 'true'
     # Everything the called workflow's jobs ask for: GitHub won't start it
     # if a job there asks for more than this. `issues` is for its report of
-    # a release that didn't finish.
+    # a release that didn't finish, `pull-requests` for the Homebrew cask's.
     permissions:
       contents: write
       issues: write
+      pull-requests: write
     uses: ./.github/workflows/release-assets.yml
     # Called workflows don't see the repository's secrets unless passed on;
     # the crates.io step needs CARGO_REGISTRY_TOKEN.
@@ -72,7 +80,7 @@ jobs:
       group: release-plz-pr
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -86,9 +94,11 @@ jobs:
             echo "::notice::main has moved on to $head; its own run updates the release PR."
             echo "moved=true" >> "$GITHUB_OUTPUT"
           fi
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
         if: steps.main.outputs.moved != 'true'
-      - uses: release-plz/action@v0.5
+      - uses: release-plz/action@b2baf303c463c223526d52a8a91b0777f052cf3f # v0.5.146
         if: steps.main.outputs.moved != 'true'
         with:
           command: release-pr

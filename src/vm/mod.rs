@@ -149,6 +149,18 @@ impl State {
     }
 }
 
+/// Creates Ferrodock's folder (or `dir` in it) readable by this user
+/// only: it holds the engine's socket, disk and the window's port token.
+pub fn private_dir(dir: &std::path::Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(dir)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700))?;
+    }
+    Ok(())
+}
+
 /// The engine, driven from the UI. Long work (downloading, booting) runs on
 /// its own thread; `state()` says how it goes.
 pub struct Engine {
@@ -360,7 +372,7 @@ impl Engine {
         let running = self.running.clone();
         Some(move || {
             let result = (|| {
-                std::fs::create_dir_all(&paths.dir).map_err(|e| e.to_string())?;
+                private_dir(&paths.dir).map_err(|e| e.to_string())?;
                 #[cfg(engine)]
                 {
                     let fetch = |update| {
@@ -493,6 +505,110 @@ mod tests {
         // Nor can it be stopped or reset halfway through.
         assert!(!engine.claim(|s| *s == State::Running, State::Stopping));
         assert!(!engine.claim(|s| !s.busy(), State::Stopping));
+    }
+
+    /// An engine in `state` with no home folder: nothing reaches the
+    /// platform, so the transitions run on any OS.
+    fn bare(state: State) -> Engine {
+        Engine {
+            paths: None,
+            state: Arc::new(Mutex::new(state)),
+            given: Arc::default(),
+            #[cfg(engine)]
+            running: Arc::default(),
+        }
+    }
+
+    const BUSY: [State; 4] = [
+        State::InstallingWsl,
+        State::Downloading {
+            done: 1,
+            total: None,
+            update: false,
+        },
+        State::Starting,
+        State::Stopping,
+    ];
+
+    #[test]
+    fn only_one_of_many_racing_starts_wins() {
+        let engine = Arc::new(bare(State::Stopped));
+        let ready = |s: &State| !s.busy() && *s != State::Running;
+        let barrier = Arc::new(std::sync::Barrier::new(16));
+        let wins = (0..16)
+            .map(|_| {
+                let (engine, barrier) = (engine.clone(), barrier.clone());
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    engine.claim(ready, State::Starting)
+                })
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+            .map(|t| t.join().unwrap())
+            .filter(|won| *won)
+            .count();
+        assert_eq!(wins, 1);
+        assert_eq!(engine.state(), State::Starting);
+    }
+
+    #[test]
+    fn leaves_a_busy_engine_alone() {
+        for busy in BUSY {
+            let engine = bare(busy.clone());
+            engine.start(Resources::default(), || {});
+            engine.restart(Resources::default(), || {});
+            engine.reset(Resources::default(), || {});
+            engine.shut_down(|| {});
+            assert_eq!(engine.state(), busy);
+        }
+    }
+
+    #[test]
+    fn starts_only_what_isnt_running() {
+        let engine = bare(State::Running);
+        engine.start(Resources::default(), || {});
+        assert_eq!(engine.state(), State::Running);
+        // From stopped or failed it tries, and says why it can't here.
+        for from in [
+            State::Stopped,
+            State::NotInstalled,
+            State::Failed("x".into()),
+        ] {
+            let engine = bare(from);
+            engine.start(Resources::default(), || {});
+            assert_eq!(engine.state(), State::Failed("No home folder".into()));
+        }
+    }
+
+    #[test]
+    fn shuts_down_only_a_running_engine() {
+        for from in [
+            State::Stopped,
+            State::NotInstalled,
+            State::Failed("x".into()),
+        ] {
+            let engine = bare(from.clone());
+            engine.shut_down(|| {});
+            assert_eq!(engine.state(), from);
+        }
+        let engine = bare(State::Running);
+        let (done, wait) = std::sync::mpsc::channel();
+        engine.shut_down(move || {
+            let _ = done.send(());
+        });
+        wait.recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
+        assert_eq!(engine.state(), State::Stopped);
+        assert_eq!(engine.resources(), None);
+    }
+
+    #[test]
+    fn stopping_settles_the_state() {
+        let engine = bare(State::Running);
+        engine.stop();
+        // Nothing is set up without a home folder.
+        assert_eq!(engine.state(), State::NotInstalled);
     }
 
     #[test]
