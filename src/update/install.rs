@@ -289,13 +289,13 @@ mod tests {
         tar.into_inner().unwrap().finish().unwrap()
     }
 
-    fn available(base: &str, sums: bool) -> Available {
+    fn available(base: &str) -> Available {
         Available {
             version: "9.9.9".into(),
             notes: String::new(),
             asset_name: "Ferrodock-9.9.9-linux-x64.tar.gz".into(),
             asset_url: format!("{base}/Ferrodock-9.9.9-linux-x64.tar.gz"),
-            sums_url: sums.then(|| format!("{base}/SHA256SUMS.txt")),
+            sums_url: format!("{base}/SHA256SUMS.txt"),
         }
     }
 
@@ -311,7 +311,7 @@ mod tests {
             ),
         ]);
         let work = scratch("prepare-ok");
-        let unpacked = prepare(&available(&base, true), |_, _| {}, &work, false).unwrap();
+        let unpacked = prepare(&available(&base), |_, _| {}, &work, false).unwrap();
         assert_eq!(fs::read(unpacked.join("ferrodock")).unwrap(), b"new build");
         fs::remove_dir_all(work).unwrap();
     }
@@ -329,7 +329,7 @@ mod tests {
             ),
         ]);
         let work = scratch("prepare-corrupt");
-        let error = prepare(&available(&base, true), |_, _| {}, &work, false).unwrap_err();
+        let error = prepare(&available(&base), |_, _| {}, &work, false).unwrap_err();
         assert!(error.contains("checksum mismatch"), "{error}");
         assert!(!work.join("unpacked").exists());
         fs::remove_dir_all(work).unwrap();
@@ -345,7 +345,7 @@ mod tests {
             ("/SHA256SUMS.txt", b"abc  something-else.zip\n".to_vec()),
         ]);
         let work = scratch("prepare-unlisted");
-        let error = prepare(&available(&base, true), |_, _| {}, &work, false).unwrap_err();
+        let error = prepare(&available(&base), |_, _| {}, &work, false).unwrap_err();
         assert!(error.contains("no checksum"), "{error}");
         fs::remove_dir_all(work).unwrap();
     }
@@ -354,7 +354,7 @@ mod tests {
     fn reports_a_failed_download() {
         let base = serve(Vec::new());
         let work = scratch("prepare-404");
-        assert!(prepare(&available(&base, true), |_, _| {}, &work, false).is_err());
+        assert!(prepare(&available(&base), |_, _| {}, &work, false).is_err());
         fs::remove_dir_all(work).unwrap();
     }
 
