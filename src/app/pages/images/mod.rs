@@ -329,6 +329,7 @@ impl Page for ImagesPage {
             columns,
             visible.len(),
             |i| selected.as_deref() == Some(visible[i].id.as_str()) || marks.contains(items[i].id),
+            |i| format!("Image {}", visible[i].name()),
             |i, row| {
                 let image = visible[i];
                 let users = store.containers_using_image(&image.id).len();

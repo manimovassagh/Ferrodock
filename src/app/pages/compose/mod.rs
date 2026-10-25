@@ -140,6 +140,7 @@ impl Page for ComposePage {
             columns,
             visible.len(),
             |i| selected.as_deref() == Some(visible[i].name.as_str()),
+            |i| format!("Compose project {}", visible[i].name),
             |i, row| {
                 let project = visible[i];
                 let services = plural(project.services().len(), "service");

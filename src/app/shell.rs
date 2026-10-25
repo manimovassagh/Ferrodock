@@ -15,11 +15,13 @@ pub fn search_id() -> egui::Id {
 /// Page title, summary line, the page's own toolbar, search box and
 /// refresh button.
 /// Returns true when refresh was clicked.
+/// The page's title, its summary and search box (only while connected:
+/// with no engine there's nothing to count or search), and its toolbar.
 pub fn header(
     ui: &mut egui::Ui,
     p: &Palette,
     title: &str,
-    summary: &str,
+    summary: Option<&str>,
     search_hint: &str,
     search: &mut String,
     toolbar: impl FnOnce(&mut egui::Ui),
@@ -36,11 +38,15 @@ pub fn header(
                     .font(egui::FontId::new(24.0, crate::theme::semibold()))
                     .color(p.text),
             );
-            ui.label(RichText::new(summary).color(p.muted));
+            if let Some(summary) = summary {
+                ui.label(RichText::new(summary).color(p.muted));
+            }
         });
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             refresh = widgets::icon_button(ui, Icon::Refresh, "Refresh (F5)").clicked();
-            search_box(ui, p, search_hint, search);
+            if summary.is_some() {
+                search_box(ui, p, search_hint, search);
+            }
             if wide && let Some(toolbar) = toolbar.take() {
                 toolbar(ui);
             }
@@ -108,6 +114,8 @@ pub fn is_not_running(reason: &str) -> bool {
 pub enum Click {
     Retry,
     Start,
+    /// Use Ferrodock's own engine instead of the one that won't start.
+    UseBuiltIn,
 }
 
 fn diagnose(reason: &str) -> Problem {
@@ -147,11 +155,14 @@ pub fn connecting(ui: &mut egui::Ui, p: &Palette) {
 /// Shown instead of the page while the engine is unreachable: what's
 /// wrong, how to fix it, and that Ferrodock reconnects by itself.
 /// Returns true when "Retry now" was clicked.
+/// `builtin_instead`: Ferrodock's own engine could be set up or started
+/// instead of the one on offer, should that one not start.
 pub fn disconnected(
     ui: &mut egui::Ui,
     p: &Palette,
     reason: &str,
     offer: &super::engine_start::Offer,
+    builtin_instead: bool,
 ) -> Option<Click> {
     use super::engine_start::Offer;
     let problem = diagnose(reason);
@@ -260,10 +271,26 @@ pub fn disconnected(
                     ui.spinner();
                     ui.add_space(16.0);
                 }
-                Offer::Failed { name, error } => {
-                    ui.label(RichText::new(error).color(p.danger));
-                    ui.add_space(6.0);
-                    if widgets::primary_button(ui, &format!("Try starting {name} again")).clicked()
+                // In plain words; the error itself is under Details.
+                Offer::Failed { name, .. } => {
+                    ui.label(RichText::new(format!("Couldn't start {name}.")).color(p.danger));
+                    ui.add_space(10.0);
+                    if builtin_instead {
+                        if widgets::primary_button(ui, "Use Ferrodock's engine instead").clicked() {
+                            click = Some(Click::UseBuiltIn);
+                        }
+                        ui.add_space(6.0);
+                        ui.label(
+                            RichText::new("Its own Docker engine, set up in one step.")
+                                .size(12.0)
+                                .color(p.muted),
+                        );
+                        ui.add_space(8.0);
+                        if ui.button(format!("Try starting {name} again")).clicked() {
+                            click = Some(Click::Start);
+                        }
+                    } else if widgets::primary_button(ui, &format!("Try starting {name} again"))
+                        .clicked()
                     {
                         click = Some(Click::Start);
                     }
@@ -309,14 +336,24 @@ pub fn disconnected(
             if ui.button("Retry now").clicked() {
                 click = Some(Click::Retry);
             }
-            ui.hyperlink_to(
-                "Set up an engine",
-                "https://manimovassagh.github.io/Ferrodock/docs/engines",
-            );
+            // With nothing to start, how to get an engine.
+            if matches!(offer, Offer::Nothing) {
+                ui.hyperlink_to(
+                    "Set up an engine",
+                    "https://manimovassagh.github.io/Ferrodock/docs/engines",
+                );
+            }
         });
-        ui.add_space(14.0);
-        ui.label(RichText::new(reason).size(11.5).color(p.muted))
-            .on_hover_text("The error Docker reported");
+        ui.add_space(10.0);
+        // What Docker (and the start) reported, for whoever wants it.
+        egui::CollapsingHeader::new(RichText::new("Details").size(12.0).color(p.muted))
+            .id_salt("disconnected-details")
+            .show(ui, |ui| {
+                if let Offer::Failed { error, .. } = offer {
+                    ui.label(RichText::new(error).size(11.5).color(p.muted));
+                }
+                ui.label(RichText::new(reason).size(11.5).color(p.muted));
+            });
     });
     click
 }

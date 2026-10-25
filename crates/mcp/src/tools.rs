@@ -46,6 +46,9 @@ const MAX_LINES: usize = 1000;
 #[derive(Clone)]
 pub struct Ferrodock {
     engine: Option<String>,
+    /// Look, don't change: the changing tools are left out, and secrets
+    /// stay hidden.
+    read_only: bool,
     tool_router: ToolRouter<Self>,
 }
 
@@ -56,9 +59,18 @@ impl Ferrodock {
             for name in CHANGING {
                 tool_router.remove_route(name);
             }
+            // Secrets are always hidden, so don't offer to show them.
+            if let Some(route) = tool_router.map.get_mut("inspect_container") {
+                let mut schema = (*route.attr.input_schema).clone();
+                if let Some(serde_json::Value::Object(properties)) = schema.get_mut("properties") {
+                    properties.remove("show_secrets");
+                }
+                route.attr.input_schema = std::sync::Arc::new(schema);
+            }
         }
         Self {
             engine,
+            read_only,
             tool_router,
         }
     }
@@ -122,6 +134,7 @@ pub struct InspectParams {
     /// The container's name or ID.
     pub container: String,
     /// Show secret-looking environment values (passwords, tokens) too.
+    /// Ignored with `--read-only`.
     #[serde(default)]
     pub show_secrets: bool,
 }
@@ -334,7 +347,10 @@ impl Ferrodock {
             .client
             .inspect(Resource::Containers, &p.container)
             .await?;
-        json(&Details::new(&inspection, p.show_secrets))
+        json(&Details::new(
+            &inspection,
+            p.show_secrets && !self.read_only,
+        ))
     }
 
     /// Images with their size and age.
@@ -683,6 +699,17 @@ mod tests {
                 "{name}"
             );
         }
+        // Read-only doesn't offer to show secrets.
+        let schema = |tools: &[rmcp::model::Tool]| {
+            let tool = tools
+                .iter()
+                .find(|t| t.name == "inspect_container")
+                .unwrap();
+            serde_json::Value::Object((*tool.input_schema).clone()).to_string()
+        };
+        assert!(schema(&all).contains("show_secrets"));
+        assert!(!schema(&read_only).contains("show_secrets"));
+        assert!(schema(&read_only).contains("container"));
         // A reset has to be confirmed.
         let reset = all.iter().find(|t| t.name == "reset").unwrap();
         let required = reset.input_schema.get("required").unwrap().to_string();

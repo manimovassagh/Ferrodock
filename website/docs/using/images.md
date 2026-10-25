@@ -1,6 +1,7 @@
 ---
 sidebar_position: 5
 title: Images
+description: "Pull, search, tag, push, save, load and run Docker images in Ferrodock."
 ---
 
 # Images

@@ -81,7 +81,7 @@ pub fn start(background: bool) -> Start {
 /// Takes the lock in `dir`, waiting up to `wait` for another Ferrodock to
 /// let go of it. None when another one keeps it.
 fn claim(dir: &Path, wait: Duration) -> io::Result<Option<Instance>> {
-    fs::create_dir_all(dir)?;
+    crate::vm::private_dir(dir)?;
     let lock = File::options()
         .create(true)
         .truncate(false)
@@ -102,13 +102,18 @@ fn claim(dir: &Path, wait: Duration) -> io::Result<Option<Instance>> {
         RandomState::new().hash_one(std::process::id()),
         RandomState::new().hash_one(Instant::now())
     );
-    // Written whole, then moved in place, so it's never read half done.
+    // Written whole, then moved in place, so it's never read half done;
+    // readable by this user only, as the token is what lets others in.
     let port = dir.join("app.port");
     let partial = dir.join("app.port.partial");
-    fs::write(
-        &partial,
-        format!("{} {token}", listener.local_addr()?.port()),
-    )?;
+    let _ = fs::remove_file(&partial);
+    let mut options = File::options();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    options
+        .open(&partial)?
+        .write_all(format!("{} {token}", listener.local_addr()?.port()).as_bytes())?;
     fs::rename(&partial, &port)?;
     Ok(Some(Instance {
         _lock: lock,
@@ -131,7 +136,7 @@ impl Instance {
                     let _ = stream.set_read_timeout(Some(Duration::from_secs(1)));
                     let mut line = String::new();
                     if BufReader::new(stream).read_line(&mut line).is_ok()
-                        && line.trim_end() == expected
+                        && same(line.trim_end().as_bytes(), expected.as_bytes())
                     {
                         show();
                     }
@@ -164,6 +169,12 @@ fn send_show(dir: &Path) -> io::Result<()> {
     stream.write_all(format!("show {token}\n").as_bytes())
 }
 
+/// Whether `a` and `b` are equal, taking as long whatever they hold, so
+/// timing tells nothing about the token.
+fn same(a: &[u8], b: &[u8]) -> bool {
+    a.len() == b.len() && a.iter().zip(b).fold(0, |diff, (x, y)| diff | (x ^ y)) == 0
+}
+
 /// `app.port`: the port, then the token.
 fn parse_port_file(text: &str) -> Option<(u16, &str)> {
     let (port, token) = text.trim().split_once(' ')?;
@@ -174,6 +185,32 @@ fn parse_port_file(text: &str) -> Option<(u16, &str)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn compares_tokens_whole() {
+        assert!(same(b"show abc", b"show abc"));
+        assert!(!same(b"show abc", b"show abd"));
+        assert!(!same(b"show ab", b"show abc"));
+        assert!(same(b"", b""));
+    }
+
+    /// The folder and the token are this user's only.
+    #[test]
+    #[cfg(unix)]
+    fn keeps_the_token_private() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = temp_dir("private");
+        let instance = claim(&dir, Duration::ZERO).unwrap().unwrap();
+        let mode = |p: &Path| fs::metadata(p).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode(&dir), 0o700);
+        assert_eq!(mode(&dir.join("app.port")), 0o600);
+        drop(instance);
+        // Claimed again, as after a crash left the files behind.
+        let again = claim(&dir, Duration::ZERO).unwrap().unwrap();
+        assert_eq!(mode(&dir.join("app.port")), 0o600);
+        drop(again);
+        fs::remove_dir_all(dir).unwrap();
+    }
     use std::sync::mpsc;
 
     fn temp_dir(name: &str) -> std::path::PathBuf {
