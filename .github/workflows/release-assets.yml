@@ -136,13 +136,15 @@ jobs:
             gh release edit "$TAG" --draft=false --latest="$LATEST"
           fi
 
-  # Points the Homebrew cask (Casks/ferrodock.rb) at the new DMG.
+  # Points the Homebrew cask (Casks/ferrodock.rb) at the new DMG, in a
+  # pull request: main is protected, so nothing pushes to it directly.
   homebrew:
     needs: publish
     if: needs.publish.outputs.latest == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -156,7 +158,9 @@ jobs:
           version=${TAG#v}
           sha=$(sha256sum "dist/Ferrodock-$version-macos-universal.dmg" | cut -d' ' -f1)
           packaging/homebrew/update-cask.sh "$version" "$sha"
-      - name: Commit
+      - name: Open a pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           # Staged first, so a brand-new cask file counts as a change too.
           git add Casks/ferrodock.rb
@@ -164,17 +168,16 @@ jobs:
             echo "Cask already up to date."
             exit 0
           fi
+          branch="homebrew/cask-${TAG}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "chore: update Homebrew cask to ${TAG}"
-          # main may have moved on while this ran, e.g. the next release PR
-          # was merged: rebase onto it and try again.
-          for attempt in 1 2 3; do
-            git push && exit 0
-            sleep $((attempt * 5))
-            git pull --rebase origin main
-          done
-          exit 1
+          git push --force origin "HEAD:refs/heads/$branch"
+          if [ -z "$(gh pr list --head "$branch" --json number -q '.[].number')" ]; then
+            gh pr create --base main --head "$branch" \
+              --title "chore: update Homebrew cask to ${TAG}" \
+              --body "Points the Homebrew cask at the ${TAG} DMG."
+          fi
 
   # Publishes the crate to crates.io, so `cargo install ferrodock` works.
   # Every release, not just the latest: crates.io takes an older version
