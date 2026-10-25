@@ -28,6 +28,12 @@ impl DockerClient {
         if let Some(id) = self.helpers(Some(volume)).await?.into_iter().next() {
             return Ok(id);
         }
+        self.new_helper(volume, true).await
+    }
+
+    /// A new helper container with `volume` mounted, writable unless
+    /// `read_only`. Returns its ID.
+    pub(super) async fn new_helper(&self, volume: &str, read_only: bool) -> Result<String, String> {
         // Any image will do, since the helper never runs; the smallest one
         // keeps it cheap.
         let mut images = self.list_images().await?;
@@ -48,7 +54,10 @@ impl DockerClient {
                 volume.to_owned(),
             )])),
             host_config: Some(HostConfig {
-                binds: Some(vec![format!("{volume}:{VOLUME_ROOT}:ro")]),
+                binds: Some(vec![format!(
+                    "{volume}:{VOLUME_ROOT}:{}",
+                    if read_only { "ro" } else { "rw" }
+                )]),
                 ..Default::default()
             }),
             ..Default::default()

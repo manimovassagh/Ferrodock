@@ -1,4 +1,7 @@
-//! "New volume" and "New network" dialogs.
+//! "New volume" and "New network" dialogs, and the volume ones that fill
+//! the new volume from a backup or another volume.
+
+use std::path::{Path, PathBuf};
 
 use eframe::egui::{self, CornerRadius, Frame, Margin, RichText, Stroke};
 
@@ -12,9 +15,20 @@ pub enum Kind {
     Network,
 }
 
+/// Where a new volume's files come from.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Source {
+    /// A backup made with Back up (a `.tar.gz`), or any tar.
+    Backup(PathBuf),
+    /// A copy of this volume.
+    Volume(String),
+}
+
 /// The dialog's fields while it's open.
 pub struct CreateForm {
     kind: Kind,
+    /// Only for volumes: none makes an empty one.
+    source: Option<Source>,
     name: String,
     driver: String,
     subnet: String,
@@ -30,10 +44,30 @@ impl CreateForm {
     pub fn new(kind: Kind) -> Self {
         Self {
             kind,
+            source: None,
             name: String::new(),
             driver: String::new(),
             subnet: String::new(),
             internal: false,
+        }
+    }
+
+    /// A new volume with the files in the backup at `archive`, named after
+    /// it.
+    pub fn restore(archive: PathBuf) -> Self {
+        Self {
+            name: volume_name_of(&archive),
+            source: Some(Source::Backup(archive)),
+            ..Self::new(Kind::Volume)
+        }
+    }
+
+    /// A new volume with a copy of `volume`'s files.
+    pub fn clone_of(volume: &str) -> Self {
+        Self {
+            name: format!("{volume}-copy"),
+            source: Some(Source::Volume(volume.to_owned())),
+            ..Self::new(Kind::Volume)
         }
     }
 
@@ -55,7 +89,11 @@ impl CreateForm {
         }
         let (name, driver) = (name.to_owned(), self.driver.trim().to_owned());
         Ok(match self.kind {
-            Kind::Volume => Change::CreateVolume { name, driver },
+            Kind::Volume => match self.source.clone() {
+                None => Change::CreateVolume { name, driver },
+                Some(Source::Backup(archive)) => Change::RestoreVolume { name, archive },
+                Some(Source::Volume(from)) => Change::CloneVolume { from, to: name },
+            },
             Kind::Network => Change::CreateNetwork {
                 name,
                 driver,
@@ -64,6 +102,30 @@ impl CreateForm {
             },
         })
     }
+}
+
+/// The volume a backup file was made from: `web-data (1).tar.gz` →
+/// `web-data`.
+fn volume_name_of(archive: &Path) -> String {
+    let file = archive
+        .file_name()
+        .map(|f| f.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let stem = [".tar.gz", ".tgz", ".tar"]
+        .iter()
+        .find_map(|ext| file.strip_suffix(ext))
+        .unwrap_or(&file);
+    // The number Back up adds when the name was taken.
+    let stem = match stem.rsplit_once(" (") {
+        Some((name, n))
+            if n.strip_suffix(')')
+                .is_some_and(|n| n.parse::<u32>().is_ok()) =>
+        {
+            name
+        }
+        _ => stem,
+    };
+    stem.to_owned()
 }
 
 /// `a.b.c.d/n` (IPv4) or anything with a `:` and a prefix length (IPv6).
@@ -78,9 +140,16 @@ fn looks_like_cidr(s: &str) -> bool {
 
 pub fn show(ui: &mut egui::Ui, p: &Palette, form: &mut CreateForm) -> Option<Outcome> {
     let mut outcome = None;
-    let (title, driver_hint) = match form.kind {
-        Kind::Volume => ("New volume", "local"),
-        Kind::Network => ("New network", "bridge"),
+    let (title, driver_hint, action) = match (&form.kind, &form.source) {
+        (Kind::Volume, None) => ("New volume", "local", "Create"),
+        (Kind::Volume, Some(Source::Backup(_))) => ("Restore a volume", "", "Restore"),
+        (Kind::Volume, Some(Source::Volume(_))) => ("Clone a volume", "", "Clone"),
+        (Kind::Network, _) => ("New network", "bridge", "Create"),
+    };
+    let from = match &form.source {
+        Some(Source::Backup(archive)) => Some(archive.display().to_string()),
+        Some(Source::Volume(volume)) => Some(volume.clone()),
+        None => None,
     };
     let modal = egui::Modal::new(egui::Id::unique("ferrodock-create"))
         .frame(
@@ -110,13 +179,19 @@ pub fn show(ui: &mut egui::Ui, p: &Palette, form: &mut CreateForm) -> Option<Out
                         name.request_focus();
                     }
                     ui.end_row();
-                    ui.label(RichText::new("Driver").color(p.muted));
-                    ui.add(
-                        egui::TextEdit::singleline(&mut form.driver)
-                            .hint_text(driver_hint)
-                            .desired_width(f32::INFINITY),
-                    );
-                    ui.end_row();
+                    if let Some(from) = &from {
+                        ui.label(RichText::new("From").color(p.muted));
+                        ui.add(egui::Label::new(RichText::new(from).color(p.text)).truncate());
+                        ui.end_row();
+                    } else {
+                        ui.label(RichText::new("Driver").color(p.muted));
+                        ui.add(
+                            egui::TextEdit::singleline(&mut form.driver)
+                                .hint_text(driver_hint)
+                                .desired_width(f32::INFINITY),
+                        );
+                        ui.end_row();
+                    }
                     if form.kind == Kind::Network {
                         ui.label(RichText::new("Subnet").color(p.muted));
                         ui.add(
@@ -138,7 +213,7 @@ pub fn show(ui: &mut egui::Ui, p: &Palette, form: &mut CreateForm) -> Option<Out
             ui.add_space(8.0);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 let create = ui
-                    .add_enabled_ui(change.is_ok(), |ui| widgets::primary_button(ui, "Create"))
+                    .add_enabled_ui(change.is_ok(), |ui| widgets::primary_button(ui, action))
                     .inner;
                 let enter = ui.input(|i| i.key_pressed(egui::Key::Enter));
                 if (create.clicked() || enter)
@@ -173,6 +248,28 @@ mod tests {
         assert!(form.change().is_ok());
         form.name = "has space".into();
         assert!(form.change().is_err());
+    }
+
+    #[test]
+    fn restores_and_clones_into_a_named_volume() {
+        let form = CreateForm::restore(PathBuf::from("/home/me/Downloads/web-data (2).tar.gz"));
+        assert_eq!(form.name, "web-data");
+        assert_eq!(
+            form.change(),
+            Ok(Change::RestoreVolume {
+                name: "web-data".into(),
+                archive: PathBuf::from("/home/me/Downloads/web-data (2).tar.gz"),
+            })
+        );
+        assert_eq!(volume_name_of(Path::new("db.tar")), "db");
+        assert_eq!(volume_name_of(Path::new("odd (x).tgz")), "odd (x)");
+        assert_eq!(
+            CreateForm::clone_of("db").change(),
+            Ok(Change::CloneVolume {
+                from: "db".into(),
+                to: "db-copy".into(),
+            })
+        );
     }
 
     #[test]

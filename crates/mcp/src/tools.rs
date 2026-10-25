@@ -27,10 +27,11 @@ use rmcp::{ServerHandler, schemars, tool, tool_handler, tool_router};
 use serde::{Deserialize, Serialize};
 
 /// The tools that change something, left out with `--read-only`.
-pub const CHANGING: [&str; 9] = [
+pub const CHANGING: [&str; 10] = [
     "container_action",
     "remove_container",
     "pull_image",
+    "build_image",
     "run_quickstart",
     "engine_start",
     "clean",
@@ -168,6 +169,26 @@ pub struct RemoveParams {
 pub struct PullParams {
     /// The image, e.g. `nginx:alpine`.
     pub image: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct BuildParams {
+    /// The folder to build (the build context), with the Dockerfile in it.
+    pub path: String,
+    /// The name for the image, e.g. `my-app:latest`.
+    pub tag: String,
+    /// The Dockerfile, relative to the folder. Default: `Dockerfile`.
+    #[serde(default)]
+    pub dockerfile: Option<String>,
+    /// Build arguments (`--build-arg`).
+    #[serde(default)]
+    pub build_args: std::collections::BTreeMap<String, String>,
+    /// The stage to stop at; the last one when left out.
+    #[serde(default)]
+    pub target: Option<String>,
+    /// Build every step again instead of using the cache.
+    #[serde(default)]
+    pub no_cache: bool,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -453,6 +474,46 @@ impl Ferrodock {
         Ok(format!("Pulled {}", p.image))
     }
 
+    /// Builds an image from a folder with a Dockerfile, with the engine's
+    /// own builder; `.dockerignore` is honoured. Returns the end of the
+    /// build output, or the step that failed.
+    #[tool(annotations(
+        title = "Build an image",
+        read_only_hint = false,
+        destructive_hint = false,
+        idempotent_hint = false,
+        open_world_hint = true
+    ))]
+    async fn build_image(&self, Parameters(p): Parameters<BuildParams>) -> Result<String, String> {
+        let spec = ferrodock_core::BuildSpec {
+            context: p.path.into(),
+            dockerfile: p.dockerfile.unwrap_or_else(|| "Dockerfile".into()),
+            tag: p.tag,
+            args: p.build_args.into_iter().collect(),
+            target: p.target.unwrap_or_default(),
+            no_cache: p.no_cache,
+            ..Default::default()
+        };
+        let mut lines = std::collections::VecDeque::new();
+        let mut keep = |line: String| {
+            lines.push_back(line);
+            if lines.len() > 40 {
+                lines.pop_front();
+            }
+        };
+        let result = self
+            .conn()
+            .await?
+            .client
+            .build_image(&spec, &mut keep)
+            .await;
+        let output = Vec::from(lines).join("\n");
+        match result {
+            Ok(()) => Ok(format!("Built {}\n\n{output}", spec.tag)),
+            Err(e) => Err(format!("{e}\n\n{output}")),
+        }
+    }
+
     /// Starts a popular service from a Quick start template, with free
     /// ports and a unique name unless given, pulling its image first if
     /// needed. Returns the container's name, ports and how to connect.
@@ -607,7 +668,7 @@ mod tests {
         for name in CHANGING {
             assert!(names.contains(&name), "{name} missing from {names:?}");
         }
-        assert_eq!(names.len(), 19);
+        assert_eq!(names.len(), 20);
         // Every tool says what it does, and whether it only looks.
         for tool in &all {
             assert!(

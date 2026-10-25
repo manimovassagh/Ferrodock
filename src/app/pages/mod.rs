@@ -67,6 +67,58 @@ fn create_dialog(
     }
 }
 
+/// A job's output (a Compose command, an image build), with a spinner
+/// while it runs and its error once it failed. Returns false once the user
+/// closes it.
+fn job_output(ui: &mut egui::Ui, p: &crate::theme::Palette, job: &crate::app::store::Job) -> bool {
+    let mut open = true;
+    egui::Frame::new()
+        .fill(p.bg)
+        .stroke(egui::Stroke::new(1.0, p.border))
+        .corner_radius(egui::CornerRadius::same(8))
+        .inner_margin(egui::Margin::same(10))
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.horizontal(|ui| {
+                match &job.ended {
+                    None => {
+                        ui.spinner();
+                    }
+                    Some(None) => widgets::dot(ui, p.success),
+                    Some(Some(_)) => widgets::dot(ui, p.danger),
+                }
+                ui.label(egui::RichText::new(&job.title).strong().color(p.text));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if job.ended.is_some()
+                        && widgets::icon_button(ui, Icon::Close, "Close the output").clicked()
+                    {
+                        open = false;
+                    }
+                });
+            });
+            if let Some(Some(error)) = &job.ended {
+                ui.label(egui::RichText::new(error).color(p.danger));
+            }
+            egui::ScrollArea::vertical()
+                .id_salt(("job-output", job.id))
+                .max_height(180.0)
+                .stick_to_bottom(true)
+                .auto_shrink([false, true])
+                .show(ui, |ui| {
+                    for line in &job.lines {
+                        ui.label(
+                            egui::RichText::new(line)
+                                .monospace()
+                                .size(12.0)
+                                .color(p.muted),
+                        );
+                    }
+                });
+        });
+    ui.add_space(8.0);
+    open
+}
+
 /// Shown instead of an empty list. When nothing exists yet it explains how
 /// things get here (with an optional action); when the search hides
 /// everything it offers to clear it.

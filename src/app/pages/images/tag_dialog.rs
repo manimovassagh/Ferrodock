@@ -14,7 +14,7 @@ pub(super) struct TagForm {
 
 /// Whether `target` looks like an image name: `[registry/]repo[:tag]`,
 /// lowercase repository, no spaces.
-fn valid(target: &str) -> bool {
+pub(super) fn valid(target: &str) -> bool {
     let target = target.trim();
     let repo = match target.rsplit_once(':') {
         Some((repo, tag)) if !tag.contains('/') => {

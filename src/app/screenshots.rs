@@ -974,3 +974,98 @@ fn screenshots_of_no_engine() {
     save(&mut h, "no-engine");
     unsafe { std::env::remove_var("DOCKER_HOST") };
 }
+
+/// Containers with healthchecks: the health next to the state, wide and
+/// narrow, and in the details.
+#[test]
+#[ignore]
+fn screenshots_of_health() {
+    for (size, name) in [
+        (SIZE, "health"),
+        (egui::vec2(1000.0, 640.0), "health-narrow"),
+    ] {
+        let mut h = harness_of_size(size);
+        settle(&mut h, Duration::from_secs(3));
+        set_theme(&mut h, Theme::Light);
+        let unhealthy = h
+            .state()
+            .store
+            .containers
+            .iter()
+            .find(|c| c.health() == Some(crate::docker::HealthStatus::Unhealthy))
+            .map(|c| c.id.clone());
+        open(&mut h, 0, None);
+        save(&mut h, name);
+        if size == SIZE {
+            open(&mut h, 0, unhealthy);
+            save(&mut h, "health-details");
+        }
+    }
+}
+
+/// A volume's Back up and Clone… buttons, and the Clone dialog.
+#[test]
+#[ignore]
+fn screenshots_of_volume_backup() {
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(3));
+    set_theme(&mut h, Theme::Light);
+    let volume = h
+        .state()
+        .store
+        .volumes
+        .iter()
+        .find(|v| v.name.len() < 64)
+        .map(|v| v.name.clone());
+    open(&mut h, 3, volume);
+    save(&mut h, "volume-backup");
+    click(&mut h, "Clone…");
+    save(&mut h, "volume-clone");
+}
+
+/// An image build's output on the Images page, streamed as it runs.
+#[test]
+#[ignore]
+fn screenshots_of_build() {
+    use crate::docker::{BuildSpec, ImageOp};
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(3));
+    set_theme(&mut h, Theme::Light);
+    open(&mut h, 2, None);
+    let context = std::env::var("BUILD_CONTEXT").unwrap_or_else(|_| ".".into());
+    h.state_mut()
+        .handle_intent(super::page::Intent::Image(ImageOp::Build(BuildSpec {
+            job: crate::docker::next_job(),
+            context: context.into(),
+            dockerfile: "Dockerfile".into(),
+            tag: "hello-build:latest".into(),
+            args: vec![("GREETING".into(), "hello".into())],
+            no_cache: true,
+            ..Default::default()
+        })));
+    settle(&mut h, Duration::from_secs(8));
+    save(&mut h, "build");
+}
+
+/// Settings → Registries, signed in to one: set `DOCKER_CONFIG` to a
+/// config with a login to see it listed.
+#[test]
+#[ignore]
+fn screenshots_of_registries() {
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(2));
+    set_theme(&mut h, Theme::Light);
+    h.state_mut().show_settings = true;
+    settle(&mut h, Duration::from_secs(2));
+    let center = h.ctx.content_rect().center();
+    h.event(egui::Event::PointerMoved(center));
+    h.event(egui::Event::MouseWheel {
+        unit: egui::MouseWheelUnit::Point,
+        delta: egui::vec2(0.0, -420.0),
+        phase: egui::TouchPhase::Move,
+        source: egui::MouseWheelSource::Unknown,
+        modifiers: egui::Modifiers::NONE,
+    });
+    h.run_steps(6);
+    save(&mut h, "registries");
+}

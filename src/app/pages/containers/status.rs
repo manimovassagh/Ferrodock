@@ -4,7 +4,7 @@ use eframe::egui::{self, Color32, RichText};
 
 use crate::app::components::table;
 use crate::app::components::widgets::{self, Mark};
-use crate::docker::{Action, ContainerInfo};
+use crate::docker::{Action, ContainerInfo, HealthStatus};
 use crate::theme::Palette;
 
 /// "● Running" style pill for the container's state. While an action is
@@ -14,12 +14,16 @@ pub(super) fn pill(ui: &mut egui::Ui, p: &Palette, c: &ContainerInfo, pending: O
         widgets::pill_with(ui, label, p.warning, Mark::Dot);
         return;
     }
-    widgets::pill_with(
-        ui,
-        &capitalize(&c.state),
-        color(p, &c.state),
-        mark(&c.state),
-    );
+    let (label, color, mark) = match c.health().filter(|_| c.state == "running") {
+        // One pill, so it fits the column: the health says it runs.
+        Some(HealthStatus::Healthy) => ("Running · healthy".to_owned(), p.success, Mark::Dot),
+        Some(HealthStatus::Starting) => ("Running · checking".to_owned(), p.warning, Mark::Ring),
+        Some(HealthStatus::Unhealthy) => {
+            ("Running · unhealthy".to_owned(), p.danger, Mark::Triangle)
+        }
+        None => (capitalize(&c.state), color(p, &c.state), mark(&c.state)),
+    };
+    widgets::pill_with(ui, &label, color, mark);
 }
 
 /// What a container is doing while `action` runs.
@@ -45,10 +49,10 @@ pub(super) fn cell(ui: &mut egui::Ui, p: &Palette, c: &ContainerInfo, pending: O
         ui.add_space(6.0);
         pill(ui, p, c, pending);
         // Docker's status is just "Created" for new containers, which the
-        // pill already says.
+        // pill already says, as it does the health.
         if !c.status.eq_ignore_ascii_case(&c.state) {
             ui.add(
-                egui::Label::new(RichText::new(&c.status).size(12.0).color(p.muted))
+                egui::Label::new(RichText::new(c.uptime()).size(12.0).color(p.muted))
                     .truncate()
                     .selectable(false),
             );

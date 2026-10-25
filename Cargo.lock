@@ -1827,6 +1827,7 @@ version = "1.28.9"
 dependencies = [
  "bollard",
  "bytes",
+ "flate2",
  "futures-util",
  "serde",
  "serde_json",

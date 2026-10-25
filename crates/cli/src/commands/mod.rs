@@ -65,6 +65,33 @@ pub async fn run(cli: Cli) -> Result<(), String> {
         } => containers::inspect(&ctx, &container, show_secrets, raw).await,
         Command::Images => resources::images(&ctx).await,
         Command::Pull { image } => resources::pull(&ctx, &image).await,
+        Command::Build {
+            path,
+            tag,
+            file,
+            build_args,
+            target,
+            no_cache,
+        } => {
+            let args = build_args
+                .iter()
+                .map(|a| {
+                    a.split_once('=')
+                        .map(|(k, v)| (k.to_owned(), v.to_owned()))
+                        .ok_or_else(|| format!("--build-arg {a}: write it as KEY=value"))
+                })
+                .collect::<Result<_, _>>()?;
+            let spec = ferrodock_core::BuildSpec {
+                context: path,
+                dockerfile: file,
+                tag,
+                args,
+                target,
+                no_cache,
+                ..Default::default()
+            };
+            resources::build(&ctx, &spec).await
+        }
         Command::Volumes => resources::volumes(&ctx).await,
         Command::Networks => resources::networks(&ctx).await,
         Command::Projects => resources::projects(&ctx).await,
