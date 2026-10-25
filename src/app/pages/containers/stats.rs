@@ -27,7 +27,7 @@ pub(super) fn show(ui: &mut egui::Ui, p: &Palette, live: Option<&Live>, running:
             let cpu_max = chart_ceiling(&cpu, 1.0);
             metric(ui, p, "CPU", &format!("{:.1}%", latest.cpu_percent));
             let cpu_scale = format!("{cpu_max:.0}%");
-            sparkline::show(ui, p, &cpu, cpu_max, p.accent, &cpu_scale, |v| {
+            sparkline::show(ui, p, &cpu, cpu_max, p.glow, &cpu_scale, |v| {
                 format!("{v:.1}%")
             });
             ui.add_space(14.0);

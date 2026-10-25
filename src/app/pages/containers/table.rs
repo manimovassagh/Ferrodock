@@ -368,14 +368,16 @@ fn group_row(
     });
 }
 
-/// CPU now, with a small trend line; amber above 80%.
+/// CPU now, with a small trend line: in the theme's data colour, amber
+/// above 80%. Not the accent: in most themes that's close to the red of
+/// errors, which a quiet container at 0% isn't.
 fn cpu_cell(ui: &mut egui::Ui, p: &Palette, history: Option<&VecDeque<StatsSample>>) {
     let Some(latest) = history.and_then(|h| h.back()) else {
         table::muted(ui, p, "—");
         return;
     };
     let busy = latest.cpu_percent >= 80.0;
-    let color = if busy { p.warning } else { p.accent };
+    let color = if busy { p.warning } else { p.glow };
     ui.add(
         egui::Label::new(
             egui::RichText::new(format!("{:.1}%", latest.cpu_percent)).color(if busy {
