@@ -226,6 +226,7 @@ pub fn show(
                             Settings::MIN_SCALE * 100.0..=Settings::MAX_SCALE * 100.0,
                         )
                         .step_by(5.0)
+                        .fixed_decimals(0)
                         .suffix("%");
                         // Apply when the drag ends, so the slider doesn't move
                         // under the pointer while the whole window rescales.
