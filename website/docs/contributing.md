@@ -1,6 +1,7 @@
 ---
 sidebar_position: 9
 title: Contributing
+description: "How to report bugs, suggest features and send pull requests to Ferrodock, the open-source container manager written in Rust."
 ---
 
 # Contributing

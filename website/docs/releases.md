@@ -1,6 +1,7 @@
 ---
 sidebar_position: 6
 title: Updates and releases
+description: "Where to download Ferrodock, how its in-app updates work, and how versions and release notes are made."
 ---
 
 # Updates and releases

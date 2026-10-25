@@ -12,3 +12,6 @@ pub mod table;
 pub mod terminal;
 pub mod toast;
 pub mod widgets;
+
+#[cfg(test)]
+mod accessibility_tests;

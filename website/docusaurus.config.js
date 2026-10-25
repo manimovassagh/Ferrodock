@@ -6,7 +6,7 @@ const path = require("path");
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: "Ferrodock",
-  tagline: "A fast, native desktop app for managing Docker, written entirely in Rust.",
+  tagline: "The native container manager, written in Rust",
   headTags: [
     { tagName: "meta", attributes: { property: "og:image", content: "https://manimovassagh.github.io/Ferrodock/img/social-card.png" } },
     { tagName: "meta", attributes: { name: "twitter:card", content: "summary_large_image" } },

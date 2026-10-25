@@ -1,6 +1,7 @@
 ---
 sidebar_position: 1
 title: Finding your way around
+description: "Find your way around Ferrodock: the sidebar, the command palette, keyboard shortcuts and selecting many items at once."
 ---
 
 # Finding your way around

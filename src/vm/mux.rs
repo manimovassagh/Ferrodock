@@ -77,4 +77,53 @@ mod tests {
         assert!(read(&mut &encode(1, DATA, b"abc")[..10]).is_err());
         assert!(read(&mut &[0, 0, 0, 1, 9, 0, 0, 0, 0][..]).is_err());
     }
+
+    /// Hands out one byte per read, like a pipe under load.
+    struct Trickle<'a>(&'a [u8]);
+
+    impl Read for Trickle<'_> {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            let Some((first, rest)) = self.0.split_first() else {
+                return Ok(0);
+            };
+            buf[0] = *first;
+            self.0 = rest;
+            Ok(1)
+        }
+    }
+
+    #[test]
+    fn reads_frames_that_arrive_a_byte_at_a_time() {
+        let mut stream = encode(3, DATA, b"hello");
+        stream.extend(encode(4, CLOSE, b""));
+        let mut input = Trickle(&stream);
+        assert_eq!(
+            read(&mut input).unwrap(),
+            Some((3, DATA, b"hello".to_vec()))
+        );
+        assert_eq!(read(&mut input).unwrap(), Some((4, CLOSE, vec![])));
+        assert_eq!(read(&mut input).unwrap(), None);
+    }
+
+    #[test]
+    fn caps_the_frame_size() {
+        let mut at_most = [0u8; HEADER];
+        at_most.copy_from_slice(&encode(1, DATA, b"")[..HEADER]);
+        at_most[5..].copy_from_slice(&(MAX_DATA as u32).to_be_bytes());
+        assert_eq!(header(&at_most).unwrap(), (1, DATA, MAX_DATA));
+        // One byte more is refused before anything is allocated for it.
+        let mut over = at_most;
+        over[5..].copy_from_slice(&(MAX_DATA as u32 + 1).to_be_bytes());
+        assert!(header(&over).is_err());
+        assert!(read(&mut &over[..]).is_err());
+    }
+
+    #[test]
+    fn a_stream_cut_mid_header_is_an_error() {
+        let frame = encode(9, OPEN, b"");
+        for cut in 1..HEADER {
+            let error = read(&mut &frame[..cut]).unwrap_err();
+            assert_eq!(error.kind(), io::ErrorKind::UnexpectedEof);
+        }
+    }
 }

@@ -960,3 +960,17 @@ fn screenshots_of_disk_and_charts() {
     settle(&mut h, Duration::from_secs(6));
     save(&mut h, "containers-cpu");
 }
+
+/// The first screen without a Docker engine: what a new user sees.
+#[test]
+#[ignore]
+fn screenshots_of_no_engine() {
+    // SAFETY: tests that use DOCKER_HOST run one at a time (`--ignored`,
+    // single test); nothing else reads it concurrently here.
+    unsafe { std::env::set_var("DOCKER_HOST", "unix:///nonexistent/docker.sock") };
+    let mut h = harness_of_size(egui::vec2(1000.0, 680.0));
+    set_theme(&mut h, Theme::Light);
+    settle(&mut h, Duration::from_secs(3));
+    save(&mut h, "no-engine");
+    unsafe { std::env::remove_var("DOCKER_HOST") };
+}

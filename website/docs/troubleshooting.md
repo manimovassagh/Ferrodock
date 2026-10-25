@@ -1,6 +1,7 @@
 ---
 sidebar_position: 7
 title: Troubleshooting and FAQ
+description: "Fixes for common Ferrodock problems: opening the app on macOS and Windows, connecting to Docker, Compose, and the built-in engine."
 ---
 
 # Troubleshooting and FAQ
@@ -70,8 +71,11 @@ See [Removing the engine](./engine.md#removing-the-engine).
 ## Using Ferrodock
 
 **Compose's Up, Rebuild or Logs fail.**
-They use the `docker compose` command. Install the Docker CLI with its
-Compose plugin and check that `docker compose version` works in a terminal.
+They run Docker Compose: the one on your computer if there is one,
+otherwise a copy Ferrodock downloads once (see
+[Compose](./using/compose.md)). The error under the project says what
+Compose reported. If the download itself fails (offline, or a proxy in the
+way), installing Docker Compose yourself works too.
 
 **Pulling or pushing a private image fails.**
 Ferrodock uses the logins of the Docker CLI. Run `docker login <registry>`

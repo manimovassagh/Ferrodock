@@ -1,6 +1,7 @@
 ---
 sidebar_position: 5
 title: Connecting to other engines
+description: "Connect Ferrodock to any Docker engine: the Docker engine on Linux, Docker contexts, or an engine elsewhere on your network."
 ---
 
 # Connecting to other engines
