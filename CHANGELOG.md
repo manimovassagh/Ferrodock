@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.28.10](https://github.com/manimovassagh/Ferrodock/compare/v1.28.9...v1.28.10) - 2026-10-25
+
+### Fixed
+
+- *(ui)* data in the data colour, Disk options say what they free ([#241](https://github.com/manimovassagh/Ferrodock/pull/241))
+
 ## [1.28.9](https://github.com/manimovassagh/Ferrodock/compare/v1.28.8...v1.28.9) - 2026-10-24
 
 ### Security
