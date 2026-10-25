@@ -915,3 +915,20 @@ fn screenshots_of_narrow_lists() {
     open(&mut h, 4, network);
     save(&mut h, "narrow-networks");
 }
+
+/// The Disk page with its usage cards and clean-up options, and a
+/// container's CPU chart: data in the theme's data colour.
+#[test]
+#[ignore]
+fn screenshots_of_disk_and_charts() {
+    let mut h = harness_of_size(egui::vec2(1240.0, 980.0));
+    set_theme(&mut h, Theme::Light);
+    settle(&mut h, Duration::from_secs(3));
+    open(&mut h, 5, None);
+    settle(&mut h, Duration::from_secs(2));
+    save(&mut h, "disk-cleanup");
+    let busy = busiest(&h);
+    open(&mut h, 0, busy);
+    settle(&mut h, Duration::from_secs(6));
+    save(&mut h, "containers-cpu");
+}
