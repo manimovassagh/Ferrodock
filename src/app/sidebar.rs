@@ -1,5 +1,5 @@
-//! Left sidebar: brand, page navigation, the settings button and Docker
-//! engine status.
+//! Left sidebar: brand, page navigation, the settings and activity
+//! buttons and Docker engine status.
 
 use eframe::egui::{self, Align, Layout, RichText};
 
@@ -14,6 +14,8 @@ use crate::update::Status;
 pub enum Click {
     Page(usize),
     Settings,
+    /// The log of what happened and what went wrong.
+    Activity,
     /// Download and install the available update.
     Update,
     /// Restart into the installed update.
@@ -32,6 +34,7 @@ pub fn show(
     active: usize,
     store: &Store,
     update: &Status,
+    unread_errors: &str,
 ) -> Option<Click> {
     ui.add_space(2.0);
     ui.horizontal(|ui| {
@@ -61,7 +64,10 @@ pub fn show(
         pages,
         active,
         store,
-        update,
+        &Footer {
+            update,
+            unread_errors,
+        },
         &mut clicked,
     );
     let left = space.height() - bottom_ui.min_rect().height() - 8.0;
@@ -92,6 +98,13 @@ pub fn show(
     clicked
 }
 
+/// What the bottom half shows besides pages: an update, and errors not
+/// yet seen in the activity log.
+struct Footer<'a> {
+    update: &'a Status,
+    unread_errors: &'a str,
+}
+
 /// Below this height (in points, under the logo) the sidebar is short.
 const SHORT: f32 = 560.0;
 
@@ -103,9 +116,13 @@ fn bottom(
     pages: &[Box<dyn Page>],
     active: usize,
     store: &Store,
-    update: &Status,
+    footer: &Footer<'_>,
     clicked: &mut Option<Click>,
 ) {
+    let Footer {
+        update,
+        unread_errors,
+    } = *footer;
     // Short windows get a one-line CLI & MCP, leaving more room for
     // the pages above.
     let compact = ui.available_height() < SHORT;
@@ -113,14 +130,56 @@ fn bottom(
         *clicked = Some(Click::Engine(engine));
     }
     ui.add_space(6.0);
-    let settings =
-        widgets::nav_item(ui, p, Icon::Gear, "Settings", "", false).on_hover_text(format!(
-            "Theme, density and interface size ({}{})",
-            super::keys::COMMAND,
-            ","
-        ));
-    if settings.clicked() {
-        *clicked = Some(Click::Settings);
+    let hint = if unread_errors.is_empty() {
+        "What Ferrodock did and what went wrong".to_owned()
+    } else {
+        format!("{unread_errors} new errors")
+    };
+    let settings_hint = format!(
+        "Theme, density and interface size ({}{})",
+        super::keys::COMMAND,
+        ","
+    );
+    if compact {
+        // One row for both, so the pages above keep their room: the
+        // activity log as an icon, dotted red when errors are unread.
+        let width = ui.available_width();
+        ui.allocate_ui_with_layout(
+            egui::vec2(width, 32.0),
+            Layout::right_to_left(Align::Center),
+            |ui| {
+                let activity = widgets::icon_button(ui, Icon::Activity, &hint);
+                if !unread_errors.is_empty() {
+                    let dot = activity.rect.right_top() + egui::vec2(-6.0, 6.0);
+                    ui.painter().circle_filled(dot, 3.5, p.danger);
+                }
+                if activity.clicked() {
+                    *clicked = Some(Click::Activity);
+                }
+                // The rest of the row, drawn left to right again.
+                ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                    if widgets::nav_item(ui, p, Icon::Gear, "Settings", "", false)
+                        .on_hover_text(&settings_hint)
+                        .clicked()
+                    {
+                        *clicked = Some(Click::Settings);
+                    }
+                });
+            },
+        );
+    } else {
+        if widgets::nav_item(ui, p, Icon::Gear, "Settings", "", false)
+            .on_hover_text(&settings_hint)
+            .clicked()
+        {
+            *clicked = Some(Click::Settings);
+        }
+        if widgets::nav_item(ui, p, Icon::Activity, "Activity", unread_errors, false)
+            .on_hover_text(&hint)
+            .clicked()
+        {
+            *clicked = Some(Click::Activity);
+        }
     }
     if let Some(click) = update_item(ui, p, update) {
         *clicked = Some(click);
