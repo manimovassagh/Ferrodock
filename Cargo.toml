@@ -12,7 +12,7 @@ readme = "README.md"
 keywords = ["docker", "containers", "gui", "desktop", "egui"]
 categories = ["gui", "development-tools"]
 # Only what building needs; the website, docs and packaging stay on GitHub.
-include = ["/src", "/assets", "/build.rs", "/engine/VERSION", "/README.md", "/LICENSE", "/CHANGELOG.md"]
+include = ["/src", "/assets", "/build.rs", "/engine/VERSION", "/engine/SHA256SUMS", "/README.md", "/LICENSE", "/CHANGELOG.md"]
 
 # The desktop app (this package) and the crates it shares code with:
 #   crates/core  ferrodock-core, the Docker layer (no UI)
