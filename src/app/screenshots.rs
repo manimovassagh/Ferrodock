@@ -915,3 +915,31 @@ fn screenshots_of_narrow_lists() {
     open(&mut h, 4, network);
     save(&mut h, "narrow-networks");
 }
+
+/// The activity log after a few notices, one an error, and the sidebar
+/// with its unread-errors badge.
+#[test]
+#[ignore]
+fn screenshots_of_activity() {
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(2));
+    set_theme(&mut h, Theme::Light);
+    for (text, is_error) in [
+        ("Pulled nginx:alpine", false),
+        (
+            "Couldn't remove web-1: container is running: stop the container before removing",
+            true,
+        ),
+        ("Started web-2", false),
+    ] {
+        h.state_mut().handle_intent(super::page::Intent::Notify {
+            text: text.into(),
+            is_error,
+        });
+    }
+    h.run_steps(4);
+    save(&mut h, "activity-badge");
+    click(&mut h, "Activity");
+    h.run_steps(4);
+    save(&mut h, "activity");
+}

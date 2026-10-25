@@ -21,6 +21,8 @@ pub enum Icon {
     File,
     /// A prompt in a window: the command line.
     Terminal,
+    /// A pulse line: what happened (the activity log).
+    Activity,
     /// A group that's folded (pointing right) or open (pointing down).
     ChevronRight,
     ChevronDown,
@@ -127,6 +129,14 @@ pub fn paint(painter: &egui::Painter, rect: Rect, icon: Icon, color: Color32) {
             line(&[p(7.5, 9.0), p(10.5, 12.0), p(7.5, 15.0)]),
             line(&[p(13.0, 15.0), p(16.5, 15.0)]),
         ],
+        Icon::Activity => vec![line(&[
+            p(3.0, 12.0),
+            p(7.0, 12.0),
+            p(10.0, 5.0),
+            p(14.0, 19.0),
+            p(17.0, 12.0),
+            p(21.0, 12.0),
+        ])],
         Icon::ChevronRight => vec![line(&[p(9.0, 6.0), p(15.0, 12.0), p(9.0, 18.0)])],
         Icon::ChevronDown => vec![line(&[p(6.0, 9.0), p(12.0, 15.0), p(18.0, 9.0)])],
         Icon::More => [5.5, 12.0, 18.5]
