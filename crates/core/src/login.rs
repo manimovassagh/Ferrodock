@@ -415,10 +415,12 @@ mod tests {
     /// A password that's surely wrong, made at run time rather than
     /// written into the code.
     fn wrong_password() -> String {
-        let nanos = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_or(0, |d| d.as_nanos());
-        format!("{nanos:x}{:x}", std::process::id())
+        use std::hash::{BuildHasher, Hasher};
+        // Random keys, so a new value every time.
+        let random = std::collections::hash_map::RandomState::new()
+            .build_hasher()
+            .finish();
+        format!("{random:x}")
     }
 
     /// Talks to Docker Hub and GitHub's registry: `cargo test -- --ignored`.
