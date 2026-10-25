@@ -1,6 +1,7 @@
 ---
 sidebar_position: 1
 title: Finding your way around
+description: "Find your way around Ferrodock: the sidebar, the command palette, keyboard shortcuts and selecting many items at once."
 ---
 
 # Finding your way around
@@ -35,6 +36,15 @@ If a container **crashes** (exits with an error you didn't ask for) or is
 killed for **running out of memory**, Ferrodock tells you, with a system
 notification when its window is in the background. You can turn these off
 in [Settings](./settings.md).
+
+## Activity
+
+Successes show briefly at the bottom right; errors stay until you close
+them. Either way, **Activity** in the sidebar lists everything Ferrodock
+told you, newest first, with when it happened, so an error you closed or
+missed can still be read (and copied). A number next to it counts errors
+you haven't seen yet. In a short window it's the pulse icon next to
+**Settings**, with a red dot for new errors.
 
 ## Command palette
 

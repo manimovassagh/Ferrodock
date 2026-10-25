@@ -2,6 +2,7 @@
 slug: /
 sidebar_position: 1
 title: Introduction
+description: "Ferrodock is a free, open-source native container manager written in Rust: containers, Compose, images, volumes and networks in one window."
 ---
 
 # Ferrodock

@@ -100,6 +100,19 @@ winresource = "0.1.34"
 lto = true
 codegen-units = 1
 strip = true
+# Optimised for size: a fifth smaller, and the window is drawn by the GPU
+# either way. Unwinding stays on, so a panic in a background task doesn't
+# take the window with it.
+opt-level = "s"
+
+# Except where Ferrodock crunches bytes: checking and unpacking the engine
+# image and updates, TLS, and turning shapes into triangles every frame.
+[profile.release.package]
+sha2.opt-level = 3
+ruzstd.opt-level = 3
+miniz_oxide.opt-level = 3
+ring.opt-level = 3
+epaint.opt-level = 3
 
 # Shown in the Windows file properties (embedded by build.rs).
 [package.metadata.winresource]
@@ -109,3 +122,5 @@ LegalCopyright = "Copyright (c) 2026 Mani Movassagh. MIT License."
 
 [dev-dependencies]
 egui_kittest = { version = "0.37", features = ["wgpu", "snapshot", "eframe"] }
+# Building .tar.gz updates in the updater tests.
+flate2 = "1.1"

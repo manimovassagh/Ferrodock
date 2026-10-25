@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
 title: Installation
+description: "Install Ferrodock on macOS, Windows or Linux, check the download, and uninstall it cleanly."
 ---
 
 # Installation
@@ -143,7 +144,17 @@ Settings first. Then:
   `brew uninstall --cask ferrodock`.
 - **Windows:** quit Ferrodock (from its icon in the notification area) and
   delete the folder you unzipped it to.
-- **Linux:** delete the `ferrodock` executable.
+- **Linux:** delete the `ferrodock` executable, and its `.desktop` file if
+  you made one.
+
+Ferrodock also put the `fdock` and `ferrodock-mcp` commands on your PATH,
+and keeps its settings in a folder of its own. To remove those too:
+
+| | Commands | Settings |
+|---|---|---|
+| macOS | `/usr/local/bin/fdock` and `/usr/local/bin/ferrodock-mcp` (links) | `~/Library/Application Support/Ferrodock` |
+| Windows | Ferrodock's folder in your user **Path** (Settings → System → About → Advanced system settings → Environment Variables) | `%APPDATA%\Ferrodock` |
+| Linux | `~/.local/bin/fdock` and `~/.local/bin/ferrodock-mcp` (links) | `~/.local/share/ferrodock` |
 
 If you set up Ferrodock's own engine, it keeps its images, containers and
 volumes separately. [Removing the engine](./engine.md#removing-the-engine)

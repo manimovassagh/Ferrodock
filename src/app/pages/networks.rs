@@ -120,6 +120,7 @@ impl Page for NetworksPage {
             columns,
             visible.len(),
             |i| selected.as_deref() == Some(visible[i].id.as_str()) || marks.contains(items[i].id),
+            |i| format!("Network {}", visible[i].name),
             |i, row| {
                 let net = visible[i];
                 let attached = store.containers_on_network(&net.name).len();

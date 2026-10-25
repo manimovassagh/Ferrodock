@@ -1786,6 +1786,7 @@ dependencies = [
  "egui_extras",
  "egui_kittest",
  "ferrodock-core",
+ "flate2",
  "futures-util",
  "libc",
  "notify-rust",

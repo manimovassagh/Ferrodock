@@ -185,6 +185,7 @@ impl Page for VolumesPage {
             |i| {
                 selected.as_deref() == Some(visible[i].name.as_str()) || marks.contains(items[i].id)
             },
+            |i| format!("Volume {}", visible[i].name),
             |i, row| {
                 let volume = visible[i];
                 let users = store.containers_using_volume(&volume.name);
