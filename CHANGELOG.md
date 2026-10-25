@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.29.1](https://github.com/manimovassagh/Ferrodock/compare/v1.29.0...v1.29.1) - 2026-10-25
+
+### Fixed
+
+- package the engine checksums with the crate ([#259](https://github.com/manimovassagh/Ferrodock/pull/259))
+
 ## [1.29.0](https://github.com/manimovassagh/Ferrodock/compare/v1.28.9...v1.29.0) - 2026-10-25
 
 ### Added
