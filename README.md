@@ -10,6 +10,7 @@ containers, images, volumes, networks and Compose, plus a CLI and an MCP server 
 
 [![Release](https://img.shields.io/github/v/release/manimovassagh/Ferrodock?display_name=tag&sort=semver)](https://github.com/manimovassagh/Ferrodock/releases/latest)
 [![CI](https://github.com/manimovassagh/Ferrodock/actions/workflows/ci.yml/badge.svg)](https://github.com/manimovassagh/Ferrodock/actions/workflows/ci.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/manimovassagh/Ferrodock/badge)](https://scorecard.dev/viewer/?uri=github.com/manimovassagh/Ferrodock)
 [![crates.io](https://img.shields.io/crates/v/ferrodock.svg)](https://crates.io/crates/ferrodock)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Rust 1.95+](https://img.shields.io/badge/rust-1.95%2B-orange.svg)](https://www.rust-lang.org)
