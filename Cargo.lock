@@ -1776,7 +1776,7 @@ checksum = "b97b65636e5b9ef369943878ac74335ba1c55c1cb6adbf1e2c293c624248d693"
 
 [[package]]
 name = "ferrodock"
-version = "1.28.9"
+version = "1.28.10"
 dependencies = [
  "block2 0.6.2",
  "bollard",
@@ -1810,7 +1810,7 @@ dependencies = [
 
 [[package]]
 name = "ferrodock-cli"
-version = "1.28.9"
+version = "1.28.10"
 dependencies = [
  "clap",
  "ferrodock-core",
@@ -1822,7 +1822,7 @@ dependencies = [
 
 [[package]]
 name = "ferrodock-core"
-version = "1.28.9"
+version = "1.28.10"
 dependencies = [
  "bollard",
  "bytes",
@@ -1838,7 +1838,7 @@ dependencies = [
 
 [[package]]
 name = "ferrodock-mcp"
-version = "1.28.9"
+version = "1.28.10"
 dependencies = [
  "ferrodock-core",
  "futures-util",
