@@ -412,13 +412,22 @@ mod tests {
         std::fs::remove_dir_all(dir).unwrap();
     }
 
+    /// A password that's surely wrong, made at run time rather than
+    /// written into the code.
+    fn wrong_password() -> String {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_nanos());
+        format!("{nanos:x}{:x}", std::process::id())
+    }
+
     /// Talks to Docker Hub and GitHub's registry: `cargo test -- --ignored`.
     /// A wrong password is refused as such, not as a network error.
     #[test]
     #[ignore]
     fn live_registries_refuse_a_wrong_password() {
         for registry in [DOCKER_HUB, "ghcr.io"] {
-            let error = verify(registry, "ferrodock-test-nobody", "not-the-password").unwrap_err();
+            let error = verify(registry, "ferrodock-test-nobody", &wrong_password()).unwrap_err();
             assert_eq!(error, "The username or password is wrong", "{registry}");
         }
     }
@@ -438,7 +447,7 @@ mod tests {
         };
         let (user, password) = login.split_once(':').unwrap();
         assert_eq!(
-            sign_in(&registry, user, "wrong").unwrap_err(),
+            sign_in(&registry, user, &wrong_password()).unwrap_err(),
             "The username or password is wrong"
         );
         sign_in(&registry, user, password).unwrap();
