@@ -26,7 +26,7 @@ members = [".", "crates/core", "crates/cli", "crates/mcp"]
 exclude = ["agent"]
 
 [workspace.package]
-version = "1.29.0"
+version = "1.29.1"
 edition = "2024"
 rust-version = "1.95"
 authors = ["Mani Movassagh"]
@@ -35,7 +35,7 @@ license = "MIT"
 homepage = "https://manimovassagh.github.io/Ferrodock/"
 
 [workspace.dependencies]
-ferrodock-core = { path = "crates/core", version = "1.29.0" }
+ferrodock-core = { path = "crates/core", version = "1.29.1" }
 bollard = { version = "0.21.1", features = ["time", "ssl"] }
 bytes = "1.12.1"
 flate2 = "1.1"
