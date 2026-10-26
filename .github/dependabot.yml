@@ -31,3 +31,8 @@ updates:
     directory: /website
     patterns: ["*"]
     multi-ecosystem-group: dependencies
+    ignore:
+      # @docusaurus/theme-mermaid imports it while building the site, but
+      # only accepts 0.1.x. Move it when Docusaurus does.
+      - dependency-name: "@mermaid-js/layout-elk"
+        versions: [">=0.2.0"]
