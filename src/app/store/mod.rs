@@ -88,6 +88,9 @@ pub struct Store {
     pub usage: HashMap<String, VecDeque<StatsSample>>,
     /// Pulls in progress, by image reference.
     pub pulls: Vec<(String, PullProgress)>,
+    /// Why the last run of an image failed, by image reference, until it's
+    /// run again (shown on Quick start's cards).
+    pub run_errors: HashMap<String, String>,
     /// IDs (names, for volumes) of items with an action in flight, and
     /// the action.
     pub pending: HashMap<String, Action>,
@@ -110,6 +113,7 @@ impl Store {
             inspecting: None,
             inspection: None,
             pulls: Vec::new(),
+            run_errors: HashMap::new(),
             usage: HashMap::new(),
             processes: None,
             history: None,
@@ -299,6 +303,9 @@ impl Store {
             Response::Done { task, freed } => {
                 self.pending.remove(&task.id);
                 self.pulls.retain(|(image, _)| *image != task.id);
+                if let Some(image) = task.id.strip_prefix("run:") {
+                    self.run_errors.remove(image);
+                }
                 let mut text = format!("{} {}", task.action.past_tense(), task.name);
                 if let Some(bytes) = freed.filter(|b| *b > 0) {
                     text.push_str(&format!(" · freed {}", format_size(bytes)));
@@ -312,6 +319,19 @@ impl Store {
             Response::Failed { task, message } => {
                 self.pending.remove(&task.id);
                 self.pulls.retain(|(image, _)| *image != task.id);
+                // A run fails at its own step, or at pulling its image
+                // first, which ends it too.
+                let run = match task.action {
+                    Action::Run => task.id.strip_prefix("run:").map(str::to_owned),
+                    Action::Pull => self
+                        .pending
+                        .remove(&format!("run:{}", task.id))
+                        .map(|_| task.id.clone()),
+                    _ => None,
+                };
+                if let Some(image) = run {
+                    self.run_errors.insert(image, message.clone());
+                }
                 return Some(Notice {
                     text: message,
                     is_error: true,
@@ -432,6 +452,33 @@ mod tests {
             })
             .unwrap();
         assert_eq!(notice.text, "Removed web");
+    }
+
+    #[test]
+    fn remembers_how_a_run_ended() {
+        let mut store = Store::new();
+        // A failed pull ends the run that needed it.
+        store.pending.insert("run:postgres:17".into(), Action::Run);
+        store.apply(Response::Failed {
+            task: task(Action::Pull, "postgres:17"),
+            message: "Couldn't pull postgres:17: no network".into(),
+        });
+        assert!(store.pending.is_empty());
+        assert_eq!(
+            store.run_errors["postgres:17"],
+            "Couldn't pull postgres:17: no network"
+        );
+        // A failed start is kept too, and a later success forgets it.
+        store.apply(Response::Failed {
+            task: task(Action::Run, "run:mysql:9"),
+            message: "port 3306 is taken".into(),
+        });
+        assert_eq!(store.run_errors["mysql:9"], "port 3306 is taken");
+        store.apply(Response::Done {
+            task: task(Action::Run, "run:mysql:9"),
+            freed: None,
+        });
+        assert!(!store.run_errors.contains_key("mysql:9"));
     }
 
     #[test]
