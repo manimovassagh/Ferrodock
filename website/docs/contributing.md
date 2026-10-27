@@ -29,8 +29,9 @@ cargo run
 
 To check that the app opens and responds on an X11 desktop, without one,
 `scripts/x11-smoke.sh` starts it on a virtual screen (Xvfb) and saves a
-screenshot. CI runs it on every pull request. It needs `xvfb`, `xdotool`
-and `imagemagick`:
+screenshot. CI runs it on every pull request. It needs `xvfb`, `xdotool`,
+`imagemagick`, and the libraries in
+[Installation](./installation.md#linux):
 
 ```bash
 cargo build

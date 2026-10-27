@@ -85,6 +85,21 @@ tar -xzf Ferrodock-<version>-linux-x64.tar.gz
 ./ferrodock
 ```
 
+Ferrodock runs on X11 and Wayland desktops. Desktops like GNOME, KDE and
+Xfce come with the libraries it needs. On a minimal X11 setup, install
+them first, or Ferrodock stops right away with an error such as
+`libxkbcommon-x11.so could not be loaded` or `libXcursor.so.1: cannot open
+shared object file`:
+
+```bash
+# Debian, Ubuntu
+sudo apt install libxkbcommon-x11-0 libxcursor1 libxi6 libxrandr2 libegl1
+# Fedora
+sudo dnf install libxkbcommon-x11 libXcursor libXi libXrandr mesa-libEGL
+# Arch
+sudo pacman -S libxkbcommon-x11 libxcursor libxi libxrandr libglvnd
+```
+
 When Ferrodock finds no Docker engine, click **Set up Ferrodock's engine**.
 It installs the Docker engine as a system service and asks for your admin
 password once. More in [Ferrodock's own engine](./engine.md#linux).

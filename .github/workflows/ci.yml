@@ -68,7 +68,8 @@ jobs:
       - name: X11 smoke test
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends xvfb xdotool imagemagick libgl1-mesa-dri
+          sudo apt-get install -y --no-install-recommends xvfb xdotool imagemagick libgl1-mesa-dri \
+            libxkbcommon-x11-0 libxcursor1 libxi6 libxrandr2 libegl1
           cargo build
           scripts/x11-smoke.sh target/debug/ferrodock x11-smoke.png
       - if: always()
