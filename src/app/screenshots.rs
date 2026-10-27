@@ -604,6 +604,9 @@ fn screenshots_of_quick_start() {
     h.state_mut().pages[page].select("Redis");
     h.run_steps(3);
     click(&mut h, "Run");
+    // The card says how the run goes: pulling, starting, or why it failed.
+    settle(&mut h, Duration::from_millis(1500));
+    save(&mut h, "quick-start-pulling");
     let start = Instant::now();
     while !h
         .state()
@@ -1068,4 +1071,26 @@ fn screenshots_of_registries() {
     });
     h.run_steps(6);
     save(&mut h, "registries");
+}
+
+/// The Networks page: your own networks, with Docker's built-in ones
+/// behind a link, and what a built-in one is for.
+#[test]
+#[ignore]
+fn screenshots_of_builtin_networks() {
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(3));
+    set_theme(&mut h, Theme::Light);
+    open(&mut h, 4, None);
+    save(&mut h, "networks");
+    click(&mut h, "Show Docker's built-in networks (3)");
+    let none = h
+        .state()
+        .store
+        .networks
+        .iter()
+        .find(|n| n.name == "none")
+        .map(|n| n.id.clone());
+    open(&mut h, 4, none);
+    save(&mut h, "networks-builtin");
 }

@@ -352,7 +352,14 @@ impl FerrodockApp {
                 self.store.pending.insert(image.clone(), Action::Pull);
                 self.worker.send(Request::Pull(image));
             }
-            Intent::RunImage(spec) => self.worker.send(Request::RunImage(spec)),
+            Intent::RunImage(spec) => {
+                // So Quick start's card can say it's starting, then how it went.
+                self.store
+                    .pending
+                    .insert(format!("run:{}", spec.image), Action::Run);
+                self.store.run_errors.remove(&spec.image);
+                self.worker.send(Request::RunImage(spec));
+            }
             Intent::Compose(op) => {
                 if let Some(old) = self.store.compose.requested(&op) {
                     self.worker
