@@ -7,6 +7,13 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.30.0](https://github.com/manimovassagh/Ferrodock/compare/v1.29.3...v1.30.0) - 2026-10-27
+
+### Added
+
+- *(networks)* list your own networks, Docker's built-in ones on request ([#271](https://github.com/manimovassagh/Ferrodock/pull/271))
+- *(quick-start)* the card shows how a run goes ([#270](https://github.com/manimovassagh/Ferrodock/pull/270))
+
 ## [1.29.1](https://github.com/manimovassagh/Ferrodock/compare/v1.29.0...v1.29.1) - 2026-10-25
 
 ### Fixed
