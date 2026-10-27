@@ -163,6 +163,78 @@ impl Page for QuickStartPage {
     }
 }
 
+/// A run in flight (a spinner and what it's doing) or why it failed.
+fn status(ui: &mut egui::Ui, p: &Palette, state: Option<&RunState<'_>>) {
+    let (text, color) = match state {
+        Some(RunState::Pulling { fraction, .. }) => (
+            if *fraction > 0.0 {
+                format!("Pulling… {:.0}%", fraction * 100.0)
+            } else {
+                "Pulling…".to_owned()
+            },
+            p.text,
+        ),
+        Some(RunState::Starting) => ("Starting…".to_owned(), p.text),
+        Some(RunState::Failed(message)) => {
+            ui.add(
+                egui::Label::new(RichText::new("Couldn't start").size(12.5).color(p.danger))
+                    .truncate(),
+            )
+            .on_hover_text(*message);
+            return;
+        }
+        None => return,
+    };
+    ui.spinner();
+    let label = ui.add(egui::Label::new(RichText::new(text).size(12.5).color(color)).truncate());
+    if let Some(RunState::Pulling { image, .. }) = state {
+        label.on_hover_text(format!("Downloading {image}, then starting it"));
+    }
+}
+
+/// Where a run of a template stands, for its card.
+enum RunState<'a> {
+    /// Its image is being downloaded first.
+    Pulling { image: &'a str, fraction: f32 },
+    /// Creating and starting the container.
+    Starting,
+    /// The last run failed: why.
+    Failed(&'a str),
+}
+
+/// The run of `template` in flight, or how the last one failed. Runs are
+/// keyed by image reference (`postgres:17`), whichever version was picked.
+fn run_state<'a>(store: &'a Store, template: &Template) -> Option<RunState<'a>> {
+    let of_template = |reference: &str| {
+        reference
+            .strip_prefix(template.image)
+            .is_some_and(|tag| tag.starts_with(':'))
+    };
+    let running = store
+        .pending
+        .keys()
+        .filter_map(|id| id.strip_prefix("run:"))
+        .find(|image| of_template(image));
+    if let Some(image) = running {
+        return Some(match store.pulls.iter().find(|(i, _)| i == image) {
+            Some((image, progress)) => RunState::Pulling {
+                image,
+                fraction: if progress.total > 0 {
+                    progress.done as f32 / progress.total as f32
+                } else {
+                    0.0
+                },
+            },
+            None => RunState::Starting,
+        });
+    }
+    store
+        .run_errors
+        .iter()
+        .find(|(image, _)| of_template(image))
+        .map(|(_, message)| RunState::Failed(message))
+}
+
 enum CardClick {
     Run,
     /// Open the running container.
@@ -233,16 +305,22 @@ fn card(ui: &mut egui::Ui, ctx: &PageCtx, template: &Template, width: f32) -> Op
                     )
                     .truncate(),
                 );
+                let state = run_state(ctx.store, template);
+                let busy = matches!(state, Some(RunState::Pulling { .. } | RunState::Starting));
                 ui.add_space(8.0);
+                // How a run goes shows left of the buttons, so the card
+                // keeps its size and the grid doesn't jump.
                 ui.horizontal(|ui| {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if widgets::primary_button(ui, "Run…")
-                            .on_hover_text(format!("Run {}", template.name))
-                            .clicked()
-                        {
+                        let run = ui
+                            .add_enabled_ui(!busy, |ui| widgets::primary_button(ui, "Run…"))
+                            .inner
+                            .on_hover_text(format!("Run {}", template.name));
+                        if run.clicked() {
                             click = Some(CardClick::Run);
                         }
-                        if let Some(c) = running(ctx.store, template)
+                        if !busy
+                            && let Some(c) = running(ctx.store, template)
                             && ui
                                 .button("Show")
                                 .on_hover_text(format!("Open {}", c.name))
@@ -250,6 +328,9 @@ fn card(ui: &mut egui::Ui, ctx: &PageCtx, template: &Template, width: f32) -> Op
                         {
                             click = Some(CardClick::Show(c.id.clone()));
                         }
+                        ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                            status(ui, p, state.as_ref());
+                        });
                     });
                 });
             });

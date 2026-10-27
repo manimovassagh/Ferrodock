@@ -36,8 +36,11 @@ The **connection string**, such as
 `postgres://postgres:postgres@localhost:5432/app`, updates as you type.
 Click **Copy** to copy it.
 
-If the image isn't on your machine, Ferrodock pulls it first and shows the
-progress. The container restarts by itself unless you stop it.
+If the image isn't on your machine, Ferrodock pulls it first. The card
+itself says how it's going: **Pulling… 42%**, then **Starting…**, then
+**Running**. If it fails (say, the port is taken), the card says
+**Couldn't start**; hover over it for the reason. The container restarts
+by itself unless you stop it.
 
 A card whose service already runs shows **Running**, and **Show** opens
 that container.

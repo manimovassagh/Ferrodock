@@ -604,6 +604,9 @@ fn screenshots_of_quick_start() {
     h.state_mut().pages[page].select("Redis");
     h.run_steps(3);
     click(&mut h, "Run");
+    // The card says how the run goes: pulling, starting, or why it failed.
+    settle(&mut h, Duration::from_millis(1500));
+    save(&mut h, "quick-start-pulling");
     let start = Instant::now();
     while !h
         .state()
