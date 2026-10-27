@@ -20,6 +20,8 @@ pub struct NetworksPage {
     connect: String,
     /// Rows ticked for removing together.
     marks: Marks,
+    /// Whether Docker's own networks (bridge, host, none) are listed too.
+    show_builtin: bool,
 }
 
 impl NetworksPage {
@@ -42,15 +44,16 @@ impl Page for NetworksPage {
         Resource::Networks
     }
 
+    /// Your own networks: Docker's built-in ones are always there.
     fn badge(&self, store: &Store) -> String {
-        store.networks.len().to_string()
+        custom_count(store).to_string()
     }
 
     fn summary(&self, store: &Store) -> String {
-        let custom = store.networks.iter().filter(|n| !n.is_builtin()).count();
+        let builtin = store.networks.len() - custom_count(store);
         format!(
-            "{} · {custom} custom",
-            plural(store.networks.len(), "network")
+            "{} · {builtin} built into Docker",
+            plural(custom_count(store), "network")
         )
     }
 
@@ -73,11 +76,33 @@ impl Page for NetworksPage {
         super::create_dialog(ui, ctx, &mut self.create);
         let p = ctx.palette;
         let store = ctx.store;
-        let visible: Vec<&NetworkInfo> = store
+        // Docker's own networks only on request (or when searched for):
+        // they're always there and can't be changed much.
+        let with_builtin = self.show_builtin || !ctx.search_is_empty();
+        let mut visible: Vec<&NetworkInfo> = store
             .networks
             .iter()
+            .filter(|n| with_builtin || !n.is_builtin())
             .filter(|n| ctx.matches_search(&[&n.name, &n.driver, &n.subnets.join(" ")]))
             .collect();
+        // Yours first, then Docker's.
+        visible.sort_by_key(|n| n.is_builtin());
+        let builtin = store.networks.len() - custom_count(store);
+        if visible.is_empty() && ctx.search_is_empty() && !store.networks.is_empty() {
+            if widgets::empty_state(
+                ui,
+                p,
+                Icon::Network,
+                "No networks of your own yet",
+                "Containers join Docker's built-in bridge network unless you make one. \
+                 Make one to let a group of containers reach each other by name.",
+                Some("New network"),
+            ) {
+                self.create = Some(CreateForm::new(Kind::Network));
+            }
+            ui.vertical_centered(|ui| self.builtin_toggle(ui, builtin));
+            return;
+        }
         if visible.is_empty() {
             super::nothing_to_show(
                 ui,
@@ -124,10 +149,14 @@ impl Page for NetworksPage {
             |i, row| {
                 let net = visible[i];
                 let attached = store.containers_on_network(&net.name).len();
-                row.col(|ui| ticks.extend(marks.cell(ui, p, &items[i])));
-                row.col(|ui| {
-                    table::with_icon(ui, p, Icon::Network, p.muted, &net.name, &net.driver)
-                });
+                // Docker's own can't be removed, so there's nothing to tick.
+                if net.is_builtin() {
+                    row.col(|_| {});
+                } else {
+                    row.col(|ui| ticks.extend(marks.cell(ui, p, &items[i])));
+                }
+                let line = builtin_role(&net.name).unwrap_or(&net.driver);
+                row.col(|ui| table::with_icon(ui, p, Icon::Network, p.muted, &net.name, line));
                 if show_subnet {
                     row.col(|ui| table::text(ui, p, &widgets::join_or_dash(&net.subnets)));
                 }
@@ -145,6 +174,10 @@ impl Page for NetworksPage {
         if let Some(i) = clicked {
             toggle_selection(&mut self.selected, visible[i].id.clone());
         }
+        if ctx.search_is_empty() {
+            ui.add_space(8.0);
+            self.builtin_toggle(ui, builtin);
+        }
     }
 
     fn has_selection(&self, store: &Store) -> bool {
@@ -161,22 +194,25 @@ impl Page for NetworksPage {
         if details::header(ui, p, &net.name) {
             self.selected = None;
         }
-        if net.is_builtin() {
-            widgets::pill(ui, "Built-in", p.accent);
-        }
-        ui.add_space(10.0);
-        let blocked = if net.is_builtin() {
-            Some("Docker's built-in networks can't be removed")
-        } else if !attached.is_empty() {
-            Some("Containers are attached to it")
+        if let Some(role) = builtin_role(&net.name) {
+            // Nothing to remove: say what it is instead.
+            widgets::pill(ui, "Built into Docker", p.muted);
+            ui.add_space(6.0);
+            ui.label(egui::RichText::new(role).color(p.text));
+            ui.label(
+                egui::RichText::new("Every Docker engine has it, and it can't be removed.")
+                    .size(12.5)
+                    .color(p.muted),
+            );
         } else {
-            None
-        };
-        let task = remove_task(Resource::Networks, &net.id, &net.name);
-        if !ctx.store.pending.contains_key(&net.id) {
-            remove_button(ui, ctx, "network", task, blocked);
-        } else {
-            ui.spinner();
+            ui.add_space(10.0);
+            let blocked = (!attached.is_empty()).then_some("Containers are attached to it");
+            let task = remove_task(Resource::Networks, &net.id, &net.name);
+            if !ctx.store.pending.contains_key(&net.id) {
+                remove_button(ui, ctx, "network", task, blocked);
+            } else {
+                ui.spinner();
+            }
         }
         ui.add_space(16.0);
 
@@ -185,7 +221,7 @@ impl Page for NetworksPage {
             .show(ui, |ui| {
                 details::section(ui, p, "Overview", |ui| {
                     details::copy_field(ui, p, "ID", net.short_id(), &net.id);
-                    details::field(ui, p, "Driver", &net.driver);
+                    details::field(ui, p, "Driver", driver_label(&net.driver));
                     details::field(ui, p, "Scope", &net.scope);
                     details::field(ui, p, "Internal", if net.internal { "Yes" } else { "No" });
                     details::field(
@@ -214,6 +250,7 @@ impl Page for NetworksPage {
             .store
             .networks
             .iter()
+            .filter(|n| !n.is_builtin())
             .filter(|n| ctx.matches_search(&[&n.name, &n.driver, &n.subnets.join(" ")]))
             .map(|n| item(ctx.store, n))
             .collect();
@@ -242,8 +279,51 @@ impl Page for NetworksPage {
     }
 }
 
-/// Removal tasks for every network no container is on (except Docker's
-/// built-in ones).
+impl NetworksPage {
+    /// "Show Docker's built-in networks (3)", or Hide them again.
+    fn builtin_toggle(&mut self, ui: &mut egui::Ui, count: usize) {
+        if count == 0 {
+            return;
+        }
+        let label = if self.show_builtin {
+            "Hide Docker's built-in networks".to_owned()
+        } else {
+            format!("Show Docker's built-in networks ({count})")
+        };
+        if ui
+            .link(label)
+            .on_hover_text("bridge, host and none: every Docker engine has them")
+            .clicked()
+        {
+            self.show_builtin = !self.show_builtin;
+        }
+    }
+}
+
+/// How many networks are your own, not Docker's.
+fn custom_count(store: &Store) -> usize {
+    store.networks.iter().filter(|n| !n.is_builtin()).count()
+}
+
+/// What one of Docker's own networks is for, in plain words.
+fn builtin_role(name: &str) -> Option<&'static str> {
+    Some(match name {
+        "bridge" => "The default network: containers join it unless told otherwise.",
+        "host" => "Containers on it share this computer's network directly.",
+        "none" => "Containers on it have no network at all.",
+        _ => return None,
+    })
+}
+
+/// Docker calls the `none` network's driver "null".
+fn driver_label(driver: &str) -> &str {
+    if driver == "null" {
+        "none (no networking)"
+    } else {
+        driver
+    }
+}
+
 /// A network as a row to tick; built-in ones count as in use, since they
 /// can't be removed.
 fn item<'a>(store: &Store, n: &'a NetworkInfo) -> Item<'a> {

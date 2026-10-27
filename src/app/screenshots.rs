@@ -1072,3 +1072,25 @@ fn screenshots_of_registries() {
     h.run_steps(6);
     save(&mut h, "registries");
 }
+
+/// The Networks page: your own networks, with Docker's built-in ones
+/// behind a link, and what a built-in one is for.
+#[test]
+#[ignore]
+fn screenshots_of_builtin_networks() {
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(3));
+    set_theme(&mut h, Theme::Light);
+    open(&mut h, 4, None);
+    save(&mut h, "networks");
+    click(&mut h, "Show Docker's built-in networks (3)");
+    let none = h
+        .state()
+        .store
+        .networks
+        .iter()
+        .find(|n| n.name == "none")
+        .map(|n| n.id.clone());
+    open(&mut h, 4, none);
+    save(&mut h, "networks-builtin");
+}
