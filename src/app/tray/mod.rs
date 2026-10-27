@@ -143,9 +143,11 @@ pub fn model(store: &Store) -> Vec<Entry> {
         .iter()
         .map(|v| item(format!("volume:{}", v.name), &v.name));
     menu.push(section("Volumes", listed(volumes.collect())));
+    // Your own networks: Docker's built-in ones are always there.
     let networks = store
         .networks
         .iter()
+        .filter(|n| !n.is_builtin())
         .map(|n| item(format!("network:{}", n.id), &n.name));
     menu.push(section("Networks", listed(networks.collect())));
 

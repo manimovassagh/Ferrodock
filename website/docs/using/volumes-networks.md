@@ -12,6 +12,14 @@ subnet.
 
 ![Volumes](/img/volumes.png)
 
+The **Networks** page lists your own networks. Every Docker engine also has
+three of its own, which can't be removed; **Show Docker's built-in
+networks** at the bottom of the list shows them:
+
+- **bridge**: the default; containers join it unless told otherwise.
+- **host**: containers on it share your computer's network directly.
+- **none**: containers on it have no network at all.
+
 ## Creating
 
 **New volume** and **New network** create them. A network can get its own
