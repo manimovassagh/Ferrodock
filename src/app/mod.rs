@@ -440,8 +440,10 @@ impl FerrodockApp {
             }
             Intent::ClearSearch => self.search.clear(),
             Intent::OpenComposeFile => {
+                // The Compose page first: its path box works where the
+                // system has no file picker (some Linux desktops).
+                self.handle_intent(Intent::OpenPage("Compose"));
                 if let Some(file) = pages::pick_compose_file() {
-                    self.handle_intent(Intent::OpenPage("Compose"));
                     self.handle_intent(Intent::Compose(pages::up_op(&file)));
                 }
             }

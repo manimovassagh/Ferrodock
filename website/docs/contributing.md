@@ -27,6 +27,16 @@ cd Ferrodock
 cargo run
 ```
 
+To check that the app opens and responds on an X11 desktop, without one,
+`scripts/x11-smoke.sh` starts it on a virtual screen (Xvfb) and saves a
+screenshot. CI runs it on every pull request. It needs `xvfb`, `xdotool`
+and `imagemagick`:
+
+```bash
+cargo build
+scripts/x11-smoke.sh target/debug/ferrodock x11-smoke.png
+```
+
 ## Improving these docs
 
 The site lives in the `website/` folder of the repository, and every page

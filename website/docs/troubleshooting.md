@@ -17,6 +17,12 @@ in System Settings → Privacy & Security, or run
 **Windows shows a SmartScreen warning.**
 Choose **More info → Run anyway**.
 
+**On Linux, Choose… or Open… shows no file picker.**
+Ferrodock asks the desktop's file picker through the XDG desktop portal,
+or `zenity` if there's no portal. Some lightweight X11 window managers
+have neither: install `xdg-desktop-portal-gtk` or `zenity`, or type the
+path instead. Every place that picks a file has a box for its path.
+
 ## Connecting to Docker
 
 **"Docker isn't running".**

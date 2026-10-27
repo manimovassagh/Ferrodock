@@ -37,10 +37,12 @@ button, so you can reuse it in scripts.
 ## Build an image
 
 **Build…** at the top of the page builds an image from a folder with a
-Dockerfile. Pick the folder, then check:
+Dockerfile. Click **Choose…** to pick the folder, or type its path, then
+check:
 
 - **Dockerfile**, if it has another name or lives in a subfolder.
-- **Name**, made from the folder's name (`my-app:latest`).
+- **Name**, made from the folder's name (`my-app:latest`) if you leave it
+  empty.
 - **Build arguments**, one `KEY=value` per line, and the **Target stage**
   for a multi-stage Dockerfile.
 - **Don't use the build cache** to run every step again.

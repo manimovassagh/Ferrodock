@@ -22,7 +22,17 @@ pub(super) struct BuildForm {
 }
 
 impl BuildForm {
+    /// An empty form: the folder is typed in or chosen in the dialog, so
+    /// building works where the system has no file picker.
+    pub fn new() -> Self {
+        Self {
+            dockerfile: "Dockerfile".into(),
+            ..Self::default()
+        }
+    }
+
     /// A form for building `folder`, tagged after it.
+    #[cfg(test)]
     pub fn for_folder(folder: &Path) -> Self {
         let mut form = Self {
             dockerfile: "Dockerfile".into(),
@@ -41,13 +51,18 @@ impl BuildForm {
     pub fn spec(&self, job: u64) -> Result<BuildSpec, String> {
         let folder = PathBuf::from(self.folder.trim());
         if !folder.is_dir() {
-            return Err("Pick the folder to build".into());
+            return Err("Type or choose the folder to build".into());
         }
         let dockerfile = self.dockerfile.trim();
         if !folder.join(dockerfile).is_file() {
             return Err(format!("There's no {dockerfile} in that folder"));
         }
-        let tag = self.tag.trim();
+        // No name given: one made from the folder's, as Choose… fills in.
+        let made = format!("{}:latest", default_name(&folder));
+        let tag = match self.tag.trim() {
+            "" => made.as_str(),
+            tag => tag,
+        };
         let name = tag.rsplit_once(':').map_or(tag, |(name, _)| name);
         if !super::tag_dialog::valid(tag) || name.chars().any(|c| c.is_ascii_uppercase()) {
             return Err("Name it with lowercase letters, digits, . _ - and / , then :tag".into());
@@ -155,7 +170,7 @@ pub(super) fn show(
                     ui.label(RichText::new("Name").color(p.muted));
                     ui.add(
                         egui::TextEdit::singleline(&mut form.tag)
-                            .hint_text("my-app:latest")
+                            .hint_text("Named after the folder")
                             .desired_width(f32::INFINITY),
                     );
                     ui.end_row();
@@ -237,6 +252,13 @@ mod tests {
         form.args.clear();
         form.tag = "MyApp".into();
         assert!(form.spec(1).is_err());
+        // A typed folder without a name gets one made from the folder's.
+        let mut typed = BuildForm::new();
+        typed.folder = dir.display().to_string();
+        assert_eq!(
+            typed.spec(1).unwrap().tag,
+            format!("{}:latest", default_name(&dir))
+        );
         std::fs::remove_dir_all(dir).unwrap();
     }
 }

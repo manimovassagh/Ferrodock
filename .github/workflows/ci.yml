@@ -64,6 +64,21 @@ jobs:
       - run: cargo fmt --manifest-path agent/Cargo.toml --check
       - run: cargo clippy --manifest-path agent/Cargo.toml --all-targets -- -D warnings
       - run: cargo test --manifest-path agent/Cargo.toml
+      # The app on an X11 desktop: a virtual screen, software OpenGL.
+      - name: X11 smoke test
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xdotool imagemagick libgl1-mesa-dri
+          cargo build
+          scripts/x11-smoke.sh target/debug/ferrodock x11-smoke.png
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: x11-smoke
+          path: |
+            x11-smoke.png
+            x11-smoke.log
+          if-no-files-found: ignore
 
   # Ferrodock stays free for anyone, companies included: only the
   # permissive licenses in deny.toml are allowed in dependencies. No

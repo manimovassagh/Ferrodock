@@ -18,8 +18,9 @@ pub enum Kind {
 /// Where a new volume's files come from.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Source {
-    /// A backup made with Back up (a `.tar.gz`), or any tar.
-    Backup(PathBuf),
+    /// A backup made with Back up (a `.tar.gz`), or any tar: the path is
+    /// the form's `archive`.
+    Backup,
     /// A copy of this volume.
     Volume(String),
 }
@@ -29,6 +30,8 @@ pub struct CreateForm {
     kind: Kind,
     /// Only for volumes: none makes an empty one.
     source: Option<Source>,
+    /// The backup to restore, typed or chosen.
+    archive: String,
     name: String,
     driver: String,
     subnet: String,
@@ -45,6 +48,7 @@ impl CreateForm {
         Self {
             kind,
             source: None,
+            archive: String::new(),
             name: String::new(),
             driver: String::new(),
             subnet: String::new(),
@@ -52,14 +56,22 @@ impl CreateForm {
         }
     }
 
-    /// A new volume with the files in the backup at `archive`, named after
-    /// it.
-    pub fn restore(archive: PathBuf) -> Self {
+    /// A new volume from a backup, typed or chosen in the dialog (the
+    /// system's file picker isn't there on every Linux desktop).
+    pub fn restore() -> Self {
         Self {
-            name: volume_name_of(&archive),
-            source: Some(Source::Backup(archive)),
+            source: Some(Source::Backup),
             ..Self::new(Kind::Volume)
         }
+    }
+
+    /// Points the form at another backup. The name follows the file's
+    /// until it's changed by hand.
+    fn set_archive(&mut self, archive: String) {
+        if self.name.trim() == volume_name_of(Path::new(self.archive.trim())) {
+            self.name = volume_name_of(Path::new(archive.trim()));
+        }
+        self.archive = archive;
     }
 
     /// A new volume with a copy of `volume`'s files.
@@ -91,7 +103,13 @@ impl CreateForm {
         Ok(match self.kind {
             Kind::Volume => match self.source.clone() {
                 None => Change::CreateVolume { name, driver },
-                Some(Source::Backup(archive)) => Change::RestoreVolume { name, archive },
+                Some(Source::Backup) => {
+                    let archive = PathBuf::from(self.archive.trim());
+                    if !archive.is_file() {
+                        return Err("Type or choose the backup file");
+                    }
+                    Change::RestoreVolume { name, archive }
+                }
                 Some(Source::Volume(from)) => Change::CloneVolume { from, to: name },
             },
             Kind::Network => Change::CreateNetwork {
@@ -102,6 +120,14 @@ impl CreateForm {
             },
         })
     }
+}
+
+/// Asks for a volume backup with the system's file picker.
+fn pick_backup() -> Option<PathBuf> {
+    rfd::FileDialog::new()
+        .set_title("Restore a volume from a backup")
+        .add_filter("Volume backup", &["gz", "tgz", "tar"])
+        .pick_file()
 }
 
 /// The volume a backup file was made from: `web-data (1).tar.gz` →
@@ -142,14 +168,13 @@ pub fn show(ui: &mut egui::Ui, p: &Palette, form: &mut CreateForm) -> Option<Out
     let mut outcome = None;
     let (title, driver_hint, action) = match (&form.kind, &form.source) {
         (Kind::Volume, None) => ("New volume", "local", "Create"),
-        (Kind::Volume, Some(Source::Backup(_))) => ("Restore a volume", "", "Restore"),
+        (Kind::Volume, Some(Source::Backup)) => ("Restore a volume", "", "Restore"),
         (Kind::Volume, Some(Source::Volume(_))) => ("Clone a volume", "", "Clone"),
         (Kind::Network, _) => ("New network", "bridge", "Create"),
     };
     let from = match &form.source {
-        Some(Source::Backup(archive)) => Some(archive.display().to_string()),
         Some(Source::Volume(volume)) => Some(volume.clone()),
-        None => None,
+        _ => None,
     };
     let modal = egui::Modal::new(egui::Id::unique("ferrodock-create"))
         .frame(
@@ -179,7 +204,27 @@ pub fn show(ui: &mut egui::Ui, p: &Palette, form: &mut CreateForm) -> Option<Out
                         name.request_focus();
                     }
                     ui.end_row();
-                    if let Some(from) = &from {
+                    if form.source == Some(Source::Backup) {
+                        ui.label(RichText::new("Backup").color(p.muted));
+                        ui.horizontal(|ui| {
+                            let choose = ui.button("Choose…");
+                            let mut archive = form.archive.clone();
+                            ui.add(
+                                egui::TextEdit::singleline(&mut archive)
+                                    .hint_text("~/Downloads/web-data.tar.gz")
+                                    .desired_width(ui.available_width()),
+                            );
+                            if choose.clicked()
+                                && let Some(picked) = pick_backup()
+                            {
+                                archive = picked.display().to_string();
+                            }
+                            if archive != form.archive {
+                                form.set_archive(archive);
+                            }
+                        });
+                        ui.end_row();
+                    } else if let Some(from) = &from {
                         ui.label(RichText::new("From").color(p.muted));
                         ui.add(egui::Label::new(RichText::new(from).color(p.text)).truncate());
                         ui.end_row();
@@ -252,15 +297,26 @@ mod tests {
 
     #[test]
     fn restores_and_clones_into_a_named_volume() {
-        let form = CreateForm::restore(PathBuf::from("/home/me/Downloads/web-data (2).tar.gz"));
+        let dir = std::env::temp_dir().join(format!("ferrodock-restore-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let backup = dir.join("web-data (2).tar.gz");
+        std::fs::write(&backup, b"").unwrap();
+        let mut form = CreateForm::restore();
+        assert!(form.change().is_err());
+        form.set_archive(backup.display().to_string());
         assert_eq!(form.name, "web-data");
         assert_eq!(
             form.change(),
             Ok(Change::RestoreVolume {
                 name: "web-data".into(),
-                archive: PathBuf::from("/home/me/Downloads/web-data (2).tar.gz"),
+                archive: backup.clone(),
             })
         );
+        // A name typed by hand stays when another backup is picked.
+        form.name = "mine".into();
+        form.set_archive(dir.join("db.tar").display().to_string());
+        assert_eq!(form.name, "mine");
+        assert_eq!(form.change(), Err("Type or choose the backup file"));
         assert_eq!(volume_name_of(Path::new("db.tar")), "db");
         assert_eq!(volume_name_of(Path::new("odd (x).tgz")), "odd (x)");
         assert_eq!(
@@ -270,6 +326,7 @@ mod tests {
                 to: "db-copy".into(),
             })
         );
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
