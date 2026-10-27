@@ -1,6 +1,6 @@
 cask "ferrodock" do
-  version "1.29.2"
-  sha256 "c97cf8fa059bad5af49068bc52abe9aa4cce601588ce19aaf39b31e31cb23f9c"
+  version "1.29.3"
+  sha256 "ed4e0578c4dfddfc081132c445edf135aa9fd7f6c7435bf2f885d4f0471ee8be"
 
   url "https://github.com/manimovassagh/Ferrodock/releases/download/v#{version}/Ferrodock-#{version}-macos-universal.dmg"
   name "Ferrodock"
