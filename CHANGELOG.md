@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.30.1](https://github.com/manimovassagh/Ferrodock/compare/v1.30.0...v1.30.1) - 2026-10-28
+
+### Fixed
+
+- check the app on X11, and work without a file picker ([#274](https://github.com/manimovassagh/Ferrodock/pull/274))
+
 ## [1.30.0](https://github.com/manimovassagh/Ferrodock/compare/v1.29.3...v1.30.0) - 2026-10-27
 
 ### Added
