@@ -67,10 +67,13 @@ pub fn read(ctx: &egui::Context) -> Vec<Shortcut> {
         if i.consume_key(Modifiers::COMMAND, Key::A) {
             found.push(Shortcut::SelectAll);
         }
-        let typed = |text: &str| {
+        // Typed characters, taken out of the frame's input so the search
+        // box that "/" focuses doesn't also get the "/".
+        let mut typed = |text: &str| {
+            let before = i.events.len();
             i.events
-                .iter()
-                .any(|e| matches!(e, Event::Text(t) if t == text))
+                .retain(|e| !matches!(e, Event::Text(t) if t == text));
+            i.events.len() < before
         };
         if typed("?") {
             found.push(Shortcut::Help);
@@ -139,4 +142,38 @@ pub fn help(page_titles: &[&'static str]) -> Vec<Section> {
         ),
         ("Pages", pages),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The shortcuts of one frame with these events, and the events left
+    /// for the widgets drawn after.
+    fn frame(events: Vec<Event>) -> (Vec<Shortcut>, Vec<Event>) {
+        let ctx = egui::Context::default();
+        let mut result = (Vec::new(), Vec::new());
+        let input = egui::RawInput {
+            events,
+            ..Default::default()
+        };
+        let mut output = ctx.run_ui(input, |ui| {
+            result.0 = read(ui.ctx());
+            result.1 = ui.input(|i| i.events.clone());
+        });
+        // No renderer here to hand the font atlas to.
+        output.textures_delta.clear();
+        result
+    }
+
+    #[test]
+    fn slash_focuses_the_search_without_typing_into_it() {
+        let (found, left) = frame(vec![Event::Text("/".into())]);
+        assert_eq!(found, [Shortcut::FocusSearch]);
+        assert!(left.is_empty(), "{left:?}");
+        // Other text is left alone.
+        let (found, left) = frame(vec![Event::Text("a".into())]);
+        assert!(found.is_empty());
+        assert_eq!(left, [Event::Text("a".into())]);
+    }
 }

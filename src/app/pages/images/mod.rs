@@ -238,12 +238,13 @@ impl Page for ImagesPage {
 
     fn toolbar(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
         remove_unused_button(ui, ctx, "image", unused(ctx.store));
+        // The dialog first, with Choose… in it: the system's file picker
+        // isn't there on every Linux desktop.
         if widgets::button(ui, Icon::Folder, "Build…")
             .on_hover_text("Build an image from a folder with a Dockerfile")
             .clicked()
-            && let Some(folder) = build_dialog::pick_folder()
         {
-            self.build_form = Some(BuildForm::for_folder(&folder));
+            self.build_form = Some(BuildForm::new());
         }
     }
 

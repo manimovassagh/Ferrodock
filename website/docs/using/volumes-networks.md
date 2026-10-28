@@ -42,8 +42,9 @@ next time Ferrodock starts.
 - **Back up** in a volume's details saves its files to `<volume>.tar.gz` in
   your Downloads folder, numbered if that name is taken.
 - **Restore…** at the top of the page makes a new volume from a backup (a
-  `.tar.gz`, or any `.tar` of files). It's named after the backup; change
-  the name before clicking **Restore**.
+  `.tar.gz`, or any `.tar` of files). Click **Choose…** to pick the backup,
+  or type its path. It's named after the backup; change the name before
+  clicking **Restore**.
 - **Clone…** makes a new volume with a copy of another one's files.
 
 A volume that exists already is never overwritten: pick a new name instead.

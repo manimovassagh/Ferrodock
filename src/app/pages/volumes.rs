@@ -116,9 +116,8 @@ impl Page for VolumesPage {
         if widgets::button(ui, Icon::Folder, "Restore…")
             .on_hover_text("Make a volume from a backup (.tar.gz)")
             .clicked()
-            && let Some(archive) = pick_backup()
         {
-            self.create = Some(CreateForm::restore(archive));
+            self.create = Some(CreateForm::restore());
         }
         if widgets::button(ui, Icon::Database, "New volume").clicked() {
             self.create = Some(CreateForm::new(Kind::Volume));
@@ -335,14 +334,6 @@ impl Page for VolumesPage {
         }
         list
     }
-}
-
-/// Asks for a volume backup with the system's file picker.
-fn pick_backup() -> Option<std::path::PathBuf> {
-    rfd::FileDialog::new()
-        .set_title("Restore a volume from a backup")
-        .add_filter("Volume backup", &["gz", "tgz", "tar"])
-        .pick_file()
 }
 
 /// Removal tasks for every volume no container mounts.
