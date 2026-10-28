@@ -39,7 +39,8 @@ app=$!
 
 window=
 for _ in $(seq 60); do
-    window=$(xdotool search --name '^Ferrodock$' 2>/dev/null | head -1 || true)
+    # Mapped (shown) only: X11 refuses to focus a window before that.
+    window=$(xdotool search --onlyvisible --name '^Ferrodock$' 2>/dev/null | head -1 || true)
     [ -n "$window" ] && break
     kill -0 "$app" 2>/dev/null || fail "Ferrodock exited before opening a window"
     sleep 1
@@ -50,7 +51,13 @@ echo "window $window: $(xdotool getwindowgeometry "$window" | tail -1 | xargs)"
 # Let it draw, then use it: a click on the sidebar's Images and a key.
 sleep 5
 kill -0 "$app" 2>/dev/null || fail "Ferrodock exited after opening its window"
-xdotool windowfocus --sync "$window"
+# No window manager here: focus it ourselves, again if X11 says it isn't
+# ready yet (BadMatch).
+for try in $(seq 10); do
+    xdotool windowfocus --sync "$window" 2>/dev/null && break
+    [ "$try" = 10 ] && fail "couldn't focus the Ferrodock window"
+    sleep 1
+done
 xdotool mousemove 73 185 click 1
 sleep 1
 xdotool key F5
