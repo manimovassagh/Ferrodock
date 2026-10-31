@@ -45,6 +45,9 @@ that instead.
   or Nginx in one click, with the connection string ready to copy.
 - **Linux machines**: a small Ubuntu, Debian, Fedora, Alpine or Arch Linux
   to work in, with your user, `sudo` and a folder shared from your computer.
+- **Kubernetes, only when you want it**: a local k3s cluster in under a
+  minute, with worker nodes, `kubectl` set up and local images loaded in one
+  click. Nothing runs until you create one.
 - **Volumes and networks**: create them, browse a volume's files, connect
   and disconnect containers.
 - **Disk**: see where the space goes and free it in one step, with a preview
@@ -107,9 +110,9 @@ the shell starts right in it: files you make there are on your computer too.
 On Apple Silicon Macs, machines run the native arm64 build of each
 distribution.
 
-<a href="website/static/video/linux-machines.mp4"><img src="docs/screenshots/linux-machines.png" alt="Play the Linux machines demo: an Ubuntu machine's shell in a shared folder"></a>
+<a href="website/static/video/linux-machines.mp4"><img src="docs/screenshots/linux-machines.gif" alt="Linux machines demo: creating an Ubuntu machine that shares a folder, then ls, cat and nano in its shell"></a>
 
-[Watch the demo](website/static/video/linux-machines.mp4) ·
+[Watch it as a video](website/static/video/linux-machines.mp4) ·
 [Read more](https://manimovassagh.github.io/Ferrodock/docs/using/linux-machines)
 
 ## How it compares

@@ -280,6 +280,12 @@ const SHOWCASE = [
     alt: "An Ubuntu machine's shell in a shared folder",
   },
   {
+    title: "Kubernetes, only when you want it",
+    text: "A local k3s cluster in under a minute, ready for kubectl, with worker nodes and your own images loaded in one click. Until you create one, nothing runs.",
+    src: "/img/kubernetes.png",
+    alt: "A Kubernetes cluster's terminal with kubectl in Ferrodock",
+  },
+  {
     title: "Win back your disk space",
     text: "See how much images, containers, volumes and build cache take, and free it in one step, with a preview of exactly what goes.",
     src: "/img/disk.png",

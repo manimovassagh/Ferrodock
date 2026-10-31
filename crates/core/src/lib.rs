@@ -27,6 +27,8 @@ mod files;
 mod format;
 mod images;
 mod inspect;
+mod kube;
+pub mod kubeconfig;
 mod launch;
 mod limits;
 mod login;
@@ -50,7 +52,7 @@ pub use browse::VOLUME_ROOT;
 pub use build::{BuildSpec, Ignore};
 pub use compose::{ComposeProject, group_projects};
 pub use compose_cli::{ComposeAction, ComposeOp, ComposeTarget, next_job, split_log_line};
-pub use containers::{ComposeLabels, ContainerInfo, HealthStatus};
+pub use containers::{ComposeLabels, ContainerInfo, HealthStatus, KubeLabels};
 pub use create::Change;
 pub use debug::{TARGET_ROOT, debug_image};
 pub use disk::{CLEAN_TARGETS, DiskUsage, PruneKind, Usage, clean_kinds};
@@ -62,6 +64,10 @@ pub use files::{
 pub use format::{format_size, plural, time_ago};
 pub use images::ImageInfo;
 pub use inspect::{Health, Inspection, RunSettings, looks_secret};
+pub use kube::{
+    API_LABEL, CONTEXT_LABEL, ClusterSpec, ClusterStatus, INGRESS_LABEL, KUBE_LABEL, KUBE_VERSIONS,
+    KubeNode, KubeOp, KubePod, ROLE_LABEL, context_name, server_name, worker_name,
+};
 pub use launch::{Starter, ferrodock_app, provider_app, starter, starter_outside_app};
 pub use limits::{cpus_text, memory_text, parse_cpus, parse_memory};
 pub use login::{Login, logins, registry_key, registry_label, sign_in, sign_out};

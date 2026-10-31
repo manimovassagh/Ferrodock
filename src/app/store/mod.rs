@@ -96,6 +96,15 @@ pub struct Store {
     /// Why creating a machine failed, by its name, until it's dismissed or
     /// tried again.
     pub machine_errors: HashMap<String, String>,
+    /// What creating a cluster is doing, by its name.
+    pub kube_steps: HashMap<String, String>,
+    /// The nodes and pods of clusters, by name, as last read.
+    pub kube_status: HashMap<String, Result<crate::docker::ClusterStatus, String>>,
+    /// Clusters whose nodes and pods are being read.
+    pub kube_reading: HashSet<String>,
+    /// Why creating a cluster failed, by its name, until it's dismissed or
+    /// tried again.
+    pub kube_errors: HashMap<String, String>,
     /// IDs (names, for volumes) of items with an action in flight, and
     /// the action.
     pub pending: HashMap<String, Action>,
@@ -121,6 +130,10 @@ impl Store {
             run_errors: HashMap::new(),
             setting_up: HashSet::new(),
             machine_errors: HashMap::new(),
+            kube_steps: HashMap::new(),
+            kube_status: HashMap::new(),
+            kube_reading: HashSet::new(),
+            kube_errors: HashMap::new(),
             usage: HashMap::new(),
             processes: None,
             history: None,
@@ -197,6 +210,13 @@ impl Store {
             }
             Response::MachineSettingUp(name) => {
                 self.setting_up.insert(name);
+            }
+            Response::KubeStep { cluster, step } => {
+                self.kube_steps.insert(cluster, step);
+            }
+            Response::KubeStatus { cluster, status } => {
+                self.kube_reading.remove(&cluster);
+                self.kube_status.insert(cluster, status);
             }
             Response::Pulling { image, progress } => {
                 match self.pulls.iter_mut().find(|(i, _)| *i == image) {
@@ -319,6 +339,12 @@ impl Store {
                 if let Some(name) = task.id.strip_prefix("machine:") {
                     self.setting_up.remove(name);
                 }
+                if let Some(cluster) = task.id.strip_prefix("kube:") {
+                    self.kube_steps.remove(cluster);
+                    if task.action == Action::Remove(crate::docker::Resource::Containers) {
+                        self.kube_status.remove(cluster);
+                    }
+                }
                 let mut text = format!("{} {}", task.action.past_tense(), task.name);
                 if let Some(bytes) = freed.filter(|b| *b > 0) {
                     text.push_str(&format!(" · freed {}", format_size(bytes)));
@@ -348,6 +374,12 @@ impl Store {
                 if let Some(name) = task.id.strip_prefix("machine:") {
                     self.setting_up.remove(name);
                     self.machine_errors.insert(name.to_owned(), message.clone());
+                }
+                if let Some(cluster) = task.id.strip_prefix("kube:") {
+                    self.kube_steps.remove(cluster);
+                    if task.action == Action::Create(crate::docker::Resource::Containers) {
+                        self.kube_errors.insert(cluster.to_owned(), message.clone());
+                    }
                 }
                 return Some(Notice {
                     text: message,
@@ -425,6 +457,7 @@ mod tests {
             volumes: volumes.iter().map(|s| s.to_string()).collect(),
             compose: None,
             machine: None,
+            kube: None,
         }
     }
 
@@ -448,6 +481,45 @@ mod tests {
             id: id.into(),
             name: "web".into(),
         }
+    }
+
+    #[test]
+    fn tracks_clusters() {
+        use crate::docker::Resource;
+        let mut store = Store::new();
+        let create = Task {
+            action: Action::Create(Resource::Containers),
+            id: "kube:dev".into(),
+            name: "dev".into(),
+        };
+        store.pending.insert("kube:dev".into(), create.action);
+        store.apply(Response::KubeStep {
+            cluster: "dev".into(),
+            step: "Waiting for Kubernetes…".into(),
+        });
+        assert_eq!(store.kube_steps["dev"], "Waiting for Kubernetes…");
+        store.apply(Response::Failed {
+            task: create.clone(),
+            message: "k3s stopped".into(),
+        });
+        assert!(store.kube_steps.is_empty() && store.pending.is_empty());
+        assert_eq!(store.kube_errors["dev"], "k3s stopped");
+
+        store.kube_reading.insert("dev".into());
+        store.apply(Response::KubeStatus {
+            cluster: "dev".into(),
+            status: Ok(Default::default()),
+        });
+        assert!(store.kube_reading.is_empty());
+        assert!(store.kube_status["dev"].is_ok());
+        store.apply(Response::Done {
+            task: Task {
+                action: Action::Remove(Resource::Containers),
+                ..create
+            },
+            freed: None,
+        });
+        assert!(store.kube_status.is_empty());
     }
 
     #[test]

@@ -1114,3 +1114,23 @@ fn screenshots_of_linux_machines() {
     h.run_steps(3);
     save(&mut h, "linux-machines-new");
 }
+
+/// The Kubernetes page (with no cluster) and the Create dialog.
+#[test]
+#[ignore]
+fn screenshots_of_kubernetes() {
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(2));
+    set_theme(&mut h, Theme::Light);
+    let page = h
+        .state()
+        .pages
+        .iter()
+        .position(|p| p.title() == "Kubernetes")
+        .unwrap();
+    open(&mut h, page, None);
+    save(&mut h, "kubernetes");
+    h.state_mut().pages[page].select("new");
+    h.run_steps(3);
+    save(&mut h, "kubernetes-new");
+}

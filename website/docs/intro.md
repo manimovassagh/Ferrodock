@@ -29,6 +29,8 @@ while idle. It's free and open source under the MIT License.
 - **Quick start**: popular databases and services in one click.
 - **Linux machines**: a small Ubuntu, Debian, Fedora, Alpine or Arch to
   work in, sharing a folder with your computer.
+- **Kubernetes**: a local cluster only when you want one, ready for
+  `kubectl`.
 - **Volumes and networks**: create, browse, connect and clean up.
 - **Disk**: see where the space goes and free it safely.
 
