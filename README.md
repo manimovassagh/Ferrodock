@@ -110,9 +110,9 @@ the shell starts right in it: files you make there are on your computer too.
 On Apple Silicon Macs, machines run the native arm64 build of each
 distribution.
 
-<a href="website/static/video/linux-machines.mp4"><img src="docs/screenshots/linux-machines.png" alt="Play the Linux machines demo: an Ubuntu machine's shell in a shared folder"></a>
+<a href="website/static/video/linux-machines.mp4"><img src="docs/screenshots/linux-machines.gif" alt="Linux machines demo: creating an Ubuntu machine that shares a folder, then ls, cat and nano in its shell"></a>
 
-[Watch the demo](website/static/video/linux-machines.mp4) ·
+[Watch it as a video](website/static/video/linux-machines.mp4) ·
 [Read more](https://manimovassagh.github.io/Ferrodock/docs/using/linux-machines)
 
 ## How it compares
