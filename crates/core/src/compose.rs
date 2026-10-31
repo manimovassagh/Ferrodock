@@ -94,6 +94,7 @@ mod tests {
                 config_files: "/srv/shop/compose.yaml, /srv/shop/compose.override.yaml".into(),
             }),
             machine: None,
+            kube: None,
         }
     }
 

@@ -368,6 +368,24 @@ impl FerrodockApp {
                 self.store.machine_errors.remove(&spec.name);
                 self.worker.send(Request::CreateMachine(spec));
             }
+            Intent::Kube(op) => {
+                match &op {
+                    // One reading at a time.
+                    crate::docker::KubeOp::Status(cluster) => {
+                        if !self.store.kube_reading.insert(cluster.clone()) {
+                            return;
+                        }
+                    }
+                    crate::docker::KubeOp::Create(spec) => {
+                        self.store.kube_errors.remove(&spec.name);
+                    }
+                    _ => {}
+                }
+                if let Some(task) = crate::worker::kube_task(&op) {
+                    self.store.pending.insert(task.id, task.action);
+                }
+                self.worker.send(Request::Kube(op));
+            }
             Intent::Compose(op) => {
                 if let Some(old) = self.store.compose.requested(&op) {
                     self.worker
@@ -474,7 +492,10 @@ impl FerrodockApp {
         };
         match confirm::show(ui, p, confirmation) {
             Some(Choice::Confirm) => {
-                if let Some(confirmation) = self.confirmation.take() {
+                if let Some(mut confirmation) = self.confirmation.take() {
+                    for intent in std::mem::take(&mut confirmation.intents) {
+                        self.handle_intent(intent);
+                    }
                     confirmation
                         .chosen_tasks()
                         .into_iter()
