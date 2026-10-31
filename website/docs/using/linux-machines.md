@@ -10,6 +10,16 @@ The **Linux machines** page, under **START** in the sidebar, gives you small
 Linux computers to work and try things in: test an install script, check
 how your code builds on Fedora, or poke around a fresh Ubuntu.
 
+<video
+  controls
+  muted
+  playsInline
+  preload="metadata"
+  width="100%"
+  poster={require('@site/static/img/linux-machines-video.jpg').default}
+  src={require('@site/static/video/linux-machines.mp4').default}
+/>
+
 | Distribution | Versions |
 |---|---|
 | Ubuntu | 24.04, 26.04, 22.04 |
@@ -17,6 +27,9 @@ how your code builds on Fedora, or poke around a fresh Ubuntu.
 | Fedora | 44, 43 |
 | Alpine | 3.24, 3.23 |
 | Arch Linux | latest (Intel and AMD only) |
+
+On Apple Silicon Macs, machines run the native arm64 build of each
+distribution, so they run at full speed. Arch Linux has no arm64 build.
 
 ## Creating a machine
 

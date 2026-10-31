@@ -274,6 +274,12 @@ const SHOWCASE = [
     alt: "Live CPU and memory charts",
   },
   {
+    title: "A Linux machine in one click",
+    text: "A small Ubuntu, Debian, Fedora, Alpine or Arch with your user, sudo and git. Share a folder and its shell starts right in your code.",
+    src: "/img/linux-machines.png",
+    alt: "An Ubuntu machine's shell in a shared folder",
+  },
+  {
     title: "Win back your disk space",
     text: "See how much images, containers, volumes and build cache take, and free it in one step, with a preview of exactly what goes.",
     src: "/img/disk.png",
