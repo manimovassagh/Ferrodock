@@ -45,6 +45,9 @@ that instead.
   or Nginx in one click, with the connection string ready to copy.
 - **Linux machines**: a small Ubuntu, Debian, Fedora, Alpine or Arch Linux
   to work in, with your user, `sudo` and a folder shared from your computer.
+- **Kubernetes, only when you want it**: a local k3s cluster in under a
+  minute, with worker nodes, `kubectl` set up and local images loaded in one
+  click. Nothing runs until you create one.
 - **Volumes and networks**: create them, browse a volume's files, connect
   and disconnect containers.
 - **Disk**: see where the space goes and free it in one step, with a preview
