@@ -36,6 +36,11 @@ pub struct Distro {
     install: &'static str,
 }
 
+/// Red Hat's family. Their small images have `curl-minimal`, which full
+/// `curl` replaces.
+const DNF: &str = "dnf install -y -q --allowerasing sudo bash curl git nano less procps-ng \
+    iputils shadow-utils";
+
 const APT: &str = "export DEBIAN_FRONTEND=noninteractive; apt-get update -q && \
     apt-get install -yq --no-install-recommends sudo bash curl ca-certificates git nano less \
     procps iputils-ping";
@@ -85,6 +90,34 @@ pub const DISTROS: &[Distro] = &[
         tags: &["latest"],
         color: [23, 147, 209],
         install: "pacman -Syu --noconfirm --needed sudo bash curl git nano less procps-ng iputils",
+    },
+    Distro {
+        id: "almalinux",
+        name: "AlmaLinux",
+        summary: "Compatible with Red Hat",
+        image: "almalinux",
+        tags: &["10", "9"],
+        color: [10, 66, 117],
+        install: DNF,
+    },
+    Distro {
+        id: "opensuse",
+        name: "openSUSE Leap",
+        summary: "Stable, from SUSE",
+        image: "opensuse/leap",
+        tags: &["16.0", "15.6"],
+        color: [115, 186, 37],
+        install: "zypper --non-interactive --quiet install --no-recommends sudo bash curl git nano \
+            less procps iputils shadow",
+    },
+    Distro {
+        id: "amazonlinux",
+        name: "Amazon Linux",
+        summary: "What AWS servers run",
+        image: "amazonlinux",
+        tags: &["2023", "2027"],
+        color: [236, 114, 17],
+        install: DNF,
     },
 ];
 

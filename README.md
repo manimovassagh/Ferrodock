@@ -43,8 +43,9 @@ that instead.
   form that shows the `docker run` command, and tag, push, save or load.
 - **Quick start**: Postgres, MySQL, Redis, MongoDB, RabbitMQ, MinIO, Mailpit
   or Nginx in one click, with the connection string ready to copy.
-- **Linux machines**: a small Ubuntu, Debian, Fedora, Alpine or Arch Linux
-  to work in, with your user, `sudo` and a folder shared from your computer.
+- **Linux machines**: a small Ubuntu, Debian, Fedora, Alpine, Arch,
+  AlmaLinux, openSUSE or Amazon Linux to work in, with your user, `sudo` and
+  a folder shared from your computer.
 - **Kubernetes, only when you want it**: a local k3s cluster in under a
   minute, with worker nodes, `kubectl` set up and local images loaded in one
   click. Nothing runs until you create one.
@@ -104,8 +105,8 @@ has the details for each platform.
 ## Linux machines
 
 Need a quick Ubuntu to try something in? The **Linux machines** page makes
-a small Ubuntu, Debian, Fedora, Alpine or Arch Linux in one click, with your
-user, `sudo`, git and an editor ready. Share a folder from your computer and
+a small Ubuntu, Debian, Fedora, Alpine, Arch, AlmaLinux, openSUSE Leap or
+Amazon Linux in one click, with your user, `sudo`, git and an editor ready. Share a folder from your computer and
 the shell starts right in it: files you make there are on your computer too.
 On Apple Silicon Macs, machines run the native arm64 build of each
 distribution.
