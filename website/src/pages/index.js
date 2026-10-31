@@ -275,7 +275,7 @@ const SHOWCASE = [
   },
   {
     title: "A Linux machine in one click",
-    text: "A small Ubuntu, Debian, Fedora, Alpine or Arch with your user, sudo and git. Share a folder and its shell starts right in your code.",
+    text: "A small Ubuntu, Debian, Fedora, Alpine, Arch, AlmaLinux, openSUSE or Amazon Linux with your user, sudo and git. Share a folder and its shell starts right in your code.",
     src: "/img/linux-machines.png",
     alt: "An Ubuntu machine's shell in a shared folder",
   },

@@ -78,7 +78,7 @@ fn badge(ui: &mut egui::Ui, distro: &Distro, size: f32) {
     ui.painter().text(
         rect.center(),
         egui::Align2::CENTER_CENTER,
-        &distro.name[..1],
+        distro.name[..1].to_uppercase(),
         egui::FontId::new(size * 0.45, crate::theme::semibold()),
         egui::Color32::WHITE,
     );
@@ -512,16 +512,22 @@ fn card(ui: &mut egui::Ui, p: &Palette, d: &'static Distro, width: f32) -> bool 
                 });
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
-                    ui.label(
-                        RichText::new(format!("{}:{}", d.image, d.tags[0]))
-                            .monospace()
-                            .size(11.5)
-                            .color(p.muted),
-                    );
+                    // The button first; the image gets what's left, so a
+                    // long name is cut short instead of running under it.
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         clicked = widgets::primary_button(ui, "Create…")
                             .on_hover_text(format!("Create a {} machine", d.name))
                             .clicked();
+                        ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                            let image = format!("{}:{}", d.image, d.tags[0]);
+                            ui.add(
+                                egui::Label::new(
+                                    RichText::new(&image).monospace().size(11.5).color(p.muted),
+                                )
+                                .truncate(),
+                            )
+                            .on_hover_text(image);
+                        });
                     });
                 });
             });

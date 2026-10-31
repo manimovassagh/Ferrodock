@@ -1,7 +1,7 @@
 ---
 sidebar_position: 8
 title: Linux machines
-description: "Create a small Ubuntu, Debian, Fedora, Alpine or Arch Linux machine in Ferrodock, open its shell, and share a folder from your computer with it."
+description: "Create a small Ubuntu, Debian, Fedora, Alpine, Arch, AlmaLinux, openSUSE or Amazon Linux machine in Ferrodock, open its shell, and share a folder from your computer with it."
 ---
 
 # Linux machines
@@ -27,6 +27,9 @@ how your code builds on Fedora, or poke around a fresh Ubuntu.
 | Fedora | 44, 43 |
 | Alpine | 3.24, 3.23 |
 | Arch Linux | latest (Intel and AMD only) |
+| AlmaLinux (compatible with Red Hat) | 10, 9 |
+| openSUSE Leap | 16.0, 15.6 |
+| Amazon Linux | 2023, 2027 |
 
 On Apple Silicon Macs, machines run the native arm64 build of each
 distribution, so they run at full speed. Arch Linux has no arm64 build.

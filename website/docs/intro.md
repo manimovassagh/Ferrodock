@@ -27,8 +27,9 @@ while idle. It's free and open source under the MIT License.
   rebuilt service by service.
 - **Images**: search Docker Hub, pull, run, tag, push, save and load.
 - **Quick start**: popular databases and services in one click.
-- **Linux machines**: a small Ubuntu, Debian, Fedora, Alpine or Arch to
-  work in, sharing a folder with your computer.
+- **Linux machines**: a small Ubuntu, Debian, Fedora, Alpine, Arch,
+  AlmaLinux, openSUSE or Amazon Linux to work in, sharing a folder with your
+  computer.
 - **Kubernetes**: a local cluster only when you want one, ready for
   `kubectl`.
 - **Volumes and networks**: create, browse, connect and clean up.
