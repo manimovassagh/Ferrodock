@@ -18,8 +18,8 @@ use tokio::sync::mpsc as tokio_mpsc;
 
 use crate::docker::{
     Action, Change, ComposeOp, ContainerInfo, DiskUsage, DockerClient, Engine, EngineEvent, FileOp,
-    ImageInfo, ImageOp, Inspection, Layer, Listing, NetworkInfo, Preview, Processes, PullProgress,
-    Resource, RunSpec, SearchResult, Starter, StatsSample, Task, TermOp, VolumeInfo,
+    ImageInfo, ImageOp, Inspection, Layer, Listing, MachineSpec, NetworkInfo, Preview, Processes,
+    PullProgress, Resource, RunSpec, SearchResult, Starter, StatsSample, Task, TermOp, VolumeInfo,
 };
 
 /// How often the worker re-checks the engine on its own. Changes normally
@@ -87,6 +87,8 @@ pub enum Request {
     History(String),
     /// Create and start a container.
     RunImage(RunSpec),
+    /// Create, start and set up a Linux machine.
+    CreateMachine(Box<MachineSpec>),
     /// List, preview or copy files of a container.
     Files(FileOp),
     /// Open, type into, resize or close a shell.
@@ -177,6 +179,8 @@ pub enum Response {
         text: String,
         is_error: bool,
     },
+    /// A machine started and is being set up (named).
+    MachineSettingUp(String),
     /// Progress of a pull started with [`Request::Pull`].
     Pulling {
         image: String,
@@ -473,6 +477,9 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
             Request::RunImage(spec) => {
                 tokio::spawn(async move { run_image(&docker, &shared, spec).await });
             }
+            Request::CreateMachine(spec) => {
+                tokio::spawn(async move { create_machine(&docker, &shared, *spec).await });
+            }
             Request::Inspect(resource, id) => {
                 tokio::spawn(async move {
                     let response = match docker.inspect(resource, &id).await {
@@ -620,6 +627,33 @@ async fn run_image(client: &DockerClient, shared: &Shared, spec: RunSpec) {
         Ok(_) => shared.send(Response::Done { task, freed: None }),
         Err(e) => {
             let message = format!("Couldn't start {}: {e}", task.name);
+            shared.send(Response::Failed { task, message });
+        }
+    }
+    refresh(client, shared, Resource::Containers).await;
+}
+
+/// Pulls the machine's image if it isn't here, then creates, starts and
+/// sets up the machine.
+async fn create_machine(client: &DockerClient, shared: &Shared, spec: MachineSpec) {
+    let task = Task {
+        action: Action::Create(Resource::Containers),
+        id: format!("machine:{}", spec.name),
+        name: spec.name.clone(),
+    };
+    let image = spec.image();
+    let made = async {
+        if !client.has_image(&image).await && !pull(client, shared, image.clone()).await {
+            return Err(format!("{image} couldn't be downloaded"));
+        }
+        let id = client.create_machine(&spec).await?;
+        shared.send(Response::MachineSettingUp(spec.name.clone()));
+        client.set_up_machine(&id, &spec).await
+    };
+    match made.await {
+        Ok(()) => shared.send(Response::Done { task, freed: None }),
+        Err(e) => {
+            let message = format!("Couldn't create {}: {e}", task.name);
             shared.send(Response::Failed { task, message });
         }
     }

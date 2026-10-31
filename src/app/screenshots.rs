@@ -1094,3 +1094,23 @@ fn screenshots_of_builtin_networks() {
     open(&mut h, 4, none);
     save(&mut h, "networks-builtin");
 }
+
+/// The Linux machines page and the Create dialog of a distribution.
+#[test]
+#[ignore]
+fn screenshots_of_linux_machines() {
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(2));
+    set_theme(&mut h, Theme::Light);
+    let page = h
+        .state()
+        .pages
+        .iter()
+        .position(|p| p.title() == "Linux machines")
+        .unwrap();
+    open(&mut h, page, None);
+    save(&mut h, "linux-machines");
+    h.state_mut().pages[page].select("new:ubuntu");
+    h.run_steps(3);
+    save(&mut h, "linux-machines-new");
+}

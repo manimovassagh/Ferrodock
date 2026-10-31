@@ -27,6 +27,8 @@ while idle. It's free and open source under the MIT License.
   rebuilt service by service.
 - **Images**: search Docker Hub, pull, run, tag, push, save and load.
 - **Quick start**: popular databases and services in one click.
+- **Linux machines**: a small Linux to work in, sharing a folder with your
+  computer.
 - **Volumes and networks**: create, browse, connect and clean up.
 - **Disk**: see where the space goes and free it safely.
 

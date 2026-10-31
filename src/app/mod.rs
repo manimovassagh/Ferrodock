@@ -360,6 +360,14 @@ impl FerrodockApp {
                 self.store.run_errors.remove(&spec.image);
                 self.worker.send(Request::RunImage(spec));
             }
+            Intent::CreateMachine(spec) => {
+                let id = format!("machine:{}", spec.name);
+                self.store
+                    .pending
+                    .insert(id, Action::Create(crate::docker::Resource::Containers));
+                self.store.machine_errors.remove(&spec.name);
+                self.worker.send(Request::CreateMachine(spec));
+            }
             Intent::Compose(op) => {
                 if let Some(old) = self.store.compose.requested(&op) {
                     self.worker

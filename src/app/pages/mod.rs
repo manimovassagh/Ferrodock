@@ -7,6 +7,7 @@ mod create_dialog;
 mod disk;
 mod files;
 mod images;
+mod machines;
 mod marks;
 mod networks;
 pub(in crate::app) mod quick_start;
@@ -33,6 +34,7 @@ pub fn all() -> Vec<Box<dyn Page>> {
         Box::new(networks::NetworksPage::default()),
         Box::new(disk::DiskPage::default()),
         Box::new(quick_start::QuickStartPage::default()),
+        Box::new(machines::MachinesPage::default()),
     ]
 }
 
