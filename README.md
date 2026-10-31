@@ -98,6 +98,20 @@ updates itself: when a new version is out, click **Update to x.y.z** in the side
 The [installation guide](https://manimovassagh.github.io/Ferrodock/docs/installation)
 has the details for each platform.
 
+## Linux machines
+
+Need a quick Ubuntu to try something in? The **Linux machines** page makes
+a small Ubuntu, Debian, Fedora, Alpine or Arch Linux in one click, with your
+user, `sudo`, git and an editor ready. Share a folder from your computer and
+the shell starts right in it: files you make there are on your computer too.
+On Apple Silicon Macs, machines run the native arm64 build of each
+distribution.
+
+<a href="website/static/video/linux-machines.mp4"><img src="docs/screenshots/linux-machines.png" alt="Play the Linux machines demo: an Ubuntu machine's shell in a shared folder"></a>
+
+[Watch the demo](website/static/video/linux-machines.mp4) ·
+[Read more](https://manimovassagh.github.io/Ferrodock/docs/using/linux-machines)
+
 ## How it compares
 
 | | Ferrodock | Docker Desktop | OrbStack | Rancher Desktop | Podman Desktop |
@@ -107,6 +121,7 @@ has the details for each platform.
 | Docker engine included | ✅ | ✅ | ✅ | ✅ | Podman |
 | Open source | ✅ MIT | ❌ | ❌ | ✅ Apache-2.0 | ✅ Apache-2.0 |
 | CLI and MCP server for AI tools, built in | ✅ | MCP Toolkit | ❌ | ❌ | ❌ |
+| Linux machines to work in | ✅ | ❌ | ✅ | ❌ | ❌ |
 
 ## Ferrodock's own engine
 
