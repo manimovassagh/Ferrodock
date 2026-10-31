@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.32.0](https://github.com/manimovassagh/Ferrodock/compare/v1.31.1...v1.32.0) - 2026-10-31
+
+### Added
+
+- Kubernetes clusters, only when you want one ([#286](https://github.com/manimovassagh/Ferrodock/pull/286))
+
 ## [1.31.1](https://github.com/manimovassagh/Ferrodock/compare/v1.31.0...v1.31.1) - 2026-10-31
 
 ### Documentation
