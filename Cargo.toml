@@ -26,7 +26,7 @@ members = [".", "crates/core", "crates/cli", "crates/mcp"]
 exclude = ["agent"]
 
 [workspace.package]
-version = "1.31.1"
+version = "1.32.0"
 edition = "2024"
 rust-version = "1.95"
 authors = ["Mani Movassagh"]
@@ -35,13 +35,14 @@ license = "MIT"
 homepage = "https://manimovassagh.github.io/Ferrodock/"
 
 [workspace.dependencies]
-ferrodock-core = { path = "crates/core", version = "1.31.1" }
+ferrodock-core = { path = "crates/core", version = "1.32.0" }
 bollard = { version = "0.21.1", features = ["time", "ssl"] }
 bytes = "1.12.1"
 flate2 = "1.1"
 futures-util = "0.3.34"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
+serde_norway = "0.9.42"
 sha2 = "0.11.1"
 tar = "0.4.46"
 tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros", "time", "fs", "process", "io-util", "net", "sync"] }

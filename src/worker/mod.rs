@@ -17,9 +17,10 @@ use std::time::Duration;
 use tokio::sync::mpsc as tokio_mpsc;
 
 use crate::docker::{
-    Action, Change, ComposeOp, ContainerInfo, DiskUsage, DockerClient, Engine, EngineEvent, FileOp,
-    ImageInfo, ImageOp, Inspection, Layer, Listing, MachineSpec, NetworkInfo, Preview, Processes,
-    PullProgress, Resource, RunSpec, SearchResult, Starter, StatsSample, Task, TermOp, VolumeInfo,
+    Action, Change, ClusterSpec, ClusterStatus, ComposeOp, ContainerInfo, DiskUsage, DockerClient,
+    Engine, EngineEvent, FileOp, ImageInfo, ImageOp, Inspection, KubeOp, Layer, Listing,
+    MachineSpec, NetworkInfo, Preview, Processes, PullProgress, Resource, RunSpec, SearchResult,
+    Starter, StatsSample, Task, TermOp, VolumeInfo, context_name,
 };
 
 /// How often the worker re-checks the engine on its own. Changes normally
@@ -89,6 +90,8 @@ pub enum Request {
     RunImage(RunSpec),
     /// Create, start and set up a Linux machine.
     CreateMachine(Box<MachineSpec>),
+    /// Create, start, stop, remove or look into a Kubernetes cluster.
+    Kube(KubeOp),
     /// List, preview or copy files of a container.
     Files(FileOp),
     /// Open, type into, resize or close a shell.
@@ -181,6 +184,16 @@ pub enum Response {
     },
     /// A machine started and is being set up (named).
     MachineSettingUp(String),
+    /// What creating a cluster is doing, e.g. "Waiting for Kubernetes…".
+    KubeStep {
+        cluster: String,
+        step: String,
+    },
+    /// The nodes and pods of a cluster, or why they couldn't be read.
+    KubeStatus {
+        cluster: String,
+        status: Result<ClusterStatus, String>,
+    },
     /// Progress of a pull started with [`Request::Pull`].
     Pulling {
         image: String,
@@ -480,6 +493,9 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
             Request::CreateMachine(spec) => {
                 tokio::spawn(async move { create_machine(&docker, &shared, *spec).await });
             }
+            Request::Kube(op) => {
+                tokio::spawn(async move { kube(&docker, &shared, op).await });
+            }
             Request::Inspect(resource, id) => {
                 tokio::spawn(async move {
                     let response = match docker.inspect(resource, &id).await {
@@ -658,6 +674,109 @@ async fn create_machine(client: &DockerClient, shared: &Shared, spec: MachineSpe
         }
     }
     refresh(client, shared, Resource::Containers).await;
+}
+
+/// The task a cluster operation reports as.
+pub fn kube_task(op: &KubeOp) -> Option<Task> {
+    let (action, id, name) = match op {
+        KubeOp::Create(spec) => (
+            Action::Create(Resource::Containers),
+            format!("kube:{}", spec.name),
+            spec.name.clone(),
+        ),
+        KubeOp::Start(c) => (Action::Start, format!("kube:{c}"), c.clone()),
+        KubeOp::Stop(c) => (Action::Stop, format!("kube:{c}"), c.clone()),
+        KubeOp::Remove { cluster, .. } => (
+            Action::Remove(Resource::Containers),
+            format!("kube:{cluster}"),
+            cluster.clone(),
+        ),
+        KubeOp::LoadImage { cluster, image } => (
+            Action::Load,
+            format!("kube-load:{cluster}"),
+            format!("{image} into {cluster}"),
+        ),
+        KubeOp::Status(_) => return None,
+    };
+    Some(Task { action, id, name })
+}
+
+async fn kube(client: &DockerClient, shared: &Shared, op: KubeOp) {
+    if let KubeOp::Status(cluster) = op {
+        let status = client.cluster_status(&cluster).await;
+        shared.send(Response::KubeStatus { cluster, status });
+        return;
+    }
+    let Some(task) = kube_task(&op) else { return };
+    let result = match &op {
+        KubeOp::Create(spec) => create_cluster(client, shared, spec).await,
+        KubeOp::Start(cluster) => client.start_cluster(cluster).await,
+        KubeOp::Stop(cluster) => client.stop_cluster(cluster).await,
+        KubeOp::Remove { cluster, context } => {
+            let removed = client.remove_cluster(cluster).await;
+            if removed.is_ok()
+                && !context.is_empty()
+                && let Some(path) = crate::docker::kubeconfig::kubeconfig_path()
+                && let Err(e) = crate::docker::kubeconfig::update(&path, |old| {
+                    crate::docker::kubeconfig::remove(old, context)
+                })
+            {
+                shared.send(Response::Alert(format!(
+                    "Removed {cluster}, but its kubectl context is still there: {e}"
+                )));
+            }
+            removed
+        }
+        KubeOp::LoadImage { cluster, image } => client.load_into_cluster(cluster, image).await,
+        KubeOp::Status(_) => unreachable!("handled above"),
+    };
+    match result {
+        Ok(()) => shared.send(Response::Done { task, freed: None }),
+        Err(e) => {
+            let what = match op {
+                KubeOp::LoadImage { image, cluster } => format!("load {image} into {cluster}"),
+                _ => format!("{} {}", task.action.verb().to_lowercase(), task.name),
+            };
+            let message = format!("Couldn't {what}: {e}");
+            shared.send(Response::Failed { task, message });
+        }
+    }
+    refresh(client, shared, Resource::Containers).await;
+}
+
+/// Pulls k3s if it isn't here, makes the cluster, then adds it to kubectl.
+async fn create_cluster(
+    client: &DockerClient,
+    shared: &Shared,
+    spec: &ClusterSpec,
+) -> Result<(), String> {
+    let image = spec.image();
+    if !client.has_image(&image).await && !pull(client, shared, image.clone()).await {
+        return Err(format!("{image} couldn't be downloaded"));
+    }
+    let k3s = client
+        .create_cluster(spec, |step| {
+            shared.send(Response::KubeStep {
+                cluster: spec.name.clone(),
+                step: step.to_owned(),
+            });
+        })
+        .await?;
+    if spec.kubectl {
+        use crate::docker::kubeconfig;
+        let added =
+            kubeconfig::adapt(&k3s, &context_name(&spec.name), &spec.api_url()).and_then(|new| {
+                let path = kubeconfig::kubeconfig_path().ok_or("there's no home folder")?;
+                kubeconfig::update(&path, |old| kubeconfig::merge(old, &new))
+            });
+        if let Err(e) = added {
+            shared.send(Response::Alert(format!(
+                "Created {}, but couldn't add it to kubectl: {e}",
+                spec.name
+            )));
+        }
+    }
+    Ok(())
 }
 
 /// Reads CPU and memory of every running container, all at once.

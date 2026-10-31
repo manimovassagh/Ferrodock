@@ -9,7 +9,7 @@ use eframe::egui;
 use super::components::icons::Icon;
 use super::store::Store;
 use crate::docker::{
-    Change, ComposeOp, FileOp, ImageOp, MachineSpec, Resource, RunSpec, Task, TermOp,
+    Change, ComposeOp, FileOp, ImageOp, KubeOp, MachineSpec, Resource, RunSpec, Task, TermOp,
 };
 use crate::theme::Palette;
 
@@ -43,6 +43,8 @@ pub enum Intent {
     RunImage(RunSpec),
     /// Create, start and set up a Linux machine.
     CreateMachine(Box<MachineSpec>),
+    /// Create, start, stop, remove or look into a Kubernetes cluster.
+    Kube(KubeOp),
     /// List, preview or copy files of a container.
     Files(FileOp),
     /// Open, type into, resize or close a shell.
@@ -63,6 +65,8 @@ pub struct Confirmation {
     /// Label of the confirm button, e.g. "Remove".
     pub action_label: String,
     pub tasks: Vec<Task>,
+    /// Asked of the app too, once confirmed, e.g. removing a cluster.
+    pub intents: Vec<Intent>,
     /// A box to tick that runs other tasks instead, e.g. "Stop running
     /// ones first".
     pub option: Option<ConfirmOption>,
