@@ -144,6 +144,7 @@ pub(super) fn confirm_removal(chosen: &[&ContainerInfo]) -> Intent {
         ),
         action_label: format!("Remove {}", chosen.len()),
         tasks: stopped,
+        intents: Vec::new(),
         option,
         typed: None,
     })

@@ -32,6 +32,33 @@ pub struct ContainerInfo {
     /// For a Linux machine: its distribution's ID and the folder shared
     /// into it (empty for none).
     pub machine: Option<(String, String)>,
+    /// For a node of a Kubernetes cluster: what it records about the
+    /// cluster.
+    pub kube: Option<KubeLabels>,
+}
+
+/// What a node of a Kubernetes cluster records in its labels.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+pub struct KubeLabels {
+    pub cluster: String,
+    pub server: bool,
+    pub api_port: u16,
+    pub ingress_port: u16,
+    /// The kubectl context Ferrodock added; empty for none.
+    pub context: String,
+}
+
+impl KubeLabels {
+    fn from_labels(labels: &std::collections::HashMap<String, String>) -> Option<Self> {
+        let get = |key: &str| labels.get(key).cloned().unwrap_or_default();
+        Some(Self {
+            cluster: labels.get(super::KUBE_LABEL)?.clone(),
+            server: get(super::ROLE_LABEL) == "server",
+            api_port: get(super::API_LABEL).parse().unwrap_or_default(),
+            ingress_port: get(super::INGRESS_LABEL).parse().unwrap_or_default(),
+            context: get(super::CONTEXT_LABEL),
+        })
+    }
 }
 
 /// What Docker Compose records about a container in its labels.
@@ -180,6 +207,7 @@ impl From<ContainerSummary> for ContainerInfo {
             let folder = labels.get(super::FOLDER_LABEL).cloned().unwrap_or_default();
             Some((distro, folder))
         });
+        let kube = c.labels.as_ref().and_then(KubeLabels::from_labels);
 
         Self {
             id: c.id.unwrap_or_default(),
@@ -201,6 +229,7 @@ impl From<ContainerSummary> for ContainerInfo {
             volumes,
             compose,
             machine,
+            kube,
         }
     }
 }
