@@ -11,7 +11,7 @@ mod processes;
 mod stats;
 mod status;
 mod table;
-mod terminal;
+pub(super) mod terminal;
 
 use eframe::egui;
 

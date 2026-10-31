@@ -8,7 +8,7 @@ use crate::docker::{ContainerInfo, TARGET_ROOT, TermOp, debug_image, next_sessio
 
 /// The shell to run; empty picks bash, then sh.
 #[derive(Default)]
-pub(super) struct TerminalTab {
+pub(in crate::app::pages) struct TerminalTab {
     shell: String,
     /// The size last sent to the shell.
     size: (u16, u16),
@@ -16,7 +16,12 @@ pub(super) struct TerminalTab {
     shown_session: u64,
 }
 
-pub(super) fn show(ui: &mut egui::Ui, ctx: &mut PageCtx, tab: &mut TerminalTab, c: &ContainerInfo) {
+pub(in crate::app::pages) fn show(
+    ui: &mut egui::Ui,
+    ctx: &mut PageCtx,
+    tab: &mut TerminalTab,
+    c: &ContainerInfo,
+) {
     let p = ctx.palette;
     if !c.is_running() {
         ui.add_space(20.0);

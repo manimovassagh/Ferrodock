@@ -12,7 +12,7 @@ pub use compose::{ComposeJobs, Job};
 pub use files::FileView;
 pub use terminal::Terminal;
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::time::Instant;
 
 use crate::docker::{
@@ -91,6 +91,11 @@ pub struct Store {
     /// Why the last run of an image failed, by image reference, until it's
     /// run again (shown on Quick start's cards).
     pub run_errors: HashMap<String, String>,
+    /// Linux machines started and still being set up, by name.
+    pub setting_up: HashSet<String>,
+    /// Why creating a machine failed, by its name, until it's dismissed or
+    /// tried again.
+    pub machine_errors: HashMap<String, String>,
     /// IDs (names, for volumes) of items with an action in flight, and
     /// the action.
     pub pending: HashMap<String, Action>,
@@ -114,6 +119,8 @@ impl Store {
             inspection: None,
             pulls: Vec::new(),
             run_errors: HashMap::new(),
+            setting_up: HashSet::new(),
+            machine_errors: HashMap::new(),
             usage: HashMap::new(),
             processes: None,
             history: None,
@@ -187,6 +194,9 @@ impl Store {
                     is_error: true,
                     alert: true,
                 });
+            }
+            Response::MachineSettingUp(name) => {
+                self.setting_up.insert(name);
             }
             Response::Pulling { image, progress } => {
                 match self.pulls.iter_mut().find(|(i, _)| *i == image) {
@@ -306,6 +316,9 @@ impl Store {
                 if let Some(image) = task.id.strip_prefix("run:") {
                     self.run_errors.remove(image);
                 }
+                if let Some(name) = task.id.strip_prefix("machine:") {
+                    self.setting_up.remove(name);
+                }
                 let mut text = format!("{} {}", task.action.past_tense(), task.name);
                 if let Some(bytes) = freed.filter(|b| *b > 0) {
                     text.push_str(&format!(" · freed {}", format_size(bytes)));
@@ -331,6 +344,10 @@ impl Store {
                 };
                 if let Some(image) = run {
                     self.run_errors.insert(image, message.clone());
+                }
+                if let Some(name) = task.id.strip_prefix("machine:") {
+                    self.setting_up.remove(name);
+                    self.machine_errors.insert(name.to_owned(), message.clone());
                 }
                 return Some(Notice {
                     text: message,
@@ -407,6 +424,7 @@ mod tests {
             mounts: Vec::new(),
             volumes: volumes.iter().map(|s| s.to_string()).collect(),
             compose: None,
+            machine: None,
         }
     }
 
@@ -430,6 +448,32 @@ mod tests {
             id: id.into(),
             name: "web".into(),
         }
+    }
+
+    #[test]
+    fn tracks_machine_setup_and_failure() {
+        let mut store = Store::new();
+        let make = || {
+            task(
+                Action::Create(crate::docker::Resource::Containers),
+                "machine:box",
+            )
+        };
+        store.pending.insert("machine:box".into(), make().action);
+        store.apply(Response::MachineSettingUp("box".into()));
+        assert!(store.setting_up.contains("box"));
+        store.apply(Response::Failed {
+            task: make(),
+            message: "no network".into(),
+        });
+        assert!(store.setting_up.is_empty() && store.pending.is_empty());
+        assert_eq!(store.machine_errors["box"], "no network");
+        store.apply(Response::MachineSettingUp("box".into()));
+        store.apply(Response::Done {
+            task: make(),
+            freed: None,
+        });
+        assert!(store.setting_up.is_empty());
     }
 
     #[test]

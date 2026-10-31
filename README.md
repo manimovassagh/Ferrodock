@@ -43,6 +43,8 @@ that instead.
   form that shows the `docker run` command, and tag, push, save or load.
 - **Quick start**: Postgres, MySQL, Redis, MongoDB, RabbitMQ, MinIO, Mailpit
   or Nginx in one click, with the connection string ready to copy.
+- **Linux machines**: a small Ubuntu, Debian, Fedora, Alpine or Arch Linux
+  to work in, with your user, `sudo` and a folder shared from your computer.
 - **Volumes and networks**: create them, browse a volume's files, connect
   and disconnect containers.
 - **Disk**: see where the space goes and free it in one step, with a preview

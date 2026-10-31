@@ -93,6 +93,7 @@ mod tests {
                 working_dir: "/srv/shop".into(),
                 config_files: "/srv/shop/compose.yaml, /srv/shop/compose.override.yaml".into(),
             }),
+            machine: None,
         }
     }
 

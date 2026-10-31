@@ -29,6 +29,9 @@ pub struct ContainerInfo {
     pub volumes: Vec<String>,
     /// Set when the container belongs to a Docker Compose project.
     pub compose: Option<ComposeLabels>,
+    /// For a Linux machine: its distribution's ID and the folder shared
+    /// into it (empty for none).
+    pub machine: Option<(String, String)>,
 }
 
 /// What Docker Compose records about a container in its labels.
@@ -172,6 +175,11 @@ impl From<ContainerSummary> for ContainerInfo {
             .collect();
 
         let compose = c.labels.as_ref().and_then(ComposeLabels::from_labels);
+        let machine = c.labels.as_ref().and_then(|labels| {
+            let distro = labels.get(super::MACHINE_LABEL)?.clone();
+            let folder = labels.get(super::FOLDER_LABEL).cloned().unwrap_or_default();
+            Some((distro, folder))
+        });
 
         Self {
             id: c.id.unwrap_or_default(),
@@ -192,6 +200,7 @@ impl From<ContainerSummary> for ContainerInfo {
             mounts,
             volumes,
             compose,
+            machine,
         }
     }
 }

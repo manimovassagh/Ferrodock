@@ -31,6 +31,7 @@ mod launch;
 mod limits;
 mod login;
 mod logs;
+mod machines;
 mod networks;
 mod ports;
 mod processes;
@@ -64,6 +65,9 @@ pub use inspect::{Health, Inspection, RunSettings, looks_secret};
 pub use launch::{Starter, ferrodock_app, provider_app, starter, starter_outside_app};
 pub use limits::{cpus_text, memory_text, parse_cpus, parse_memory};
 pub use login::{Login, logins, registry_key, registry_label, sign_in, sign_out};
+pub use machines::{
+    DISTROS, Distro, FOLDER_LABEL, MACHINE_LABEL, MachineSpec, MachineUser, distro, user_name,
+};
 pub use networks::NetworkInfo;
 pub use ports::{PortMapping, engine_host};
 pub use processes::{Layer, Processes};
