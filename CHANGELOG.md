@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.33.0](https://github.com/manimovassagh/Ferrodock/compare/v1.32.1...v1.33.0) - 2026-10-31
+
+### Added
+
+- AlmaLinux, openSUSE Leap and Amazon Linux machines ([#295](https://github.com/manimovassagh/Ferrodock/pull/295))
+
 ## [1.32.0](https://github.com/manimovassagh/Ferrodock/compare/v1.31.1...v1.32.0) - 2026-10-31
 
 ### Added
