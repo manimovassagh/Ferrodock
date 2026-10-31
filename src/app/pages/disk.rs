@@ -469,6 +469,7 @@ fn confirm_reset(store: &Store) -> Intent {
         ),
         action_label: "Reset Docker".into(),
         tasks: vec![reset_task(false)],
+        intents: Vec::new(),
         option: Some(ConfirmOption {
             label: "Keep volumes".into(),
             hint: "Reset everything else, keep your data".into(),

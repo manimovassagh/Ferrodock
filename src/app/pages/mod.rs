@@ -7,6 +7,7 @@ mod create_dialog;
 mod disk;
 mod files;
 mod images;
+mod kube;
 mod machines;
 mod marks;
 mod networks;
@@ -35,6 +36,7 @@ pub fn all() -> Vec<Box<dyn Page>> {
         Box::new(disk::DiskPage::default()),
         Box::new(quick_start::QuickStartPage::default()),
         Box::new(machines::MachinesPage::default()),
+        Box::new(kube::KubePage::default()),
     ]
 }
 

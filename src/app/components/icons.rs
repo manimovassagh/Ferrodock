@@ -33,6 +33,8 @@ pub enum Icon {
     Database,
     Network,
     HardDrive,
+    /// A ship's wheel in a heptagon: Kubernetes.
+    Wheel,
 }
 
 /// Paints `icon` filling `rect` (drawn on a 24-unit grid).
@@ -208,6 +210,19 @@ pub fn paint(painter: &egui::Painter, rect: Rect, icon: Icon, color: Color32) {
             line(&[p(12.0, 8.0), p(12.0, 12.0)]),
             line(&[p(5.5, 16.0), p(5.5, 12.0), p(18.5, 12.0), p(18.5, 16.0)]),
         ],
+        Icon::Wheel => {
+            // Seven sides and seven spokes, the first pointing up.
+            let at = |k: usize, r: f32| {
+                let a = (-90.0 + k as f32 * 360.0 / 7.0).to_radians();
+                p(12.0 + a.cos() * r, 12.0 + a.sin() * r)
+            };
+            let mut shapes = vec![
+                poly(&(0..7).map(|k| at(k, 10.0)).collect::<Vec<_>>()),
+                circle(p(12.0, 12.0), 4.2),
+            ];
+            shapes.extend((0..7).map(|k| line(&[at(k, 2.0), at(k, 7.0)])));
+            shapes
+        }
         Icon::HardDrive => vec![
             Shape::rect_stroke(
                 Rect::from_min_max(p(3.0, 12.5), p(21.0, 19.5)),

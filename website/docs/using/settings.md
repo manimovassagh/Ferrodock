@@ -1,5 +1,5 @@
 ---
-sidebar_position: 10
+sidebar_position: 11
 title: Settings, menu bar and startup
 description: "Ferrodock's settings: themes, density, interface size, the menu bar or tray icon, and opening at login."
 ---
