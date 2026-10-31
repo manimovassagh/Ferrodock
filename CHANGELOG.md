@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.31.1](https://github.com/manimovassagh/Ferrodock/compare/v1.31.0...v1.31.1) - 2026-10-31
+
+### Documentation
+
+- show Linux machines in the README, docs and website, with a demo video ([#282](https://github.com/manimovassagh/Ferrodock/pull/282))
+
 ## [1.31.0](https://github.com/manimovassagh/Ferrodock/compare/v1.30.1...v1.31.0) - 2026-10-31
 
 ### Added
