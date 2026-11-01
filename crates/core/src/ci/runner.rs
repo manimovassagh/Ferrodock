@@ -742,6 +742,20 @@ impl<'r, 'a> JobRun<'r, 'a> {
             .collect()
     }
 
+    /// `runs-on`, with expressions like `${{ matrix.os }}` filled in.
+    fn runs_on(&self) -> Vec<String> {
+        let ctx = Context {
+            data: &self.data,
+            status: Status::Success,
+            hash_files: None,
+        };
+        self.job
+            .runs_on
+            .iter()
+            .map(|l| expr::interpolate(l, &ctx).unwrap_or_else(|_| l.clone()))
+            .collect()
+    }
+
     /// Runs the job. Returns how it ended.
     async fn go(&mut self, step_names: &[String]) -> State {
         let run = self.id();
@@ -750,7 +764,7 @@ impl<'r, 'a> JobRun<'r, 'a> {
             .job
             .container
             .is_none()
-            .then(|| image::ubuntu_for(&self.job.runs_on))
+            .then(|| image::ubuntu_for(&self.runs_on()))
             && let Err(why) = ubuntu
         {
             self.log(
@@ -825,13 +839,13 @@ impl<'r, 'a> JobRun<'r, 'a> {
                 image
             }
             None => {
-                let ubuntu = image::ubuntu_for(&self.job.runs_on)
+                let ubuntu = image::ubuntu_for(&self.runs_on())
                     .map_err(|e| format!("This job can't run here: {e}."))?;
                 self.info(
                     0,
                     format!(
                         "Runner: Ubuntu {ubuntu} (runs-on: {})",
-                        self.job.runs_on.join(", ")
+                        self.runs_on().join(", ")
                     ),
                 );
                 let mut lines = Vec::new();

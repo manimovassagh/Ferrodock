@@ -85,7 +85,19 @@ fn describe(error: &NSError) -> String {
 /// there.
 pub struct Machine {
     queue: DispatchRetained<DispatchQueue>,
-    vm: Retained<VZVirtualMachine>,
+    /// Released on `queue` when the machine goes (see `Drop`).
+    vm: std::mem::ManuallyDrop<Retained<VZVirtualMachine>>,
+}
+
+/// The VM must be let go of on its queue, like every other call on it:
+/// released elsewhere (the main thread, as Ferrodock quits), the framework
+/// can stop the app, which macOS then reports as a crash.
+impl Drop for Machine {
+    fn drop(&mut self) {
+        // SAFETY: `vm` isn't used again; this is the only place it's taken.
+        let vm = Shared(unsafe { std::mem::ManuallyDrop::take(&mut self.vm) });
+        self.queue.exec_sync(move || drop(vm));
+    }
 }
 
 // SAFETY: the VM object is only used on `queue` (every method below goes
@@ -105,7 +117,10 @@ impl Machine {
                 &queue,
             )
         };
-        Ok(Self { queue, vm })
+        Ok(Self {
+            queue,
+            vm: std::mem::ManuallyDrop::new(vm),
+        })
     }
 
     /// Runs `work` on the VM's queue and waits for its result. None if
@@ -116,7 +131,7 @@ impl Machine {
         work: impl FnOnce(&VZVirtualMachine) -> R + Send + 'static,
     ) -> Option<R> {
         let (tx, rx) = mpsc::channel();
-        let vm = Shared(self.vm.clone());
+        let vm = Shared(Retained::clone(&self.vm));
         self.queue.exec_async(move || {
             let vm = vm;
             let _ = tx.send(work(&vm.0));
