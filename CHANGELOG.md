@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.35.2](https://github.com/manimovassagh/Ferrodock/compare/v1.35.1...v1.35.2) - 2026-11-01
+
+### Documentation
+
+- refresh the README demo, video and screenshots ([#307](https://github.com/manimovassagh/Ferrodock/pull/307))
+
 ## [1.35.1](https://github.com/manimovassagh/Ferrodock/compare/v1.35.0...v1.35.1) - 2026-11-01
 
 ### Fixed
