@@ -32,6 +32,8 @@ while idle. It's free and open source under the MIT License.
   computer.
 - **Kubernetes**: a local cluster only when you want one, ready for
   `kubectl`.
+- **Local CI**: run a project's GitHub Actions workflows here, step by step
+  with live logs, before you push.
 - **Volumes and networks**: create, browse, connect and clean up.
 - **Disk**: see where the space goes and free it safely.
 

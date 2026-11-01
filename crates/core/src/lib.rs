@@ -13,6 +13,7 @@ mod actions;
 mod browse;
 mod build;
 pub mod builtin;
+pub mod ci;
 mod compose;
 pub mod compose_cli;
 pub mod compose_install;

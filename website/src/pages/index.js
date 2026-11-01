@@ -286,6 +286,12 @@ const SHOWCASE = [
     alt: "A Kubernetes cluster's terminal with kubectl in Ferrodock",
   },
   {
+    title: "Your CI, before you push",
+    text: "Run a project's GitHub Actions workflows on your own computer. Jobs run in containers step by step, with services, matrices, secrets and artifacts, and live logs in a view like GitHub's.",
+    src: "/img/local-ci.png",
+    alt: "A Local CI run in Ferrodock: its jobs, and a job's steps and log",
+  },
+  {
     title: "Win back your disk space",
     text: "See how much images, containers, volumes and build cache take, and free it in one step, with a preview of exactly what goes.",
     src: "/img/disk.png",

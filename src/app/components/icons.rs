@@ -35,6 +35,8 @@ pub enum Icon {
     HardDrive,
     /// A ship's wheel in a heptagon: Kubernetes.
     Wheel,
+    /// Three jobs joined into a pipeline: Local CI.
+    Workflow,
 }
 
 /// Paints `icon` filling `rect` (drawn on a 24-unit grid).
@@ -223,6 +225,20 @@ pub fn paint(painter: &egui::Painter, rect: Rect, icon: Icon, color: Color32) {
             shapes.extend((0..7).map(|k| line(&[at(k, 2.0), at(k, 7.0)])));
             shapes
         }
+        Icon::Workflow => vec![
+            circle(p(6.0, 6.0), 2.6),
+            circle(p(6.0, 18.0), 2.6),
+            circle(p(18.0, 12.0), 2.6),
+            line(&[p(6.0, 8.6), p(6.0, 15.4)]),
+            line(&[
+                p(8.6, 6.0),
+                p(11.0, 6.0),
+                p(13.0, 8.0),
+                p(13.0, 12.0),
+                p(15.4, 12.0),
+            ]),
+            line(&[p(8.6, 18.0), p(11.0, 18.0), p(13.0, 16.0), p(13.0, 12.0)]),
+        ],
         Icon::HardDrive => vec![
             Shape::rect_stroke(
                 Rect::from_min_max(p(3.0, 12.5), p(21.0, 19.5)),

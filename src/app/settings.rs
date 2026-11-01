@@ -52,6 +52,8 @@ pub struct Settings {
     pub engine: Option<String>,
     /// Compose files brought up from Ferrodock, newest first.
     pub recent_compose: Vec<String>,
+    /// Project folders run with Local CI, newest first.
+    pub recent_ci: Vec<String>,
     /// Show a system notification when a container crashes or runs out
     /// of memory while Ferrodock isn't in front.
     pub notify_crashes: bool,
@@ -85,6 +87,7 @@ impl Default for Settings {
             close_to_tray: true,
             engine: None,
             recent_compose: Vec::new(),
+            recent_ci: Vec::new(),
             notify_crashes: true,
             start_engine: true,
             engine_app: None,
@@ -109,6 +112,14 @@ impl Settings {
             self.recent_compose.insert(0, file);
         }
         self.recent_compose.truncate(Self::RECENT);
+    }
+
+    /// Puts a project run with Local CI first in the recent list.
+    pub fn remember_ci_project(&mut self, project: &std::path::Path) {
+        let project = project.display().to_string();
+        self.recent_ci.retain(|f| *f != project);
+        self.recent_ci.insert(0, project);
+        self.recent_ci.truncate(Self::RECENT);
     }
 
     /// What Ferrodock's engine gets: the chosen CPUs, memory and disk,

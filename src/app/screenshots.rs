@@ -1134,3 +1134,128 @@ fn screenshots_of_kubernetes() {
     h.run_steps(3);
     save(&mut h, "kubernetes-new");
 }
+
+/// Clicks where a widget is, for rows that take the click themselves.
+fn press(h: &mut Harness<'static, FerrodockApp>, label: &str) {
+    let at = h.get_by_label(label).rect().center();
+    h.event(egui::Event::PointerMoved(at));
+    for pressed in [true, false] {
+        h.event(egui::Event::PointerButton {
+            pos: at,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: egui::Modifiers::NONE,
+        });
+    }
+    h.run_steps(3);
+}
+
+/// A project made for the Local CI shots: lint, then tests on a matrix,
+/// then a build that uploads an artifact.
+fn ci_project() -> std::path::PathBuf {
+    let dir = std::env::temp_dir().join("ferrodock-shots").join("shop");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join(".github/workflows")).unwrap();
+    std::fs::create_dir_all(dir.join("src")).unwrap();
+    std::fs::write(dir.join("src/app.js"), "export const app = 1;\n").unwrap();
+    std::fs::write(dir.join("package.json"), "{\"name\": \"shop\"}\n").unwrap();
+    std::fs::write(
+        dir.join(".github/workflows/ci.yml"),
+        r#"name: CI
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      level:
+        description: How much the tests print
+        type: choice
+        options: [info, debug]
+        default: info
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check formatting
+        run: |
+          echo "::group::Files checked"
+          find src -type f
+          echo "::endgroup::"
+          echo "All files are formatted"
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        suite: [unit, integration]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run ${{ matrix.suite }} tests
+        env:
+          API_TOKEN: ${{ secrets.API_TOKEN }}
+        run: |
+          echo "Running the ${{ matrix.suite }} suite"
+          for t in cart checkout orders payments search; do
+            echo -e "test $t ... \e[32mok\e[0m"
+          done
+          echo "::warning file=src/app.js,line=1::The cart test is slow"
+          echo "5 passed, 0 failed"
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          mkdir -p dist && cp src/app.js dist/
+          echo "Built dist/app.js"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+  release-mac:
+    runs-on: macos-latest
+    steps:
+      - run: echo "Signed"
+"#,
+    )
+    .unwrap();
+    dir
+}
+
+/// The Local CI page: a project's workflows, the Run dialog, and a run.
+/// Needs the runner image (made by the first run, or `cargo test -p
+/// ferrodock-core live_daemon_runs_a_workflow -- --ignored`).
+#[test]
+#[ignore]
+fn screenshots_of_local_ci() {
+    let project = ci_project();
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(2));
+    set_theme(&mut h, Theme::Light);
+    h.state_mut().settings.recent_ci = vec![project.display().to_string()];
+    let page = h
+        .state()
+        .pages
+        .iter()
+        .position(|p| p.title() == "Local CI")
+        .unwrap();
+    open(&mut h, page, None);
+    save(&mut h, "local-ci");
+    click(&mut h, "Run…");
+    save(&mut h, "local-ci-run");
+    click(&mut h, "Run");
+    let start = Instant::now();
+    while start.elapsed() < Duration::from_secs(300) {
+        settle(&mut h, Duration::from_millis(500));
+        let ci = &h.state().store.ci;
+        if !ci.runs.is_empty() && ci.running() == 0 {
+            break;
+        }
+    }
+    settle(&mut h, Duration::from_millis(500));
+    press(&mut h, "test (unit)");
+    press(&mut h, "Run unit tests");
+    save(&mut h, "local-ci-run-view");
+}
