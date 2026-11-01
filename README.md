@@ -19,7 +19,7 @@ containers, images, volumes, networks and Compose, plus a CLI and an MCP server 
 **[Website](https://manimovassagh.github.io/Ferrodock/)** ·
 **[Documentation](https://manimovassagh.github.io/Ferrodock/docs)**
 
-<img src="docs/screenshots/demo.gif" alt="Ferrodock in action: containers grouped by Compose project, live logs and stats of a container, the command palette, and Quick start">
+<img src="docs/screenshots/demo.gif" alt="Ferrodock in action: containers grouped by Compose project, live logs and stats of a container, the command palette, Quick start, Linux machines, Kubernetes, and a GitHub Actions workflow run in Local CI">
 
 </div>
 

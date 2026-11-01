@@ -813,10 +813,13 @@ fn pointer_gone(h: &mut Harness<'static, FerrodockApp>) {
 ///
 /// Looks best with a Compose project running (e.g. nginx with a published
 /// port that gets requests, Redis, Postgres) and a container on its own.
+/// It runs a workflow in Local CI too, so it needs the runner image.
 #[test]
 #[ignore]
 fn demo_frames() {
+    let project = ci_project();
     let mut h = harness();
+    h.state_mut().settings.recent_ci = vec![project.display().to_string()];
     settle(&mut h, Duration::from_secs(3));
     set_theme(&mut h, Theme::Light);
     open(&mut h, 0, None);
@@ -878,6 +881,57 @@ fn demo_frames() {
     h.key_press(egui::Key::Enter);
     settle(&mut h, Duration::from_millis(800));
     r.frame(&mut h, 2400);
+
+    // What's under START: Linux machines, Kubernetes, Local CI.
+    let page = |h: &Harness<'static, FerrodockApp>, title: &str| {
+        h.state()
+            .pages
+            .iter()
+            .position(|p| p.title() == title)
+            .unwrap()
+    };
+    hover(&mut h, "Linux machines");
+    r.frame(&mut h, 350);
+    let machines = page(&h, "Linux machines");
+    h.state_mut().open_page(machines);
+    pointer_gone(&mut h);
+    settle(&mut h, Duration::from_millis(400));
+    r.frame(&mut h, 2200);
+    hover(&mut h, "Kubernetes");
+    r.frame(&mut h, 350);
+    let kube = page(&h, "Kubernetes");
+    h.state_mut().open_page(kube);
+    pointer_gone(&mut h);
+    settle(&mut h, Duration::from_millis(400));
+    r.frame(&mut h, 1800);
+
+    // A workflow, run here as GitHub would.
+    hover(&mut h, "Local CI");
+    r.frame(&mut h, 350);
+    let ci = page(&h, "Local CI");
+    h.state_mut().open_page(ci);
+    pointer_gone(&mut h);
+    settle(&mut h, Duration::from_millis(600));
+    r.frame(&mut h, 1400);
+    click(&mut h, "Run workflow");
+    pointer_gone(&mut h);
+    r.frame(&mut h, 1600);
+    click(&mut h, "Run");
+    pointer_gone(&mut h);
+    let start = Instant::now();
+    while start.elapsed() < Duration::from_secs(120) {
+        settle(&mut h, Duration::from_millis(300));
+        r.frame(&mut h, 300);
+        let ci = &h.state().store.ci;
+        if !ci.runs.is_empty() && ci.running() == 0 {
+            break;
+        }
+    }
+    r.frame(&mut h, 1000);
+    press(&mut h, "test (unit)");
+    press(&mut h, "Run unit tests");
+    pointer_gone(&mut h);
+    r.frame(&mut h, 3200);
 
     // Back to the list.
     hover(&mut h, "Containers");
