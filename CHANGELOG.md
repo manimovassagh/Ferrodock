@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.35.3](https://github.com/manimovassagh/Ferrodock/compare/v1.35.2...v1.35.3) - 2026-11-01
+
+### Fixed
+
+- *(ci)* runner image like GitHub's; skip matrix macOS/Windows jobs; macOS quit crash ([#311](https://github.com/manimovassagh/Ferrodock/pull/311))
+
 ## [1.35.2](https://github.com/manimovassagh/Ferrodock/compare/v1.35.1...v1.35.2) - 2026-11-01
 
 ### Documentation
