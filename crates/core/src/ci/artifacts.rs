@@ -23,7 +23,15 @@ impl DockerClient {
     /// Saves the artifact `name` of `run` as `<name>.tar` in `dir`. Returns
     /// the file.
     pub async fn save_artifact(&self, run: u64, name: &str, dir: &Path) -> Result<PathBuf, String> {
-        let image = crate::debug_image();
+        // Any image will do for a container that's never started: the
+        // runner image is here already after a run, so nothing is pulled.
+        let mut image = crate::debug_image();
+        for ubuntu in ["24.04", "22.04"] {
+            if self.has_image(&super::image::tag(ubuntu)).await {
+                image = super::image::tag(ubuntu);
+                break;
+            }
+        }
         if !self.has_image(&image).await {
             self.pull(&image, |_| {}).await?;
         }

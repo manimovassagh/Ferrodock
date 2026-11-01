@@ -171,6 +171,12 @@ pub enum Command {
         #[arg(long)]
         no_data: bool,
     },
+    /// Run a project's GitHub Actions workflows here, as GitHub would
+    /// (Local CI).
+    Ci {
+        #[command(subcommand)]
+        command: CiCommand,
+    },
     /// List engines and show which one is used.
     Engine {
         #[command(subcommand)]
@@ -183,6 +189,39 @@ pub enum EngineCommand {
     /// Start the engine (Ferrodock's own by opening Ferrodock) and wait
     /// until it answers.
     Start,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum CiCommand {
+    /// List the project's workflows.
+    List {
+        /// The project (a folder with .github/workflows).
+        #[arg(long, short = 'C', default_value = ".")]
+        project: PathBuf,
+    },
+    /// Run a workflow, printing its jobs' logs. Fails when the run fails.
+    Run {
+        /// The workflow: its file (ci.yml) or its name. Optional when the
+        /// project has only one.
+        workflow: Option<String>,
+        /// The project (a folder with .github/workflows).
+        #[arg(long, short = 'C', default_value = ".")]
+        project: PathBuf,
+        /// What it runs as: push, pull_request or workflow_dispatch.
+        #[arg(long, short = 'e')]
+        event: Option<String>,
+        /// An input of a manual run; repeatable.
+        #[arg(long = "input", value_name = "NAME=VALUE", value_parser = key_value)]
+        inputs: Vec<(String, String)>,
+        /// A secret, as NAME=VALUE, or NAME to take it from the environment;
+        /// repeatable. Secrets saved in Ferrodock for the project are used
+        /// too.
+        #[arg(long = "secret", value_name = "NAME[=VALUE]")]
+        secrets: Vec<String>,
+        /// Save the run's artifacts in this folder (as .tar files).
+        #[arg(long, value_name = "DIR")]
+        artifacts: Option<PathBuf>,
+    },
 }
 
 #[derive(Debug, Subcommand)]

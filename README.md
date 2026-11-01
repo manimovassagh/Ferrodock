@@ -50,8 +50,10 @@ that instead.
   minute, with worker nodes, `kubectl` set up and local images loaded in one
   click. Nothing runs until you create one.
 - **Local CI**: run a project's GitHub Actions workflows on your computer
-  before you push. Jobs run in containers, step by step, with live logs,
-  services, matrices, secrets and artifacts, in a view like GitHub's.
+  before you push, in the app or with `fdock ci run`. Jobs run in
+  containers, step by step, with live logs, services, matrices, secrets,
+  artifacts, and actions from GitHub (JavaScript and composite), in a view
+  like GitHub's.
 - **Volumes and networks**: create them, browse a volume's files, connect
   and disconnect containers.
 - **Disk**: see where the space goes and free it in one step, with a preview
@@ -156,7 +158,7 @@ and [Connecting to other engines](https://manimovassagh.github.io/Ferrodock/docs
 Ferrodock comes with two more programs, built on the same Rust core:
 
 - **`fdock`**, the command line: `fdock ps`, `fdock logs web -f`,
-  `fdock quickstart postgres`, `fdock df` and more. Every command takes
+  `fdock quickstart postgres`, `fdock ci run`, `fdock df` and more. Every command takes
   `--json` for compact output that scripts and AI tools read cheaply.
 - **`ferrodock-mcp`**, an [MCP](https://modelcontextprotocol.io) server, so
   AI tools can list containers, read logs, start services and clean up.

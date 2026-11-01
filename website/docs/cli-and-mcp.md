@@ -59,6 +59,7 @@ fdock build . -t my-app:1.0 --build-arg VERSION=1.0
 fdock df                         # disk usage
 fdock clean images build-cache   # free space; see below
 fdock compose up ./shop          # also down, restart, logs [-f]
+fdock ci run ci.yml              # a GitHub Actions workflow, run here
 fdock engine                     # the engines, and which one is used
 fdock engine start               # start it, and wait until it answers
 fdock reset --yes                # remove everything; see below
@@ -72,6 +73,26 @@ engine `fdock` uses. That's the `docker compose` command when there is one;
 without it (as with only Ferrodock's own engine), `fdock` downloads
 Ferrodock's copy of Compose once, the same one the app uses. `up` starts the
 services in the background; `logs -f` keeps printing new output.
+
+### Local CI
+
+`fdock ci list` lists a project's workflows, and `fdock ci run` runs one the
+way the [Local CI](./using/local-ci.md) page does, printing each step's log
+as it comes. Both look in the current folder; `-C` names another project.
+
+```bash
+fdock ci run                                 # the only workflow, as a push
+fdock ci run deploy.yml -e workflow_dispatch --input target=staging
+fdock ci run --secret NPM_TOKEN --secret API_KEY=abc --artifacts ./out
+```
+
+Name the workflow by its file or its name; it can be left out when there's
+just one. `--secret NAME` takes the value from your environment; the secrets
+saved for the project in Ferrodock are used too. `--artifacts DIR` saves
+what the run uploaded. It fails (exit code 1) when the run fails, so it
+works in scripts and Git hooks, and `--json` prints a summary of every job
+and step, with the error lines. Ctrl-C stops the run and removes its
+containers.
 
 ### Cleaning up
 

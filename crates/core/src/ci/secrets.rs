@@ -4,14 +4,9 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-/// `~/.ferrodock/ci-secrets.json` (on Windows, in local app data).
+/// `ci-secrets.json` in Ferrodock's folder.
 fn file() -> Option<PathBuf> {
-    let dir = if cfg!(windows) {
-        PathBuf::from(std::env::var_os("LOCALAPPDATA")?).join("Ferrodock")
-    } else {
-        PathBuf::from(std::env::var_os("HOME")?).join(".ferrodock")
-    };
-    Some(dir.join("ci-secrets.json"))
+    Some(super::data_dir()?.join("ci-secrets.json"))
 }
 
 type All = BTreeMap<String, Vec<(String, String)>>;

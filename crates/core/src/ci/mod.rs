@@ -12,6 +12,9 @@
 //! - [`context`] is the `github` context, from the project's `.git`.
 //! - [`workspace`] is the project as a job sees it, and `hashFiles`.
 //! - [`runner`] runs a workflow: its jobs in containers, step by step.
+//! - [`fetch`] downloads actions from GitHub; [`metadata`] reads their
+//!   `action.yml`.
+//! - `external` runs those actions: JavaScript ones, and composite ones.
 //! - [`artifacts`] saves what a run uploaded.
 //! - [`secrets`] keeps the secrets of local runs, per project.
 
@@ -20,8 +23,11 @@ pub mod artifacts;
 pub mod commands;
 pub mod context;
 pub mod expr;
+mod external;
+pub mod fetch;
 pub mod image;
 pub mod matrix;
+pub mod metadata;
 pub mod runner;
 pub mod secrets;
 pub mod workflow;
@@ -29,6 +35,16 @@ pub mod workspace;
 
 pub use runner::{RunRequest, cancel_run, run_workflow};
 pub use workflow::{Workflow, find_workflows};
+
+/// Ferrodock's own folder: `~/.ferrodock` (on Windows, in local app data).
+pub fn data_dir() -> Option<std::path::PathBuf> {
+    use std::path::PathBuf;
+    Some(if cfg!(windows) {
+        PathBuf::from(std::env::var_os("LOCALAPPDATA")?).join("Ferrodock")
+    } else {
+        PathBuf::from(std::env::var_os("HOME")?).join(".ferrodock")
+    })
+}
 
 /// What the app asks of Local CI.
 #[derive(Debug, Clone, PartialEq)]

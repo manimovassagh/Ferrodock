@@ -25,6 +25,8 @@ tar.workspace = true
 tokio.workspace = true
 # Downloading Docker Compose where there's no `docker` command.
 ureq.workspace = true
+# Downloads trust the system's certificates, company ones included.
+rustls-native-certs = "0.8.5"
 
 # Contexts over SSH run the system's ssh, which bollard supports on Unix.
 [target.'cfg(unix)'.dependencies]
