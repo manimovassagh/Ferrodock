@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.35.1](https://github.com/manimovassagh/Ferrodock/compare/v1.35.0...v1.35.1) - 2026-11-01
+
+### Fixed
+
+- compact Local CI page; no crash report after updating on macOS ([#305](https://github.com/manimovassagh/Ferrodock/pull/305))
+
 ## [1.35.0](https://github.com/manimovassagh/Ferrodock/compare/v1.34.0...v1.35.0) - 2026-11-01
 
 ### Added
