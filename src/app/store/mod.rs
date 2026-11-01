@@ -3,11 +3,13 @@
 //! The store is fed by worker responses and read by the pages. It holds no
 //! UI state of its own.
 
+mod ci;
 mod compose;
 mod files;
 mod live;
 mod terminal;
 
+pub use ci::{CiRuns, JobRun, Run as CiRun, StepRun, elapsed};
 pub use compose::{ComposeJobs, Job};
 pub use files::FileView;
 pub use terminal::Terminal;
@@ -78,6 +80,11 @@ pub struct Store {
     /// Compose files brought up from Ferrodock, newest first (a copy of
     /// the setting, for the Compose page).
     pub recent_compose: Vec<String>,
+    /// Local CI runs of this session.
+    pub ci: CiRuns,
+    /// Project folders run with Local CI, newest first (a copy of the
+    /// setting).
+    pub recent_ci: Vec<String>,
     /// Engines to choose from, and the name of the one in use.
     pub engines: Vec<Engine>,
     pub engine: Option<String>,
@@ -142,6 +149,8 @@ impl Store {
             search: None,
             compose: ComposeJobs::default(),
             recent_compose: Vec::new(),
+            ci: CiRuns::default(),
+            recent_ci: Vec::new(),
             engines: Vec::new(),
             engine: None,
             volume_browser: None,
@@ -223,6 +232,23 @@ impl Store {
                     Some(entry) => entry.1 = progress,
                     None => self.pulls.push((image, progress)),
                 }
+            }
+            Response::Ci(event) => {
+                if let Some((text, is_error)) = self.ci.apply(event) {
+                    return Some(Notice {
+                        text,
+                        is_error,
+                        alert: is_error,
+                    });
+                }
+            }
+            Response::CiSaved(result) => {
+                let is_error = result.is_err();
+                return Some(Notice {
+                    text: result.unwrap_or_else(|e| e),
+                    is_error,
+                    ..Default::default()
+                });
             }
             Response::ComposeOutput { job, lines } => self.compose.output(job, lines),
             Response::ComposeDone { job, error } => {
@@ -325,9 +351,12 @@ impl Store {
                 // Which engines there are doesn't depend on reaching one,
                 // and switching is how to get out of a dead engine.
                 let (engines, engine) = (std::mem::take(&mut self.engines), self.engine.take());
+                let ci = std::mem::take(&mut self.ci);
                 *self = Self::new();
                 self.engines = engines;
                 self.engine = engine;
+                // The runs stay, to read.
+                self.ci = ci;
                 self.connection = Connection::Disconnected { reason };
             }
             Response::Done { task, freed } => {

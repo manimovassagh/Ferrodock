@@ -465,6 +465,20 @@ impl FerrodockApp {
                 }
             }
             Intent::ClearSearch => self.search.clear(),
+            Intent::Ci(op) => {
+                use crate::docker::ci::CiOp;
+                let op = match op {
+                    CiOp::Run(mut request) => {
+                        self.settings.remember_ci_project(&request.project);
+                        for old in self.store.ci.started(&mut request) {
+                            self.worker.send(Request::Ci(CiOp::Forget(old)));
+                        }
+                        CiOp::Run(request)
+                    }
+                    other => other,
+                };
+                self.worker.send(Request::Ci(op));
+            }
             Intent::OpenComposeFile => {
                 // The Compose page first: its path box works where the
                 // system has no file picker (some Linux desktops).
@@ -530,6 +544,7 @@ impl eframe::App for FerrodockApp {
         self.store
             .recent_compose
             .clone_from(&self.settings.recent_compose);
+        self.store.recent_ci.clone_from(&self.settings.recent_ci);
         let p = theme::palette(ui);
         if !self.overlay_open() {
             for shortcut in keys::read(ui.ctx()) {

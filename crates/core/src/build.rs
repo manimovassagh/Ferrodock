@@ -96,10 +96,20 @@ pub fn context_tar(dir: &Path, dockerfile: &str) -> Result<Vec<u8>, String> {
     let ignore = std::fs::read_to_string(dir.join(".dockerignore"))
         .map(|text| Ignore::parse(&text))
         .unwrap_or_default();
+    let keep = |path: &str| path == dockerfile || path == ".dockerignore" || !ignore.excludes(path);
+    folder_tar(dir, &ignore, &keep)
+}
+
+/// `dir` as a tar of the paths `keep` says yes to, looking into excluded
+/// folders only where `ignore` could bring something back.
+pub(crate) fn folder_tar(
+    dir: &Path,
+    ignore: &Ignore,
+    keep: &dyn Fn(&str) -> bool,
+) -> Result<Vec<u8>, String> {
     let mut tar = tar::Builder::new(Vec::new());
     tar.follow_symlinks(false);
-    let keep = |path: &str| path == dockerfile || path == ".dockerignore" || !ignore.excludes(path);
-    add_dir(&mut tar, dir, "", &ignore, &keep)?;
+    add_dir(&mut tar, dir, "", ignore, keep)?;
     tar.into_inner().map_err(|e| e.to_string())
 }
 

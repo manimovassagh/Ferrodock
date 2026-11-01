@@ -3,6 +3,7 @@
 //! The UI thread never blocks: it sends [`Request`]s and drains
 //! [`Response`]s once per frame.
 
+mod ci;
 mod compose;
 mod dedup;
 mod files;
@@ -102,6 +103,8 @@ pub enum Request {
     UseEngine(Engine),
     /// Run `docker compose`.
     Compose(ComposeOp),
+    /// Run a workflow locally, stop one, or save what it made.
+    Ci(crate::docker::ci::CiOp),
     /// Start the engine (it isn't running).
     StartEngine(Starter),
     /// Find which app serves the engine at this host (macOS).
@@ -157,6 +160,10 @@ pub enum Response {
         job: u64,
         lines: Vec<String>,
     },
+    /// How a Local CI run is going.
+    Ci(crate::docker::ci::CiEvent),
+    /// An artifact was saved (where), or why it wasn't.
+    CiSaved(Result<String, String>),
     /// A `docker compose` job ended; `error` says why when it failed.
     ComposeDone {
         job: u64,
@@ -384,11 +391,13 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
             }
         };
         if client.is_none() {
-            // Helpers left from browsing volumes in an earlier run.
+            // Helpers left from browsing volumes, and runs of Local CI, in an
+            // earlier session.
             let docker = docker.clone();
             tokio::spawn(async move {
                 let _ = docker.remove_helpers(None).await;
                 let _ = docker.remove_debug_helpers().await;
+                docker.remove_ci_leftovers().await;
             });
         }
         client = Some(docker.clone());
@@ -481,6 +490,7 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
             }
             Request::Terminal(op) => terminals.handle(&docker, &shared, op),
             Request::Compose(op) => compose_jobs.handle(&docker, &shared, engine.clone(), op),
+            Request::Ci(op) => ci::handle(&docker, &shared, op),
             Request::Image(op) => {
                 tokio::spawn(async move { images::handle(&docker, &shared, op).await });
             }

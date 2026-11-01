@@ -12,6 +12,18 @@ pull request and without being asked:
   for anything new and visible.
 - Screenshots when the UI changed (`src/app/screenshots.rs`).
 
+## Code layout
+
+Keep the structure flat and modular, so the code reads easily and stays
+easy to maintain:
+
+- One folder per feature in each layer, e.g. `crates/core/src/ci/`,
+  `src/app/pages/ci/`, with a store file (`src/app/store/ci.rs`) and a
+  worker file (`src/worker/ci.rs`) when it needs them.
+- Inside a feature folder, flat files by responsibility (`workflow.rs`,
+  `runner.rs`, `run_view.rs`…). No folders inside folders.
+- A `mod.rs` starts with a short note on what each file does.
+
 ## Wording
 
 - Ferrodock is "the native container manager, written in Rust". Never call

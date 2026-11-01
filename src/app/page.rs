@@ -55,6 +55,8 @@ pub enum Intent {
     Compose(ComposeOp),
     /// Pick a Compose file and bring its project up.
     OpenComposeFile,
+    /// Run a workflow locally, stop a run, or save what it made.
+    Ci(crate::docker::ci::CiOp),
 }
 
 /// A question for the user before something destructive happens.

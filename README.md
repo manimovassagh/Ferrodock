@@ -49,6 +49,9 @@ that instead.
 - **Kubernetes, only when you want it**: a local k3s cluster in under a
   minute, with worker nodes, `kubectl` set up and local images loaded in one
   click. Nothing runs until you create one.
+- **Local CI**: run a project's GitHub Actions workflows on your computer
+  before you push. Jobs run in containers, step by step, with live logs,
+  services, matrices, secrets and artifacts, in a view like GitHub's.
 - **Volumes and networks**: create them, browse a volume's files, connect
   and disconnect containers.
 - **Disk**: see where the space goes and free it in one step, with a preview
@@ -126,6 +129,7 @@ distribution.
 | Open source | ✅ MIT | ❌ | ❌ | ✅ Apache-2.0 | ✅ Apache-2.0 |
 | CLI and MCP server for AI tools, built in | ✅ | MCP Toolkit | ❌ | ❌ | ❌ |
 | Linux machines to work in | ✅ | ❌ | ✅ | ❌ | ❌ |
+| Runs GitHub Actions workflows locally | ✅ | ❌ | ❌ | ❌ | ❌ |
 
 ## Ferrodock's own engine
 
