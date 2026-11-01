@@ -36,12 +36,13 @@ pub enum Action {
 /// A row of the steps panel.
 enum Row<'a> {
     Step(usize, &'a StepRun),
-    /// A log line, its number, and whether it's in an open group.
+    /// A log line, its number, and how deep in groups it is.
     Line {
         step: usize,
         index: usize,
         number: usize,
-        nested: bool,
+        /// How many groups it's in.
+        depth: usize,
     },
     /// "N earlier lines aren't kept".
     Dropped(usize),
@@ -220,11 +221,11 @@ impl RunView {
                                     step,
                                     index,
                                     number,
-                                    nested,
+                                    depth,
                                 } => {
                                     let line = &job.steps[*step].lines[*index];
                                     let open = self.groups.contains(&(j, *step, *index));
-                                    if log_line(ui, log, &font, line, *number, *nested, open)
+                                    if log_line(ui, log, &font, line, *number, *depth, open)
                                         .clicked()
                                         && line.kind == LineKind::Group
                                     {
@@ -260,37 +261,33 @@ impl RunView {
             if step.dropped > 0 {
                 rows.push(Row::Dropped(step.dropped));
             }
-            // None outside a group; Some(open) inside one.
-            let mut group: Option<bool> = None;
+            // Whether each group the line is in is open, outermost first.
+            let mut groups: Vec<bool> = Vec::new();
             for (index, line) in step.lines.iter().enumerate() {
                 let number = step.dropped + index + 1;
+                let shown = groups.iter().all(|open| *open);
                 match line.kind {
                     LineKind::Group => {
-                        let open = self.groups.contains(&(j, i, index));
-                        group = Some(open);
-                        rows.push(Row::Line {
-                            step: i,
-                            index,
-                            number,
-                            nested: false,
-                        });
+                        if shown {
+                            rows.push(Row::Line {
+                                step: i,
+                                index,
+                                number,
+                                depth: groups.len(),
+                            });
+                        }
+                        groups.push(self.groups.contains(&(j, i, index)));
                     }
-                    LineKind::EndGroup => group = None,
-                    _ => match group {
-                        Some(false) => {}
-                        Some(true) => rows.push(Row::Line {
-                            step: i,
-                            index,
-                            number,
-                            nested: true,
-                        }),
-                        None => rows.push(Row::Line {
-                            step: i,
-                            index,
-                            number,
-                            nested: false,
-                        }),
-                    },
+                    LineKind::EndGroup => {
+                        groups.pop();
+                    }
+                    _ if shown => rows.push(Row::Line {
+                        step: i,
+                        index,
+                        number,
+                        depth: groups.len(),
+                    }),
+                    _ => {}
                 }
             }
         }
@@ -381,7 +378,7 @@ fn log_line(
     font: &egui::FontId,
     line: &crate::docker::ci::LogLine,
     number: usize,
-    nested: bool,
+    depth: usize,
     group_open: bool,
 ) -> egui::Response {
     ui.horizontal(|ui| {
@@ -395,8 +392,8 @@ fn log_line(
             )
             .selectable(false),
         );
-        if nested {
-            ui.add_space(14.0);
+        if depth > 0 {
+            ui.add_space(14.0 * depth as f32);
         }
         let (prefix, color) = match line.kind {
             LineKind::Group => (if group_open { "▾ " } else { "▸ " }, Some(p.text)),
@@ -534,6 +531,36 @@ mod tests {
         assert_eq!(view.rows(0, &job).len(), 2 + 3);
         view.toggled.insert((0, 0), true);
         assert_eq!(view.rows(0, &job).len(), 3 + 3);
+
+        // Groups in groups (a composite action using another).
+        let nested = JobRun {
+            name: "n".into(),
+            steps: vec![StepRun {
+                name: "Use action".into(),
+                state: State::Failure,
+                lines: [
+                    line("outer", LineKind::Group),
+                    line("inner", LineKind::Group),
+                    line("deep", LineKind::Output),
+                    line("", LineKind::EndGroup),
+                    line("", LineKind::EndGroup),
+                    line("after", LineKind::Output),
+                ]
+                .into(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let mut view = RunView::default();
+        // Step, "outer" (folded), "after".
+        assert_eq!(view.rows(0, &nested).len(), 3);
+        view.groups.insert((0, 0, 0));
+        // "inner" shows, still folded.
+        assert_eq!(view.rows(0, &nested).len(), 4);
+        view.groups.insert((0, 0, 1));
+        let rows = view.rows(0, &nested);
+        assert_eq!(rows.len(), 5);
+        assert!(matches!(rows[3], Row::Line { depth: 2, .. }));
 
         assert_eq!(duration(Duration::from_secs(4)), "4s");
         assert_eq!(duration(Duration::from_secs(65)), "1m 05s");

@@ -82,6 +82,19 @@ pub fn input_env(name: &str) -> String {
     format!("INPUT_{}", name.replace(' ', "_").to_uppercase())
 }
 
+/// The variables an action reads its inputs from: `INPUT_NAME_WITH_DASHES`
+/// and, as GitHub names them, `INPUT_NAME-WITH-DASHES`.
+pub fn input_envs(with: &[(String, String)]) -> Vec<(String, String)> {
+    let mut env = Vec::new();
+    for (k, v) in with {
+        env.push((input_env(k).replace('-', "_"), v.clone()));
+        if k.contains('-') {
+            env.push((input_env(k), v.clone()));
+        }
+    }
+    env
+}
+
 /// The machine, as tool downloads name it.
 const ARCH: &str = r#"arch=$(uname -m | sed 's/x86_64/x64/;s/aarch64/arm64/')"#;
 

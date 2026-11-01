@@ -57,6 +57,9 @@ impl std::fmt::Debug for RunRequest {
 
 type Emit<'a> = &'a (dyn Fn(CiEvent) + Send + Sync);
 
+/// `github.token` when the run has no GITHUB_TOKEN secret.
+pub const NO_TOKEN: &str = "ferrodock-local-ci-no-token";
+
 /// Runs asked to stop.
 static CANCELLED: Mutex<Vec<u64>> = Mutex::new(Vec::new());
 
@@ -74,10 +77,10 @@ pub async fn cancel_run(client: &DockerClient, run: u64) {
 
 /// Where the runner image keeps things; a `container:` job uses GitHub's
 /// paths for containers instead.
-struct Paths {
-    workspace: String,
+pub(super) struct Paths {
+    pub(super) workspace: String,
     home: String,
-    temp: String,
+    pub(super) temp: String,
     /// `runner` in the runner image; the image's own user otherwise.
     user: String,
 }
@@ -102,17 +105,34 @@ impl Paths {
         }
     }
 
-    fn file(&self, name: &str) -> String {
+    pub(super) fn file(&self, name: &str) -> String {
         format!("{}/_runner_file_commands/{name}", self.temp)
     }
 }
 
-struct Run<'a> {
+pub(super) struct Run<'a> {
     client: &'a DockerClient,
-    req: &'a RunRequest,
+    pub(super) req: &'a RunRequest,
     emit: Emit<'a>,
     git: GitInfo,
     next_job: AtomicUsize,
+}
+
+/// A script that runs when the job ends, e.g. saving `actions/cache`.
+pub(super) struct Post {
+    pub(super) name: String,
+    pub(super) run: PostRun,
+    pub(super) env: Vec<String>,
+    /// Its `if:`; none is `success()`.
+    pub(super) condition: Option<String>,
+}
+
+pub(super) enum PostRun {
+    /// A bash script.
+    Script(String),
+    /// A program and its arguments, run as is (no shell in between, so
+    /// variables like `INPUT_WHO-TO-GREET` reach it).
+    Command(Vec<String>),
 }
 
 /// What a finished job leaves for the jobs that need it.
@@ -307,9 +327,16 @@ impl Run<'_> {
             "",
         );
         github["job"] = Value::String(job_id.to_owned());
-        if let Some((_, token)) = self.req.secrets.iter().find(|(k, _)| k == "GITHUB_TOKEN") {
-            github["token"] = Value::String(token.clone());
-        }
+        // On GitHub there's always a token, and many actions want one. Here
+        // it's the GITHUB_TOKEN secret, or a stand-in: actions that only
+        // need one to be there run, and calls to GitHub's API are refused.
+        let token = self
+            .req
+            .secrets
+            .iter()
+            .find(|(k, _)| k == "GITHUB_TOKEN")
+            .map_or(NO_TOKEN, |(_, t)| t.as_str());
+        github["token"] = Value::String(token.to_owned());
         let mut data = Map::new();
         data.insert("github".into(), github);
         data.insert("needs".into(), needs);
@@ -503,12 +530,12 @@ impl Run<'_> {
 }
 
 /// A job (one matrix combination) while it runs.
-struct JobRun<'r, 'a> {
-    run: &'r Run<'a>,
+pub(super) struct JobRun<'r, 'a> {
+    pub(super) run: &'r Run<'a>,
     job: &'r Job,
     idx: usize,
     data: Map<String, Value>,
-    paths: Paths,
+    pub(super) paths: Paths,
     container: String,
     services: Vec<String>,
     /// The `PATH` of the image, before `GITHUB_PATH` adds to it.
@@ -517,10 +544,11 @@ struct JobRun<'r, 'a> {
     /// From `GITHUB_ENV`.
     exported: Vec<(String, String)>,
     steps: Map<String, Value>,
-    status: Status,
-    /// Scripts to run when the job ends (`actions/cache` saving): name,
-    /// script, env.
-    posts: Vec<(String, String, Vec<String>)>,
+    pub(super) status: Status,
+    /// What runs when the job ends: actions' `post` scripts.
+    pub(super) posts: Vec<Post>,
+    /// How deep in composite actions the running step is.
+    pub(super) nesting: usize,
     next_step: usize,
     /// When the job runs out of time (`timeout-minutes`, 360 by default).
     deadline: Option<Instant>,
@@ -543,6 +571,7 @@ impl<'r, 'a> JobRun<'r, 'a> {
             steps: Map::new(),
             status: Status::Success,
             posts: Vec::new(),
+            nesting: 0,
             next_step: job.steps.len() + 1,
             deadline: None,
         }
@@ -552,7 +581,7 @@ impl<'r, 'a> JobRun<'r, 'a> {
         self.run.req.run
     }
 
-    fn log(&self, step: usize, lines: Vec<LogLine>) {
+    pub(super) fn log(&self, step: usize, lines: Vec<LogLine>) {
         if !lines.is_empty() {
             self.run.emit(CiEvent::Log {
                 run: self.id(),
@@ -563,7 +592,7 @@ impl<'r, 'a> JobRun<'r, 'a> {
         }
     }
 
-    fn info(&self, step: usize, text: impl Into<String>) {
+    pub(super) fn info(&self, step: usize, text: impl Into<String>) {
         self.log(step, vec![LogLine::info(text)]);
     }
 
@@ -634,7 +663,7 @@ impl<'r, 'a> JobRun<'r, 'a> {
 
     /// The environment of a step's process: GitHub's own variables, then
     /// the workflow's.
-    fn process_env(
+    pub(super) fn process_env(
         &self,
         data: &Map<String, Value>,
         step_id: &str,
@@ -1035,13 +1064,14 @@ impl<'r, 'a> JobRun<'r, 'a> {
         self.step_state(number, State::Running);
         let continue_on_error =
             expr::interpolate(&step.continue_on_error, &ctx).is_ok_and(|v| v == "true");
-        // Inputs, as INPUT_NAME (and INPUT_NAME-WITH-DASHES, as GitHub names them).
-        let mut inputs: Vec<(String, String)> = Vec::new();
-        for (k, v) in &step.with {
-            let value = expr::interpolate(v, &ctx).unwrap_or_else(|_| v.clone());
-            inputs.push((actions::input_env(k).replace('-', "_"), value.clone()));
-            inputs.push((actions::input_env(k), value));
-        }
+        let with: Vec<(String, String)> = step
+            .with
+            .iter()
+            .map(|(k, v)| {
+                let value = expr::interpolate(v, &ctx).unwrap_or_else(|_| v.clone());
+                (k.clone(), value)
+            })
+            .collect();
         let working_dir = match step
             .working_directory
             .as_deref()
@@ -1081,7 +1111,7 @@ impl<'r, 'a> JobRun<'r, 'a> {
                     Err(e) => Err(format!("The script can't be read: {e}")),
                 },
                 (None, Some(uses)) => {
-                    self.action(number, &step_id, name, &data, uses, &inputs, &working_dir)
+                    self.action(number, &step_id, name, &data, uses, &with, &working_dir)
                         .await
                 }
                 (None, None) => Ok((0, Vec::new())),
@@ -1170,18 +1200,20 @@ impl<'r, 'a> JobRun<'r, 'a> {
         );
     }
 
-    /// A `uses:` step: one of the built-in actions.
+    /// A `uses:` step: one of the built-in actions, or one from GitHub or
+    /// the project.
     #[allow(clippy::too_many_arguments)]
-    async fn action(
+    pub(super) async fn action(
         &mut self,
         number: usize,
         step_id: &str,
         name: &str,
         data: &Map<String, Value>,
         uses: &str,
-        inputs: &[(String, String)],
+        with: &[(String, String)],
         working_dir: &str,
     ) -> Result<(i64, Vec<(String, String)>), String> {
+        let inputs = &actions::input_envs(with);
         match actions::builtin(uses) {
             Builtin::Checkout => self
                 .checkout(number, inputs)
@@ -1190,8 +1222,12 @@ impl<'r, 'a> JobRun<'r, 'a> {
             Builtin::Script { main, post } => {
                 if let Some(post) = post {
                     let env = self.process_env(data, step_id, inputs);
-                    self.posts
-                        .push((name.to_owned(), actions::script(post), env));
+                    self.posts.push(Post {
+                        name: name.to_owned(),
+                        run: PostRun::Script(actions::script(post)),
+                        env,
+                        condition: None,
+                    });
                 }
                 self.script(
                     number,
@@ -1229,14 +1265,8 @@ impl<'r, 'a> JobRun<'r, 'a> {
                 result
             }
             Builtin::Unsupported => {
-                self.log(
-                    number,
-                    vec![LogLine {
-                        text: format!("Local CI can't run {uses} yet, so this step is skipped."),
-                        kind: LineKind::Warning,
-                    }],
-                );
-                Ok((-2, Vec::new()))
+                self.external(number, step_id, name, data, uses, with, working_dir)
+                    .await
             }
         }
     }
@@ -1310,7 +1340,7 @@ impl<'r, 'a> JobRun<'r, 'a> {
     /// Runs a script with a shell. Returns its exit code and the outputs it
     /// set, after reading back the files it wrote.
     #[allow(clippy::too_many_arguments)]
-    async fn script(
+    pub(super) async fn script(
         &mut self,
         number: usize,
         step_id: &str,
@@ -1344,11 +1374,26 @@ impl<'r, 'a> JobRun<'r, 'a> {
                 .map(|w| w.replace("{0}", &file))
                 .collect(),
         };
+        self.command(number, step_id, data, &cmd, working_dir, extra)
+            .await
+    }
+
+    /// Runs a program in the job's container as a step (or part of one),
+    /// with the step's environment. Returns its exit code and outputs.
+    pub(super) async fn command(
+        &mut self,
+        number: usize,
+        step_id: &str,
+        data: &Map<String, Value>,
+        cmd: &[String],
+        working_dir: &str,
+        extra: &[(String, String)],
+    ) -> Result<(i64, Vec<(String, String)>), String> {
         let env = self.process_env(data, step_id, extra);
         let mut output = Output::new(self.masks());
         let user = self.paths.user.clone();
         let code = self
-            .exec(number, &cmd, env, &user, working_dir, &mut output)
+            .exec(number, cmd, env, &user, working_dir, &mut output)
             .await?;
         let outputs = self.read_files(number, &mut output).await;
         Ok((code, outputs))
@@ -1476,7 +1521,11 @@ impl<'r, 'a> JobRun<'r, 'a> {
     }
 
     /// Runs a command and collects what it prints.
-    async fn capture(&self, cmd: &[&str], user: &str) -> Result<(i64, String, String), String> {
+    pub(super) async fn capture(
+        &self,
+        cmd: &[&str],
+        user: &str,
+    ) -> Result<(i64, String, String), String> {
         let docker = &self.run.client.docker;
         let exec = docker
             .create_exec(
@@ -1527,6 +1576,11 @@ impl<'r, 'a> JobRun<'r, 'a> {
         tar.append_data(&mut header, name, bytes)
             .map_err(|e| e.to_string())?;
         let tar = tar.into_inner().map_err(|e| e.to_string())?;
+        self.upload(dir, tar).await
+    }
+
+    /// Unpacks a tar into a folder of the job's container.
+    pub(super) async fn upload(&self, dir: &str, tar: Vec<u8>) -> Result<(), String> {
         self.run
             .client
             .docker
@@ -1542,11 +1596,17 @@ impl<'r, 'a> JobRun<'r, 'a> {
             .map_err(describe)
     }
 
-    /// The `post` scripts of actions (`actions/cache` saving), last first,
-    /// when the job succeeded.
+    /// The `post` scripts of actions, last first, when their condition
+    /// holds (by default, when the job succeeded so far).
     async fn post_steps(&mut self) {
         let posts: Vec<_> = std::mem::take(&mut self.posts);
-        for (name, script, env) in posts.into_iter().rev() {
+        for Post {
+            name,
+            run,
+            env,
+            condition,
+        } in posts.into_iter().rev()
+        {
             let number = self.next_step;
             self.next_step += 1;
             self.run.emit(CiEvent::Step {
@@ -1555,27 +1615,34 @@ impl<'r, 'a> JobRun<'r, 'a> {
                 step: number,
                 name: format!("Post {name}"),
             });
-            if self.status != Status::Success {
+            let data = self.ctx_data(&[]);
+            let ctx = Context {
+                data: &data,
+                status: self.status,
+                hash_files: None,
+            };
+            if !expr::condition(condition.as_deref(), &ctx).unwrap_or(false) {
                 self.step_state(number, State::Skipped);
                 continue;
             }
             self.step_state(number, State::Running);
-            let file = format!("{}/post-{number}.sh", self.paths.temp);
-            let (dir, base) = file.rsplit_once('/').unwrap_or((".", "post.sh"));
-            let state = match self.put_file(dir, base, script.as_bytes()).await {
-                Ok(()) => {
+            let cmd = match run {
+                PostRun::Command(cmd) => Ok(cmd),
+                PostRun::Script(script) => {
+                    let file = format!("{}/post-{number}.sh", self.paths.temp);
+                    let (dir, base) = file.rsplit_once('/').unwrap_or((".", "post.sh"));
+                    self.put_file(dir, base, script.as_bytes())
+                        .await
+                        .map(|()| vec!["bash".into(), "-e".into(), file.clone()])
+                }
+            };
+            let state = match cmd {
+                Ok(cmd) => {
                     let mut output = Output::new(self.masks());
                     let user = self.paths.user.clone();
                     let workspace = self.paths.workspace.clone();
                     match self
-                        .exec(
-                            number,
-                            &["bash".into(), "-e".into(), file.clone()],
-                            env,
-                            &user,
-                            &workspace,
-                            &mut output,
-                        )
+                        .exec(number, &cmd, env, &user, &workspace, &mut output)
                         .await
                     {
                         Ok(0) => State::Success,
@@ -1833,7 +1900,8 @@ jobs:
           name: out
           path: out/
       - name: Unknown action
-        uses: someone/thing@v1
+        uses: ferrodock-test/no-such-action@v1
+        continue-on-error: true
   test:
     needs: build
     runs-on: ubuntu-latest
@@ -1970,6 +2038,12 @@ jobs:
         );
         assert!(report.contains("ran after failure"), "{report}");
         assert!(report.contains("runner"), "{report}");
+        // An action that can't be had fails its step, as on GitHub.
+        assert!(
+            report.contains("ferrodock-test/no-such-action@v1 couldn't be downloaded")
+                || report.contains("ferrodock-test/no-such-action@v1 wasn't found"),
+            "{report}"
+        );
 
         // The artifact can be saved, then it goes with the run.
         let saved = client.save_artifact(4242, "out", &project).await.unwrap();

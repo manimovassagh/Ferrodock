@@ -74,14 +74,43 @@ folder (as a `.tar`).
   (`${{ … }}`) with the usual functions, `hashFiles` included.
   `GITHUB_ENV`, `GITHUB_OUTPUT`, `GITHUB_PATH` and `GITHUB_STEP_SUMMARY`
   work.
+- **Actions from GitHub**, like `actions/github-script@v7` or
+  `owner/repo/path@v1`, and from the project (`./.github/actions/x`):
+  - JavaScript actions run with Node.js, with their `pre` and `post`
+    scripts, inputs and their defaults, outputs and saved state.
+  - Composite actions run their steps inside the step that uses them, each
+    in a group of its log, with `inputs`, outputs and nested actions.
 - **Actions built in**: `actions/checkout` (your working copy, as a clone
   would have it: what `.gitignore` leaves out stays out),
   `actions/setup-node`, `setup-python`, `setup-go`, `setup-java`,
   `dtolnay/rust-toolchain`, `actions/cache` (kept between runs on this
   computer), and `actions/upload-artifact` / `download-artifact`.
 
-Other actions, and reusable workflows (`uses:` on a job), are skipped with
-a warning for now.
+Docker actions (`using: docker`, `docker://image`) and reusable workflows
+(`uses:` on a job) are skipped with a warning for now.
+
+### Actions from GitHub
+
+An action is downloaded from GitHub once, into Ferrodock's folder
+(`~/.ferrodock/ci-actions`); a tag or branch like `v4` is fetched again
+after a day, a commit SHA never. Downloads trust your system's certificates,
+so they work behind a company proxy too.
+
+On GitHub every run has a token. Here, add a `GITHUB_TOKEN` secret (a
+personal access token) for actions that call GitHub's API, or that come from
+private repositories. Without one, `github.token` is a stand-in: actions that
+only need it to be there run, and calls to GitHub are refused.
+
+## On the command line
+
+`fdock ci run` runs a workflow from a terminal, a script or a Git hook,
+with the same engine and the same secrets:
+
+```bash
+fdock ci run ci.yml --secret NPM_TOKEN --artifacts ./out
+```
+
+See [fdock](../cli-and-mcp.md#local-ci) for everything it takes.
 
 ## Clean up
 
