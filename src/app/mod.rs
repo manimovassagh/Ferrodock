@@ -528,8 +528,12 @@ impl eframe::App for FerrodockApp {
     }
 
     /// Ferrodock's own engine runs inside Ferrodock: shut it down cleanly.
+    /// This runs as the app quits, inside the system's event loop, where a
+    /// panic can't unwind and would end in a crash report: whatever goes
+    /// wrong stopping the engine, quitting goes on.
     fn on_exit(&mut self) {
-        self.engine_starter.builtin.stop();
+        let builtin = &self.engine_starter.builtin;
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| builtin.stop()));
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {

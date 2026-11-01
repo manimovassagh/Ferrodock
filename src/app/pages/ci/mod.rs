@@ -35,6 +35,8 @@ pub struct CiPage {
     workflows: Vec<Result<Workflow, (String, String)>>,
     loaded: Option<Instant>,
     form: Option<RunForm>,
+    /// The workflow whose runs are listed (its file); None lists all.
+    selected: Option<String>,
     /// The run shown across the page.
     open: Option<u64>,
     view: RunView,
@@ -48,6 +50,7 @@ pub struct CiPage {
 impl CiPage {
     fn set_project(&mut self, project: PathBuf) {
         self.project = Some(project);
+        self.selected = None;
         self.loaded = None;
         self.workflows.clear();
     }
@@ -94,32 +97,6 @@ fn section(ui: &mut egui::Ui, p: &Palette, title: &str) {
             .color(p.muted),
     );
     ui.add_space(6.0);
-}
-
-fn row_frame<R>(ui: &mut egui::Ui, p: &Palette, add: impl FnOnce(&mut egui::Ui) -> R) -> R {
-    let inner = egui::Frame::new()
-        .fill(p.bg)
-        .stroke(egui::Stroke::new(1.0, p.border))
-        .corner_radius(egui::CornerRadius::same(10))
-        .inner_margin(egui::Margin::symmetric(12, 10))
-        .show(ui, |ui| {
-            ui.set_width(ui.available_width());
-            ui.horizontal(add).inner
-        })
-        .inner;
-    ui.add_space(8.0);
-    inner
-}
-
-/// The icon in a tinted tile, as cards elsewhere have.
-fn tile(ui: &mut egui::Ui, p: &Palette, icon: Icon) {
-    let (rect, _) = ui.allocate_exact_size(egui::vec2(30.0, 30.0), egui::Sense::hover());
-    ui.painter().rect_filled(
-        rect,
-        egui::CornerRadius::same(8),
-        p.accent.gamma_multiply(0.12),
-    );
-    icons::paint(ui.painter(), rect.shrink(6.0), icon, p.accent);
 }
 
 impl Page for CiPage {
@@ -285,51 +262,63 @@ impl Page for CiPage {
 }
 
 impl CiPage {
+    /// The project's workflows on the left, and the runs of the chosen
+    /// one (or all) on the right, a line each, as GitHub shows them.
     fn list(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
-        let p = ctx.palette;
         let Some(project) = self.project.clone() else {
             self.choose(ui, ctx);
             return;
         };
-        egui::ScrollArea::vertical()
-            .auto_shrink(false)
-            .show(ui, |ui| {
-                row_frame(ui, p, |ui| {
-                    tile(ui, p, Icon::Folder);
-                    ui.vertical(|ui| {
-                        ui.label(RichText::new(folder_name(&project)).strong().color(p.text));
-                        ui.add(
-                            egui::Label::new(
-                                RichText::new(project.display().to_string())
-                                    .size(12.0)
-                                    .color(p.muted),
-                            )
-                            .truncate(),
-                        );
+        self.project_line(ui, ctx, &project);
+        ui.add_space(10.0);
+        let height = ui.available_height();
+        ui.horizontal_top(|ui| {
+            ui.allocate_ui_with_layout(
+                egui::vec2(220.0, height),
+                egui::Layout::top_down(egui::Align::Min),
+                |ui| self.workflow_list(ui, ctx),
+            );
+            ui.add_space(12.0);
+            ui.allocate_ui_with_layout(
+                egui::vec2(ui.available_width(), height),
+                egui::Layout::top_down(egui::Align::Min),
+                |ui| self.run_list(ui, ctx, &project),
+            );
+        });
+    }
+
+    /// The project, on one line, with the other recent ones to switch to.
+    fn project_line(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx, project: &Path) {
+        let p = ctx.palette;
+        ui.horizontal(|ui| {
+            icons::show(ui, Icon::Folder, 16.0, p.accent);
+            ui.label(RichText::new(folder_name(project)).strong().color(p.text));
+            let others: Vec<&String> = ctx
+                .store
+                .recent_ci
+                .iter()
+                .filter(|r| Path::new(r.as_str()) != project)
+                .collect();
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if !others.is_empty() {
+                    ui.menu_button("Recent", |ui| {
+                        for recent in others {
+                            if ui.button(recent.as_str()).clicked() {
+                                self.set_project(PathBuf::from(recent));
+                            }
+                        }
                     });
-                    let others: Vec<&String> = ctx
-                        .store
-                        .recent_ci
-                        .iter()
-                        .filter(|r| Path::new(r.as_str()) != project)
-                        .collect();
-                    if !others.is_empty() {
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            ui.menu_button("Recent", |ui| {
-                                for recent in others {
-                                    if ui.button(recent.as_str()).clicked() {
-                                        self.set_project(PathBuf::from(recent));
-                                    }
-                                }
-                            });
-                        });
-                    }
-                });
-                ui.add_space(6.0);
-                self.workflow_list(ui, ctx);
-                ui.add_space(10.0);
-                self.run_list(ui, ctx, &project);
+                }
+                ui.add(
+                    egui::Label::new(
+                        RichText::new(project.display().to_string())
+                            .size(12.0)
+                            .color(p.muted),
+                    )
+                    .truncate(),
+                );
             });
+        });
     }
 
     /// Asks for a project when there's none yet.
@@ -374,124 +363,338 @@ impl CiPage {
     fn workflow_list(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
         let p = ctx.palette;
         section(ui, p, "WORKFLOWS");
-        if self.workflows.is_empty() {
-            ui.label(
-                RichText::new("There are no workflows in .github/workflows of this project.")
-                    .color(p.muted),
-            );
-            return;
-        }
-        let mut asked = None;
-        for workflow in &self.workflows {
-            match workflow {
-                Ok(w) => {
-                    if !ctx.matches_search(&[&w.name, &w.file]) {
-                        continue;
-                    }
-                    let run = row_frame(ui, p, |ui| {
-                        tile(ui, p, Icon::Workflow);
-                        ui.vertical(|ui| {
-                            ui.set_max_width((ui.available_width() - 120.0).max(140.0));
-                            ui.label(RichText::new(&w.name).strong().color(p.text));
-                            let mut about = w.file.clone();
-                            if !w.on.is_empty() {
-                                about.push_str(&format!(" · on {}", w.on.join(", ")));
+        egui::ScrollArea::vertical()
+            .id_salt("ci-workflows")
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                let all_runs = ctx
+                    .store
+                    .ci
+                    .runs
+                    .iter()
+                    .filter(|r| Some(&r.request.project) == self.project.as_ref())
+                    .count();
+                if nav_row(
+                    ui,
+                    p,
+                    Icon::Workflow,
+                    "All workflows",
+                    all_runs,
+                    self.selected.is_none(),
+                    None,
+                )
+                .clicked()
+                {
+                    self.selected = None;
+                }
+                for workflow in &self.workflows {
+                    match workflow {
+                        Ok(w) => {
+                            if !ctx.matches_search(&[&w.name, &w.file]) {
+                                continue;
                             }
-                            about.push_str(&format!(
-                                " · {}",
-                                crate::docker::plural(w.jobs.len(), "job")
-                            ));
-                            ui.add(
-                                egui::Label::new(RichText::new(about).size(12.0).color(p.muted))
-                                    .truncate(),
-                            );
-                        });
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            widgets::primary_button(ui, "Run…").clicked()
-                        })
-                        .inner
-                    });
-                    if run {
-                        asked = Some(w.clone());
+                            let runs = ctx
+                                .store
+                                .ci
+                                .runs
+                                .iter()
+                                .filter(|r| {
+                                    Some(&r.request.project) == self.project.as_ref()
+                                        && r.request.workflow.file == w.file
+                                })
+                                .count();
+                            let selected = self.selected.as_deref() == Some(w.file.as_str());
+                            if nav_row(ui, p, Icon::File, &w.name, runs, selected, None)
+                                .on_hover_text(&w.file)
+                                .clicked()
+                            {
+                                self.selected = Some(w.file.clone());
+                            }
+                        }
+                        Err((file, why)) => {
+                            let name = file.trim_start_matches(".github/workflows/");
+                            nav_row(ui, p, Icon::File, name, 0, false, Some(p.danger))
+                                .on_hover_text(why.as_str());
+                        }
                     }
                 }
-                Err((file, why)) => {
-                    if !ctx.matches_search(&[file]) {
-                        continue;
-                    }
-                    row_frame(ui, p, |ui| {
-                        tile(ui, p, Icon::File);
-                        ui.vertical(|ui| {
-                            ui.label(RichText::new(file).strong().color(p.text));
-                            ui.add(
-                                egui::Label::new(RichText::new(why).size(12.0).color(p.danger))
-                                    .wrap(),
-                            );
-                        });
-                    });
+                if self.workflows.is_empty() {
+                    ui.label(
+                        RichText::new("No workflows in .github/workflows")
+                            .size(12.0)
+                            .color(p.muted),
+                    );
                 }
-            }
-        }
-        if let Some(workflow) = asked {
-            self.ask_to_run(&workflow);
-        }
+            });
     }
 
     fn run_list(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx, project: &Path) {
         let p = ctx.palette;
+        let chosen: Option<Workflow> = self.selected.as_ref().and_then(|file| {
+            self.workflows
+                .iter()
+                .flatten()
+                .find(|w| w.file == *file)
+                .cloned()
+        });
+        if self.selected.is_some() && chosen.is_none() {
+            // The file went away.
+            self.selected = None;
+        }
+        // The header: what's shown, and running it.
+        ui.horizontal(|ui| {
+            match &chosen {
+                Some(w) => {
+                    ui.label(
+                        RichText::new(&w.name)
+                            .font(egui::FontId::new(15.0, crate::theme::semibold()))
+                            .color(p.text),
+                    );
+                    let mut about = w.file.trim_start_matches(".github/workflows/").to_owned();
+                    if !w.on.is_empty() {
+                        about.push_str(&format!(" · on {}", w.on.join(", ")));
+                    }
+                    ui.add(
+                        egui::Label::new(RichText::new(about).size(12.0).color(p.muted)).truncate(),
+                    );
+                }
+                None => {
+                    ui.label(
+                        RichText::new("All workflows")
+                            .font(egui::FontId::new(15.0, crate::theme::semibold()))
+                            .color(p.text),
+                    );
+                }
+            }
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                let runnable: Vec<Workflow> = match &chosen {
+                    Some(w) => vec![w.clone()],
+                    None => self.workflows.iter().flatten().cloned().collect(),
+                };
+                match runnable.as_slice() {
+                    [] => {}
+                    [one] => {
+                        if widgets::primary_button(ui, "Run workflow").clicked() {
+                            self.ask_to_run(&one.clone());
+                        }
+                    }
+                    many => {
+                        let mut asked = None;
+                        ui.menu_button("Run workflow ▾", |ui| {
+                            for w in many {
+                                if ui.button(&w.name).clicked() {
+                                    asked = Some(w.clone());
+                                    ui.close();
+                                }
+                            }
+                        });
+                        if let Some(w) = asked {
+                            self.ask_to_run(&w);
+                        }
+                    }
+                }
+            });
+        });
+        ui.add_space(6.0);
         let runs: Vec<&CiRun> = ctx
             .store
             .ci
             .runs
             .iter()
-            .filter(|r| r.request.project == project && ctx.matches_search(&[r.title()]))
+            .filter(|r| r.request.project == project)
+            .filter(|r| {
+                chosen
+                    .as_ref()
+                    .is_none_or(|w| r.request.workflow.file == w.file)
+            })
+            .filter(|r| ctx.matches_search(&[r.title()]))
             .collect();
         if runs.is_empty() {
+            egui::Frame::new()
+                .stroke(egui::Stroke::new(1.0, p.border))
+                .corner_radius(egui::CornerRadius::same(10))
+                .inner_margin(egui::Margin::same(24))
+                .show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+                    ui.vertical_centered(|ui| {
+                        ui.label(RichText::new("No runs yet").strong().color(p.text));
+                        ui.label(
+                            RichText::new("Run a workflow: its jobs run here in containers, step by step, with live logs.")
+                                .size(12.5)
+                                .color(p.muted),
+                        );
+                    });
+                });
             return;
         }
-        section(ui, p, "RUNS");
         let mut opened = None;
         let mut cancel = None;
-        for run in runs {
-            let clicked = row_frame(ui, p, |ui| {
-                state_mark(ui, p, run.state, 18.0);
-                ui.vertical(|ui| {
-                    ui.label(
-                        RichText::new(format!("{} #{}", run.title(), run.number))
-                            .strong()
-                            .color(p.text),
-                    );
-                    ui.label(
-                        RichText::new(format!(
-                            "{} · {} · {}",
-                            run.request.event,
-                            run.state.label(),
-                            duration(run.duration())
-                        ))
-                        .size(12.0)
-                        .color(p.muted),
-                    );
-                });
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let open = ui.button("Open").clicked();
-                    if !run.state.done()
-                        && widgets::icon_button(ui, Icon::Stop, "Cancel the run").clicked()
-                    {
-                        cancel = Some(run.id);
-                    }
-                    open
-                })
-                .inner
+        egui::Frame::new()
+            .stroke(egui::Stroke::new(1.0, p.border))
+            .corner_radius(egui::CornerRadius::same(10))
+            .show(ui, |ui| {
+                ui.set_width(ui.available_width());
+                egui::ScrollArea::vertical()
+                    .id_salt("ci-runs")
+                    .auto_shrink([false, true])
+                    .show(ui, |ui| {
+                        for (i, run) in runs.iter().enumerate() {
+                            if i > 0 {
+                                let y = ui.cursor().top();
+                                let x = ui.max_rect().x_range();
+                                ui.painter().hline(x, y, egui::Stroke::new(1.0, p.border));
+                            }
+                            let (clicked, stop) = run_row(ui, p, run);
+                            if clicked {
+                                opened = Some(run.id);
+                            }
+                            if stop {
+                                cancel = Some(run.id);
+                            }
+                        }
+                    });
             });
-            if clicked {
-                opened = Some(run.id);
-            }
-        }
         if let Some(id) = cancel {
             ctx.request(Intent::Ci(CiOp::Cancel(id)));
-        }
-        if let Some(id) = opened {
+        } else if let Some(id) = opened {
             self.open_run(id);
         }
+    }
+}
+
+/// A row of the workflow list: icon, name, how many runs.
+fn nav_row(
+    ui: &mut egui::Ui,
+    p: &Palette,
+    icon: Icon,
+    name: &str,
+    runs: usize,
+    selected: bool,
+    tint: Option<egui::Color32>,
+) -> egui::Response {
+    let width = ui.available_width();
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(width, 30.0), egui::Sense::click());
+    if selected || response.hovered() {
+        let fill = if selected {
+            p.raised
+        } else {
+            p.raised.gamma_multiply(0.6)
+        };
+        ui.painter()
+            .rect_filled(rect, egui::CornerRadius::same(7), fill);
+    }
+    // The count on the right; the name gets the rest.
+    let count_width = if runs > 0 {
+        let galley = ui.painter().layout_no_wrap(
+            runs.to_string(),
+            egui::FontId::proportional(11.5),
+            p.muted,
+        );
+        let at = egui::pos2(
+            rect.right() - 10.0 - galley.size().x,
+            rect.center().y - galley.size().y / 2.0,
+        );
+        let w = galley.size().x;
+        ui.painter().galley(at, galley, p.muted);
+        w + 14.0
+    } else {
+        0.0
+    };
+    let inner = egui::Rect::from_min_max(
+        rect.min + egui::vec2(8.0, 0.0),
+        egui::pos2(rect.right() - 8.0 - count_width, rect.bottom()),
+    );
+    let mut child = ui.new_child(
+        egui::UiBuilder::new()
+            .max_rect(inner)
+            .layout(egui::Layout::left_to_right(egui::Align::Center)),
+    );
+    let color = if selected { p.accent } else { p.muted };
+    icons::show(&mut child, icon, 14.0, tint.unwrap_or(color));
+    let text = RichText::new(name).color(tint.unwrap_or(p.text));
+    let text = if selected { text.strong() } else { text };
+    child.add(egui::Label::new(text).truncate().selectable(false));
+    response.on_hover_cursor(egui::CursorIcon::PointingHand)
+}
+
+/// A run, on one line: its state, workflow and number, what it ran as,
+/// how long it took and when. Returns (opened, asked to cancel).
+fn run_row(ui: &mut egui::Ui, p: &Palette, run: &CiRun) -> (bool, bool) {
+    let width = ui.available_width();
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(width, 40.0), egui::Sense::click());
+    if response.hovered() {
+        ui.painter().rect_filled(
+            rect,
+            egui::CornerRadius::same(8),
+            p.raised.gamma_multiply(0.6),
+        );
+    }
+    let mut child = ui.new_child(
+        egui::UiBuilder::new()
+            .max_rect(rect.shrink2(egui::vec2(12.0, 0.0)))
+            .layout(egui::Layout::left_to_right(egui::Align::Center)),
+    );
+    let mut stop = false;
+    state_mark(&mut child, p, run.state, 16.0);
+    child.add_space(4.0);
+    child.add(
+        egui::Label::new(
+            RichText::new(format!("{} #{}", run.title(), run.number))
+                .strong()
+                .color(p.text),
+        )
+        .truncate()
+        .selectable(false),
+    );
+    child.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+        if !run.state.done() && widgets::icon_button(ui, Icon::Stop, "Cancel the run").clicked() {
+            stop = true;
+        }
+        ui.add_sized(
+            egui::vec2(70.0, 20.0),
+            egui::Label::new(
+                RichText::new(ago(run.started.elapsed()))
+                    .size(12.0)
+                    .color(p.muted),
+            )
+            .selectable(false),
+        );
+        ui.add_sized(
+            egui::vec2(60.0, 20.0),
+            egui::Label::new(
+                RichText::new(duration(run.duration()))
+                    .size(12.0)
+                    .color(p.muted),
+            )
+            .selectable(false),
+        );
+        widgets::pill(ui, &run.request.event, p.muted);
+    });
+    let opened = response
+        .on_hover_cursor(egui::CursorIcon::PointingHand)
+        .clicked();
+    (opened && !stop, stop)
+}
+
+/// `just now`, `5m ago`, `2h ago`.
+fn ago(d: Duration) -> String {
+    match d.as_secs() {
+        0..60 => "just now".into(),
+        s @ 60..3600 => format!("{}m ago", s / 60),
+        s @ 3600..86_400 => format!("{}h ago", s / 3600),
+        s => format!("{}d ago", s / 86_400),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn says_how_long_ago() {
+        assert_eq!(ago(Duration::from_secs(5)), "just now");
+        assert_eq!(ago(Duration::from_secs(300)), "5m ago");
+        assert_eq!(ago(Duration::from_secs(7200)), "2h ago");
+        assert_eq!(ago(Duration::from_secs(3 * 86_400)), "3d ago");
     }
 }

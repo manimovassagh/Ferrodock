@@ -19,13 +19,18 @@ Local CI is Ferrodock's own, written in Rust. It needs nothing else: no
 ## Choosing a project
 
 Click **Choose project…** and pick a folder with `.github/workflows` (or
-type its path). Ferrodock lists its workflows, with the events they run
-on and how many jobs they have. Edits to the files show up on their own.
+type its path). Its workflows are listed on the left, and the runs on the
+right, one line each: how it went, the workflow and run number, what it ran
+as, how long it took and when. Pick a workflow to see only its runs, or
+**All workflows** for every one. Edits to the files show up on their own.
 Projects you ran before are under **Recent**.
+
+![The Local CI page: the project's workflows, and its runs a line each](/img/local-ci-runs.png)
 
 ## Running a workflow
 
-Click **Run…** next to a workflow. The dialog asks for:
+Click **Run workflow** (with **All workflows** picked, choose which from
+its menu). The dialog asks for:
 
 - **Run as**: a push, a pull request or a manual run, out of the events
   the workflow runs on. The `github` context and the event payload match:
