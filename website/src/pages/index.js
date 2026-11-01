@@ -169,7 +169,7 @@ function Hero() {
         <Window
           src="/img/containers.png"
           animation="/img/demo.webp"
-          alt="Ferrodock showing containers grouped by Compose project, a container's live logs and stats, the command palette and Quick start"
+          alt="Ferrodock showing containers grouped by Compose project, a container's live logs and stats, the command palette, Quick start, Linux machines, Kubernetes and a workflow run in Local CI"
           className={styles.heroShot}
         />
       </div>
