@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.35.0](https://github.com/manimovassagh/Ferrodock/compare/v1.34.0...v1.35.0) - 2026-11-01
+
+### Added
+
+- *(ci)* actions from GitHub, composite actions and fdock ci run ([#302](https://github.com/manimovassagh/Ferrodock/pull/302))
+
 ## [1.34.0](https://github.com/manimovassagh/Ferrodock/compare/v1.33.0...v1.34.0) - 2026-11-01
 
 ### Added
