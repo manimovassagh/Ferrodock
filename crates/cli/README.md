@@ -12,6 +12,7 @@ fdock stop db                 # start, stop, restart, pause, unpause, rm
 fdock images | volumes | networks | projects | df
 fdock clean images build-cache  # free space; also containers, volumes, all…
 fdock compose up ./shop       # also down, restart, logs [-f]
+fdock ci run                  # run the project's GitHub Actions workflow here
 fdock engine                  # which engine is used
 fdock engine start            # start it, and wait until it answers
 fdock reset --yes             # remove everything (--keep-volumes keeps them)

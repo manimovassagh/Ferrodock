@@ -1823,6 +1823,7 @@ dependencies = [
  "bytes",
  "flate2",
  "futures-util",
+ "rustls-native-certs",
  "serde",
  "serde_json",
  "serde_norway",

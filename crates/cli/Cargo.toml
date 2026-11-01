@@ -22,4 +22,5 @@ clap = { version = "4.6.7", features = ["derive"] }
 futures-util.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-tokio.workspace = true
+# Ctrl-C stops a Local CI run and cleans it up.
+tokio = { workspace = true, features = ["signal"] }

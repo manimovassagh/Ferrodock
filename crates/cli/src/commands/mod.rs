@@ -1,6 +1,7 @@
 //! What each command does. Every command but `engine` first connects to
 //! an engine (see [`ferrodock_core::connect`]).
 
+mod ci;
 mod clean;
 mod compose;
 mod containers;
@@ -11,7 +12,7 @@ mod resources;
 use ferrodock_core::connect::{Connection, connect};
 use ferrodock_core::{Action, ComposeAction, Overrides, Resource};
 
-use crate::args::{Cli, Command, ComposeCommand, EngineCommand};
+use crate::args::{CiCommand, Cli, Command, ComposeCommand, EngineCommand};
 
 /// What every command gets: the engine, and how to print.
 pub struct Ctx {
@@ -25,6 +26,12 @@ pub async fn run(cli: Cli) -> Result<(), String> {
             None => engine::show(cli.engine.as_deref(), cli.json).await,
             Some(EngineCommand::Start) => engine::start(cli.engine.as_deref(), cli.json).await,
         };
+    }
+    if let Command::Ci {
+        command: CiCommand::List { project },
+    } = &cli.command
+    {
+        return ci::list(project, cli.json);
     }
     let conn = connect(cli.engine.as_deref())
         .await
@@ -125,6 +132,28 @@ pub async fn run(cli: Cli) -> Result<(), String> {
             };
             quickstart::run(&ctx, template.as_deref(), &overrides).await
         }
+        Command::Ci { command } => match command {
+            CiCommand::Run {
+                workflow,
+                project,
+                event,
+                inputs,
+                secrets,
+                artifacts,
+            } => {
+                ci::run(
+                    &ctx,
+                    &project,
+                    workflow.as_deref(),
+                    event,
+                    inputs,
+                    &secrets,
+                    artifacts.as_deref(),
+                )
+                .await
+            }
+            CiCommand::List { .. } => unreachable!("handled above"),
+        },
         Command::Engine { .. } => unreachable!("handled above"),
     }
 }

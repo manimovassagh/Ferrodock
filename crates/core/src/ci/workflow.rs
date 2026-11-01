@@ -205,7 +205,7 @@ fn parse_job(id: &str, job: &Value) -> Result<Job, String> {
     })
 }
 
-fn parse_step(step: &Value) -> Result<Step, String> {
+pub(super) fn parse_step(step: &Value) -> Result<Step, String> {
     let Value::Object(map) = step else {
         return Err("isn't a map".into());
     };
@@ -316,7 +316,7 @@ pub(super) fn scalar(value: &Value) -> String {
 }
 
 /// YAML to JSON, keeping the order of keys.
-fn to_json(value: &serde_norway::Value) -> Value {
+pub(super) fn to_json(value: &serde_norway::Value) -> Value {
     use serde_norway::Value as Y;
     match value {
         Y::Null => Value::Null,
