@@ -293,8 +293,12 @@ fn fields(ui: &mut egui::Ui, p: &Palette, form: &mut RunForm) {
             }
         });
     }
-    if let Some(i) = remove {
-        form.secrets.remove(i);
+    if let Some(gone) = remove {
+        let mut index = 0;
+        form.secrets.retain(|_| {
+            index += 1;
+            index - 1 != gone
+        });
     }
     ui.label(
         RichText::new(
