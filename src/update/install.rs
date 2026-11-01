@@ -52,8 +52,48 @@ pub fn install(
         .ok_or("can't tell where Ferrodock is installed")?;
     let work = tempfile_dir(&base)?;
     let result = install_in(available, progress, &exe, &work);
-    let _ = fs::remove_dir_all(&work);
+    match result {
+        // On macOS the folder now holds the app that's still running
+        // (`previous.app`): deleting it under a running app can make it
+        // crash as it quits. The next start removes it (`clean_up`).
+        Ok(Relaunch::App(_)) => {
+            let _ = fs::remove_dir_all(work.join("unpacked"));
+        }
+        _ => {
+            let _ = fs::remove_dir_all(&work);
+        }
+    }
     result
+}
+
+/// Removes what earlier updates left next to the app: their working
+/// folders, with the version they replaced. Called once the previous
+/// version has quit.
+pub fn clean_up() {
+    let Ok(exe) = std::env::current_exe() else {
+        return;
+    };
+    let exe = exe.canonicalize().unwrap_or(exe);
+    let Some(base) = app_bundle(&exe)
+        .and_then(|app| app.parent().map(Path::to_path_buf))
+        .or_else(|| exe.parent().map(Path::to_path_buf))
+    else {
+        return;
+    };
+    clean_up_in(&base);
+}
+
+fn clean_up_in(base: &Path) {
+    let Ok(entries) = fs::read_dir(base) else {
+        return;
+    };
+    let own = format!(".ferrodock-update-{}", std::process::id());
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name.starts_with(".ferrodock-update-") && name != own {
+            let _ = fs::remove_dir_all(entry.path());
+        }
+    }
 }
 
 fn install_in(
@@ -364,6 +404,21 @@ mod tests {
         fs::create_dir_all(&macos).unwrap();
         fs::write(macos.join("ferrodock"), marker).unwrap();
         macos.join("ferrodock")
+    }
+
+    #[test]
+    fn cleans_up_what_updates_left() {
+        let dir = scratch("clean-up");
+        let old = dir.join(".ferrodock-update-1/previous.app/Contents");
+        fs::create_dir_all(&old).unwrap();
+        let own = dir.join(format!(".ferrodock-update-{}", std::process::id()));
+        fs::create_dir_all(&own).unwrap();
+        fs::create_dir_all(dir.join("Ferrodock.app")).unwrap();
+        clean_up_in(&dir);
+        assert!(!dir.join(".ferrodock-update-1").exists());
+        // An update this process is making, and the app, stay.
+        assert!(own.exists() && dir.join("Ferrodock.app").exists());
+        fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

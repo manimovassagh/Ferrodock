@@ -14,7 +14,7 @@ use std::thread;
 
 use self_update::backends::github::ReleaseList;
 
-pub use install::Relaunch;
+pub use install::{Relaunch, clean_up};
 
 const OWNER: &str = "manimovassagh";
 const REPO: &str = "Ferrodock";

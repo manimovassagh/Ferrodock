@@ -1243,19 +1243,29 @@ fn screenshots_of_local_ci() {
         .unwrap();
     open(&mut h, page, None);
     save(&mut h, "local-ci");
-    click(&mut h, "Run…");
-    save(&mut h, "local-ci-run");
-    click(&mut h, "Run");
-    let start = Instant::now();
-    while start.elapsed() < Duration::from_secs(300) {
-        settle(&mut h, Duration::from_millis(500));
-        let ci = &h.state().store.ci;
-        if !ci.runs.is_empty() && ci.running() == 0 {
-            break;
+    // Three runs, for the list; the dialog is shot the first time.
+    for n in 1..=3 {
+        click(&mut h, "Run workflow");
+        if n == 1 {
+            save(&mut h, "local-ci-run");
+        }
+        click(&mut h, "Run");
+        let start = Instant::now();
+        while start.elapsed() < Duration::from_secs(300) {
+            settle(&mut h, Duration::from_millis(500));
+            let ci = &h.state().store.ci;
+            if ci.runs.len() == n && ci.running() == 0 {
+                break;
+            }
+        }
+        if n < 3 {
+            click(&mut h, "← Runs");
         }
     }
     settle(&mut h, Duration::from_millis(500));
     press(&mut h, "test (unit)");
     press(&mut h, "Run unit tests");
     save(&mut h, "local-ci-run-view");
+    click(&mut h, "← Runs");
+    save(&mut h, "local-ci-runs");
 }

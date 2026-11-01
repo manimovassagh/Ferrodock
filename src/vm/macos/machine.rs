@@ -108,18 +108,20 @@ impl Machine {
         Ok(Self { queue, vm })
     }
 
-    /// Runs `work` on the VM's queue and waits for its result.
+    /// Runs `work` on the VM's queue and waits for its result. None if
+    /// the queue never answers (it's going away as Ferrodock quits): a
+    /// panic here, while macOS quits the app, would end in a crash report.
     fn on_queue<R: Send + 'static>(
         &self,
         work: impl FnOnce(&VZVirtualMachine) -> R + Send + 'static,
-    ) -> R {
+    ) -> Option<R> {
         let (tx, rx) = mpsc::channel();
         let vm = Shared(self.vm.clone());
         self.queue.exec_async(move || {
             let vm = vm;
             let _ = tx.send(work(&vm.0));
         });
-        rx.recv().expect("the VM queue dropped a result")
+        rx.recv_timeout(std::time::Duration::from_secs(30)).ok()
     }
 
     /// Starts the VM; returns once it runs (or failed to).
@@ -168,6 +170,7 @@ impl Machine {
 
     pub fn running(&self) -> bool {
         self.on_queue(|vm| unsafe { vm.state() } == VZVirtualMachineState::Running)
+            .unwrap_or(false)
     }
 
     /// Opens a connection to the engine's socket inside the VM. Returns

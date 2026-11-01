@@ -18,6 +18,8 @@ fn main() -> eframe::Result {
         instance::Start::Run(instance) => instance,
         instance::Start::Exit => return Ok(()),
     };
+    // The version an update replaced has quit by now: its files can go.
+    std::thread::spawn(update::clean_up);
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("Ferrodock")
