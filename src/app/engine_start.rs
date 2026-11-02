@@ -65,20 +65,6 @@ pub struct EngineStarter {
     provider_checked: bool,
 }
 
-/// The engine in use: its name and host.
-fn engine(store: &Store) -> Option<(&str, &str)> {
-    let name = store.engine.as_deref()?;
-    store
-        .engines
-        .iter()
-        .find(|e| e.name == name)
-        .map(|e| (e.name.as_str(), e.host.as_str()))
-}
-
-fn host(store: &Store) -> Option<&str> {
-    engine(store).map(|(_, host)| host)
-}
-
 impl EngineStarter {
     pub fn new(ctx: &eframe::egui::Context) -> Self {
         Self {
@@ -92,15 +78,20 @@ impl EngineStarter {
     }
 
     fn starter(store: &Store, settings: &Settings) -> Option<Starter> {
-        let (name, host) = engine(store)?;
-        if name == vm::NAME {
+        let engine = store.selected_engine()?;
+        if engine.name == vm::NAME {
             return None;
         }
-        starter(host, name, settings.engine_app.as_deref())
+        starter(&engine.host, &engine.name, settings.engine_app.as_deref())
     }
 
     fn plan(store: &Store, settings: &Settings) -> Option<Plan> {
-        let builtin_picked = engine(store).is_some_and(|(name, _)| name == vm::NAME);
+        if store.selected_engine().is_some_and(Engine::is_podman) {
+            return None;
+        }
+        let builtin_picked = store
+            .selected_engine()
+            .is_some_and(|engine| engine.name == vm::NAME);
         if !builtin_picked && let Some(starter) = Self::starter(store, settings) {
             return Some(Plan::App(starter));
         }
@@ -145,7 +136,9 @@ impl EngineStarter {
                 ctx.request_repaint();
             }
         });
-        let in_use = engine(store).is_some_and(|(name, _)| name == vm::NAME);
+        let in_use = store
+            .selected_engine()
+            .is_some_and(|engine| engine.name == vm::NAME);
         if in_use { None } else { builtin_engine() }
     }
 
@@ -175,8 +168,8 @@ impl EngineStarter {
                 self.tried_at_launch = true;
                 if !self.provider_checked {
                     self.provider_checked = true;
-                    if let Some(host) = host(store) {
-                        worker.send(Request::FindProvider(host.to_owned()));
+                    if let Some(engine) = store.selected_engine() {
+                        worker.send(Request::FindProvider(engine.host.clone()));
                     }
                 }
             }
@@ -300,5 +293,20 @@ mod tests {
         } else {
             assert_eq!(offer, Offer::Nothing);
         }
+    }
+
+    #[test]
+    fn does_not_start_a_different_engine_for_podman() {
+        let mut store = Store::new();
+        store.engine = Some("Podman (machine)".into());
+        store.engines = vec![Engine {
+            name: "Podman (machine)".into(),
+            host: "unix:///missing/podman/machine-api.sock".into(),
+            tls: None,
+            current: false,
+        }];
+        let settings = Settings::default();
+        assert!(EngineStarter::starter(&store, &settings).is_none());
+        assert!(EngineStarter::plan(&store, &settings).is_none());
     }
 }

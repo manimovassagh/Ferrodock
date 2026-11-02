@@ -5,6 +5,7 @@ use eframe::egui::{self, Align, Layout, RichText};
 
 use super::components::icons::{self, Icon};
 use super::components::widgets;
+use crate::docker::Engine;
 use crate::theme::Palette;
 
 /// The search box, so `/` can focus it.
@@ -128,15 +129,39 @@ fn diagnose(reason: &str) -> Problem {
 }
 
 /// Commands that fix `problem` on this platform: (what it does, command).
-fn fixes(problem: Problem) -> Vec<(&'static str, &'static str)> {
+fn fixes(problem: Problem, selected: Option<&Engine>) -> Vec<(&'static str, String)> {
+    if let Some(engine) = selected.filter(|engine| engine.is_podman()) {
+        if problem == Problem::NotRunning
+            && let Some(machine) = engine.podman_machine()
+        {
+            return vec![(
+                "Start your Podman machine",
+                format!("podman machine start {machine}"),
+            )];
+        }
+        return match problem {
+            Problem::NotRunning if engine.host == "unix:///run/podman/podman.sock" => vec![(
+                "Enable the system Podman API socket",
+                "sudo systemctl enable --now podman.socket".into(),
+            )],
+            Problem::NotRunning => vec![(
+                "Enable your Podman API socket",
+                "systemctl --user enable --now podman.socket".into(),
+            )],
+            Problem::PermissionDenied => Vec::new(),
+        };
+    }
     match problem {
         Problem::PermissionDenied => vec![(
             "Let your user use Docker, then log out and back in",
-            "sudo usermod -aG docker $USER",
+            "sudo usermod -aG docker $USER".into(),
         )],
         // Ferrodock starts the engine itself where it can (the Start button).
         Problem::NotRunning if cfg!(target_os = "linux") => {
-            vec![("Start the Docker service", "sudo systemctl start docker")]
+            vec![(
+                "Start the Docker service",
+                "sudo systemctl start docker".into(),
+            )]
         }
         Problem::NotRunning => Vec::new(),
     }
@@ -148,7 +173,7 @@ pub fn connecting(ui: &mut egui::Ui, p: &Palette) {
     ui.vertical_centered(|ui| {
         ui.spinner();
         ui.add_space(8.0);
-        ui.label(RichText::new("Connecting to Docker…").color(p.muted));
+        ui.label(RichText::new("Connecting to a container engine…").color(p.muted));
     });
 }
 
@@ -163,8 +188,10 @@ pub fn disconnected(
     reason: &str,
     offer: &super::engine_start::Offer,
     builtin_instead: bool,
+    selected: Option<&Engine>,
 ) -> Option<Click> {
     use super::engine_start::Offer;
+    let podman = selected.is_some_and(Engine::is_podman);
     let problem = diagnose(reason);
     let starting = matches!(
         offer,
@@ -177,6 +204,14 @@ pub fn disconnected(
         _ => String::new(),
     };
     let (title, explanation) = match problem {
+        Problem::PermissionDenied if podman => (
+            "Podman won't let Ferrodock in",
+            "Your user isn't allowed to use this Podman API socket.",
+        ),
+        Problem::NotRunning if podman => (
+            "Podman isn't running",
+            "Start Podman and Ferrodock connects as soon as its API socket answers.",
+        ),
         Problem::PermissionDenied => (
             "Docker won't let Ferrodock in",
             "Docker is running, but your user isn't allowed to use it.",
@@ -303,7 +338,7 @@ pub fn disconnected(
         if starting {
             return;
         }
-        for (what, command) in fixes(problem) {
+        for (what, command) in fixes(problem, selected) {
             egui::Frame::new()
                 .fill(p.sidebar)
                 .stroke(egui::Stroke::new(1.0, p.border))
@@ -314,7 +349,7 @@ pub fn disconnected(
                     ui.horizontal(|ui| {
                         ui.vertical(|ui| {
                             ui.label(RichText::new(what).size(12.0).color(p.muted));
-                            ui.label(RichText::new(command).monospace().color(p.text));
+                            ui.label(RichText::new(&command).monospace().color(p.text));
                         });
                         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                             if ui.small_button("Copy").clicked() {
@@ -374,6 +409,26 @@ mod tests {
             diagnose("Cannot reach the Docker Engine (No such file or directory)"),
             Problem::NotRunning
         );
-        assert!(!fixes(Problem::NotRunning).is_empty());
+        if cfg!(target_os = "linux") {
+            assert!(!fixes(Problem::NotRunning, None).is_empty());
+        }
+    }
+
+    #[test]
+    fn starts_the_actual_machine_behind_a_custom_context() {
+        let engine = Engine {
+            name: "development".into(),
+            host: "unix:///tmp/podman/dev-api.sock".into(),
+            tls: None,
+            current: false,
+        };
+        assert_eq!(
+            fixes(Problem::NotRunning, Some(&engine)),
+            [(
+                "Start your Podman machine",
+                "podman machine start dev".into()
+            )]
+        );
+        assert!(fixes(Problem::PermissionDenied, Some(&engine)).is_empty());
     }
 }

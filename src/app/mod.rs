@@ -649,7 +649,14 @@ impl eframe::App for FerrodockApp {
                     let instead = self
                         .engine_starter
                         .builtin_instead(&self.store, &self.settings);
-                    match shell::disconnected(ui, p, reason, &offer, instead) {
+                    match shell::disconnected(
+                        ui,
+                        p,
+                        reason,
+                        &offer,
+                        instead,
+                        self.store.selected_engine(),
+                    ) {
                         Some(shell::Click::Retry) => refresh = true,
                         Some(shell::Click::UseBuiltIn) => {
                             switch_to = self

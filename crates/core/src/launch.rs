@@ -214,6 +214,11 @@ fn app_named(hints: &[String]) -> Option<PathBuf> {
 /// context) on this machine. `remembered` is the app found by
 /// [`provider_app`] while it was last running.
 pub fn starter(host: &str, engine: &str, remembered: Option<&str>) -> Option<Starter> {
+    // Podman is started by its own machine or socket service. A remembered
+    // Docker app or the system Docker service cannot start this engine.
+    if crate::podman::is_engine(host) {
+        return None;
+    }
     if cfg!(target_os = "macos") {
         let remembered = remembered.map(PathBuf::from).filter(|app| app.is_dir());
         return remembered
@@ -306,5 +311,24 @@ mod tests {
         );
         let app = Starter::Ferrodock(PathBuf::from("/opt/ferrodock/ferrodock"));
         assert_eq!(app.name(), "Ferrodock's engine");
+    }
+
+    #[test]
+    fn does_not_start_docker_for_podman() {
+        for name in ["Podman", "Podman (machine)", "Podman (rootful)"] {
+            let engine = Engine {
+                name: name.into(),
+                host: "unix:///missing/podman/podman.sock".into(),
+                tls: None,
+                current: false,
+            };
+            assert!(engine.is_podman());
+            assert_eq!(starter(&engine.host, name, Some(".")), None);
+            assert_eq!(starter_outside_app(&engine), None);
+        }
+        assert_eq!(
+            starter("unix:///tmp/podman/local-api.sock", "podman", Some(".")),
+            None
+        );
     }
 }

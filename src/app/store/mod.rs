@@ -160,6 +160,12 @@ impl Store {
         }
     }
 
+    /// The discovered engine matching the selected name.
+    pub fn selected_engine(&self) -> Option<&Engine> {
+        let name = self.engine.as_deref()?;
+        self.engines.iter().find(|engine| engine.name == name)
+    }
+
     /// Records that a file operation was asked for, so the Files tab shows
     /// it loading.
     pub fn files_requested(&mut self, op: &crate::docker::FileOp) {

@@ -418,7 +418,7 @@ fn screenshots_of_engines() {
     settle(&mut h, Duration::from_secs(3));
     set_theme(&mut h, Theme::Light);
     h.state_mut().settings.engine = None;
-    click(&mut h, "Docker engine");
+    click(&mut h, "Container engine");
     settle(&mut h, Duration::from_millis(500));
     save(&mut h, "engines");
     click(&mut h, "staging");
@@ -435,6 +435,35 @@ fn screenshots_of_engines() {
         crate::app::store::Connection::Connected { .. }
     ));
     std::fs::remove_dir_all(&config).unwrap();
+}
+
+/// The connected local Podman engine, and its entry in the engine picker.
+#[test]
+#[ignore]
+fn screenshots_of_podman() {
+    let engine = crate::docker::engines()
+        .into_iter()
+        .find(crate::docker::Engine::is_podman)
+        .expect("a local Podman engine must be available");
+    let mut h = harness();
+    h.state_mut().switch_engine(engine.clone());
+    settle(&mut h, Duration::from_secs(4));
+    set_theme(&mut h, Theme::Light);
+    assert_eq!(
+        h.state().store.engine.as_deref(),
+        Some(engine.name.as_str())
+    );
+    assert!(
+        matches!(
+            h.state().store.connection,
+            crate::app::store::Connection::Connected { .. }
+        ),
+        "the local Podman engine must answer"
+    );
+    save(&mut h, "podman-connected");
+    click(&mut h, "Container engine");
+    settle(&mut h, Duration::from_millis(500));
+    save(&mut h, "podman-engines");
 }
 
 /// Brings a two-service project up from its compose.yaml through the UI,

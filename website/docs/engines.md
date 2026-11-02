@@ -1,7 +1,7 @@
 ---
 sidebar_position: 5
 title: Connecting to other engines
-description: "Connect Ferrodock to any Docker engine: the Docker engine on Linux, Docker contexts, or an engine elsewhere on your network."
+description: "Connect Ferrodock to Docker engines, Docker contexts and local Podman API sockets on macOS and Linux."
 ---
 
 # Connecting to other engines
@@ -9,7 +9,8 @@ description: "Connect Ferrodock to any Docker engine: the Docker engine on Linux
 Ferrodock works with any Docker engine: [its own](./engine.md), the Docker
 engine on your Linux machine, or an engine somewhere else on your network.
 It talks to it through the Docker Engine API, the same way the `docker`
-command does.
+command does. It also discovers local Podman on macOS and Linux and uses
+Podman's Docker-compatible API.
 
 ## Which engine Ferrodock uses
 
@@ -42,9 +43,41 @@ The list has:
   Ferrodock's engine is the one picked.
 - **Local engine**: a Docker socket in `~/.docker/run`, if there is one and
   no context points at it already.
+- **Podman**: machine API sockets on macOS and rootless or rootful
+  sockets on Linux. A macOS machine appears as, for example,
+  **Podman (podman-machine-default)**.
 
 Compose actions use the `docker compose` command, and Ferrodock points it
 at the engine you picked.
+
+## Local Podman
+
+On **macOS**, start your machine (replace the name if needed):
+
+```bash
+podman machine start podman-machine-default
+```
+
+Ferrodock discovers its forwarded socket directly, including when opened
+from Finder without `podman` or `docker` on its PATH. Configured machines
+stay in the engine list while stopped.
+
+On **Linux**, Ferrodock looks for the rootless socket at
+`$XDG_RUNTIME_DIR/podman/podman.sock` and the rootful socket at
+`/run/podman/podman.sock`. To enable your rootless API socket:
+
+```bash
+systemctl --user enable --now podman.socket
+```
+
+Pick Podman from the sidebar's engine menu. The `fdock` CLI and MCP server
+discover the same engines; use `--engine 'Podman (podman-machine-default)'`
+to select a macOS machine, or `--engine Podman` for a rootless Linux socket.
+
+Ferrodock uses the Docker-compatible part of
+[Podman's API](https://docs.podman.io/en/latest/markdown/podman-system-service.1.html).
+Docker-specific features may be unavailable; native Libpod features such
+as pods are outside this API.
 
 ## Using `DOCKER_HOST`
 
@@ -89,9 +122,9 @@ links open on that machine's address instead of `localhost`.
 
 ## When Docker isn't running
 
-If the engine isn't reachable, Ferrodock shows **Docker isn't running** and
-keeps checking every few seconds. As soon as the engine is up, it connects
-on its own.
+If the engine isn't reachable, Ferrodock shows **Docker isn't running**
+(or **Podman isn't running**) and keeps checking every few seconds. As
+soon as the engine is up, it connects on its own.
 
 When Ferrodock opens and the engine isn't running, it also tries to start
 it for you ("Starting the Docker engine…"):
@@ -104,6 +137,9 @@ it for you ("Starting the Docker engine…"):
 If the engine stops later, the screen has a **Start** button that does the
 same. To turn the automatic start off, go to
 [Settings → Startup](./using/settings.md#startup).
+
+For Podman, start the selected machine or enable its API socket as shown
+above; Ferrodock does not start a different engine for it.
 
 ## Setting up an engine
 

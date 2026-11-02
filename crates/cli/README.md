@@ -21,7 +21,9 @@ fdock reset --yes             # remove everything (--keep-volumes keeps them)
 Every command takes `--json` for compact, stable JSON, cheap for scripts
 and AI tools to read, and `--engine NAME` to pick an engine. By default
 fdock uses `DOCKER_HOST` when set, else Ferrodock's own engine when it
-runs, else your current Docker context.
+runs, else your current Docker context. Select a detected local Podman
+engine with `--engine 'Podman (podman-machine-default)'` on macOS or
+`--engine Podman` on Linux.
 
 Install: `cargo install ferrodock-cli`, or use the `fdock` that ships with
 Ferrodock. MIT licensed.

@@ -36,6 +36,7 @@ mod login;
 mod logs;
 mod machines;
 mod networks;
+mod podman;
 mod ports;
 mod processes;
 mod registry;
