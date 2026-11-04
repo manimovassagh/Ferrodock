@@ -27,12 +27,18 @@ CI runs these, so running them locally saves a round trip:
 cargo fmt
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace                        # unit tests
-cargo test --workspace -- --include-ignored   # also tests against your local Docker Engine
 cargo deny check licenses advisories          # permissive licenses, no known vulnerabilities
 ```
 
 The guest agent is its own crate, outside the workspace: if you change
 `agent/`, run the same with `--manifest-path agent/Cargo.toml`.
+
+With Docker or local Podman running, run the corresponding API smoke test:
+
+```bash
+cargo test -p ferrodock-core live_daemon_lists_everything -- --ignored
+cargo test -p ferrodock-core live_podman_lists_resources -- --ignored
+```
 
 ## Code layout
 
@@ -109,8 +115,16 @@ The screenshots in the README and on the website are rendered offscreen
 from the real app, against whatever your local Docker Engine is running:
 
 ```bash
-SCREENSHOTS=target/screenshots cargo test screenshots -- --ignored
+SCREENSHOTS=target/screenshots cargo test screenshots -- --ignored \
+  --skip screenshots_of_podman
 ```
 
 The test fails if any text uses a glyph the bundled fonts don't have, so
 it also guards against icons turning into empty boxes.
+
+With a running local Podman engine, capture its connected view and engine
+picker separately:
+
+```bash
+SCREENSHOTS=target/screenshots cargo test screenshots_of_podman -- --ignored
+```

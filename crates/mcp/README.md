@@ -20,6 +20,9 @@ input and output.
 
 `--engine NAME` picks the engine. By default: `DOCKER_HOST` when set, else
 Ferrodock's own engine when it runs, else your current Docker context.
+Select a detected local Podman engine with
+`--engine 'Podman (podman-machine-default)'` on macOS or `--engine Podman`
+on Linux.
 
 Install: `cargo install ferrodock-mcp`, or use the one that ships with
 Ferrodock. MIT licensed.

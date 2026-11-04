@@ -42,7 +42,8 @@ while idle. It's free and open source under the MIT License.
 
 On **macOS**, **Windows** and **Linux**, Ferrodock can run its
 own Docker engine, so there's nothing else to install. It also connects
-to any other Docker engine you already have, local or remote.
+to any other Docker engine you already have, local or remote, and detects
+local Podman on macOS and Linux.
 
 ## Next steps
 

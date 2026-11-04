@@ -1,6 +1,6 @@
 //! Docker engines to connect to: Ferrodock's own, the Docker CLI's
-//! contexts, and a Docker socket found in the user's Docker folder (listed
-//! as "Local engine").
+//! contexts, local Podman sockets, and a Docker socket found in the user's
+//! Docker folder (listed as "Local engine").
 
 use std::path::{Path, PathBuf};
 
@@ -13,7 +13,7 @@ const TIMEOUT: u64 = 120;
 /// One engine Ferrodock can talk to.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Engine {
-    /// The context's name, or "Local engine" for a detected socket.
+    /// The context's name, or a unique display name for a detected engine.
     pub name: String,
     /// Where it listens: `unix://…`, `npipe://…`, `tcp://…` or `ssh://…`.
     pub host: String,
@@ -24,6 +24,16 @@ pub struct Engine {
 }
 
 impl Engine {
+    /// A local Podman engine, including one registered as a Docker context.
+    pub fn is_podman(&self) -> bool {
+        crate::podman::is_engine(&self.host)
+    }
+
+    /// The machine behind a forwarded Podman socket, independent of its context name.
+    pub fn podman_machine(&self) -> Option<&str> {
+        crate::podman::machine_name(&self.host)
+    }
+
     /// Engines this build can't connect to are listed but disabled.
     pub fn supported(&self) -> bool {
         let host = self.host.as_str();
@@ -156,10 +166,11 @@ pub fn engines() -> Vec<Engine> {
     }
     if let Some(home) = home() {
         for engine in detected(&home) {
-            if list.iter().all(|e| e.host != engine.host) {
-                list.push(engine);
-            }
+            add_detected(&mut list, engine);
         }
+    }
+    for engine in crate::podman::engines() {
+        add_detected(&mut list, engine);
     }
     // Ferrodock's own engine, once it's downloaded.
     if let Some(engine) = builtin_engine()
@@ -168,6 +179,20 @@ pub fn engines() -> Vec<Engine> {
         add_builtin(&mut list, engine);
     }
     list
+}
+
+/// Context names stay unchanged; detected engines get an unambiguous name.
+fn add_detected(list: &mut Vec<Engine>, mut engine: Engine) {
+    if list.iter().any(|known| known.host == engine.host) {
+        return;
+    }
+    let name = engine.name.clone();
+    let mut suffix = 2;
+    while list.iter().any(|known| known.name == engine.name) {
+        engine.name = format!("{name} ({suffix})");
+        suffix += 1;
+    }
+    list.push(engine);
 }
 
 /// Adds Ferrodock's own engine in place of the contexts that point at it
@@ -207,6 +232,15 @@ pub fn pick(list: &[Engine], name: Option<&str>) -> Option<Engine> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn engine(name: &str, host: &str, current: bool) -> Engine {
+        Engine {
+            name: name.into(),
+            host: host.into(),
+            tls: None,
+            current,
+        }
+    }
 
     fn temp(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("ferrodock-{name}-{}", std::process::id()));
@@ -259,27 +293,55 @@ mod tests {
 
     #[test]
     fn picks_an_engine() {
-        let engine = |name: &str, current| Engine {
-            name: name.into(),
-            host: "unix:///x".into(),
-            tls: None,
-            current,
-        };
-        let list = vec![engine("default", false), engine("work", true)];
+        let list = vec![
+            engine("default", "unix:///x", false),
+            engine("work", "unix:///x", true),
+        ];
         assert_eq!(pick(&list, Some("default")).unwrap().name, "default");
         assert_eq!(pick(&list, Some("gone")).unwrap().name, "work");
         assert_eq!(pick(&list, None).unwrap().name, "work");
-        assert!(engine("x", false).supported() == cfg!(unix));
+        assert!(engine("x", "unix:///x", false).supported() == cfg!(unix));
+    }
+
+    #[test]
+    fn detected_engines_have_unique_names_and_endpoints() {
+        let mut list = vec![
+            engine("Podman", "ssh://remote", false),
+            engine("Podman (2)", "tcp://localhost:2375", false),
+        ];
+        let local = engine("Podman", "unix:///run/user/1000/podman/podman.sock", false);
+        add_detected(&mut list, local.clone());
+        add_detected(&mut list, local.clone());
+        assert_eq!(list.len(), 3);
+        assert_eq!(list[0].name, "Podman");
+        assert_eq!(list[1].name, "Podman (2)");
+        let selected = pick(&list, Some("Podman (3)")).unwrap();
+        assert_eq!(selected.host, local.host);
+        assert!(selected.is_podman());
+    }
+
+    /// Read-only smoke test against an installed, running Podman engine.
+    #[tokio::test]
+    #[ignore]
+    async fn live_podman_lists_resources() {
+        let mut engines = engines().into_iter().filter(Engine::is_podman);
+        let connection = loop {
+            let engine = engines
+                .next()
+                .expect("Start a local Podman machine or enable podman.socket first");
+            if let Ok(connection) = crate::connect::connect(Some(&engine.name)).await {
+                break connection;
+            }
+        };
+        assert!(!connection.version.is_empty());
+        connection.client.list_containers().await.unwrap();
+        connection.client.list_images().await.unwrap();
+        connection.client.list_volumes().await.unwrap();
+        connection.client.list_networks().await.unwrap();
     }
 
     #[test]
     fn lists_its_own_engine_once() {
-        let engine = |name: &str, host: &str, current| Engine {
-            name: name.into(),
-            host: host.into(),
-            tls: None,
-            current,
-        };
         let own = "unix:///Users/me/.ferrodock/docker.sock";
         let mut list = vec![
             engine("default", "unix:///var/run/docker.sock", false),

@@ -233,7 +233,7 @@ const FEATURES = [
   },
   {
     title: "Works with any engine",
-    text: "Ferrodock's own engine on Apple Silicon Macs, Windows and Linux, or any other Docker engine you run, local or remote. Ferrodock connects as soon as the engine is up.",
+    text: "Ferrodock's own engine on Macs, Windows and Linux, any other Docker engine you run, or local Podman on macOS and Linux. Switch engines from the sidebar.",
     icon: icon(<><path d="M12 2v6" /><path d="M12 16v6" /><circle cx="12" cy="12" r="4" /></>),
   },
 ];

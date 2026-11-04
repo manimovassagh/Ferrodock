@@ -59,8 +59,9 @@ that instead.
 - **Disk**: see where the space goes and free it in one step, with a preview
   of exactly what's deleted. Or start over with **Reset Docker**.
 - **Command palette** (⌘K / Ctrl+K) and keyboard shortcuts for everything.
-- **Any engine**: Ferrodock's own, a local `dockerd`, or any Docker context,
-  including remote ones over TLS or SSH. Switch from the sidebar.
+- **Any engine**: Ferrodock's own, a local `dockerd`, local Podman on macOS
+  and Linux, or any Docker context, including remote ones over TLS or SSH.
+  Switch from the sidebar.
 - **At home on your desktop**: light and dark themes, a menu bar /
   notification area icon, crash notifications, launch at login, and
   one-click updates.
@@ -135,7 +136,7 @@ distribution.
 
 ## Ferrodock's own engine
 
-When Ferrodock finds no Docker engine, click **Set up Ferrodock's engine**.
+When Ferrodock finds no engine, click **Set up Ferrodock's engine**.
 It downloads the engine once, and from then on it starts and stops with
 Ferrodock.
 
@@ -149,7 +150,8 @@ Ferrodock.
   asks for your admin password once; then it starts with your computer.
 
 Already run Docker somewhere? Ferrodock connects to it through
-`DOCKER_HOST` or your Docker contexts. See
+`DOCKER_HOST` or your Docker contexts, and detects local Podman on macOS
+and Linux. See
 [Ferrodock's own engine](https://manimovassagh.github.io/Ferrodock/docs/engine)
 and [Connecting to other engines](https://manimovassagh.github.io/Ferrodock/docs/engines).
 

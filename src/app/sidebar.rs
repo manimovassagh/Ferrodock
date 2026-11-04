@@ -266,13 +266,17 @@ fn update_item(ui: &mut egui::Ui, p: &Palette, update: &Status) -> Option<Click>
 
 /// The engine's status; clicking it lists the engines to switch to.
 fn engine_picker(ui: &mut egui::Ui, p: &Palette, store: &Store) -> Option<crate::docker::Engine> {
+    let kind = store
+        .selected_engine()
+        .filter(|engine| engine.is_podman())
+        .map_or("Docker", |_| "Podman");
     let on = match store.engine.as_deref() {
         Some(name) if name != "default" => format!(" · {name}"),
         _ => String::new(),
     };
     let (dot, text) = match &store.connection {
         Connection::Connecting => (None, "Connecting…".to_owned()),
-        Connection::Connected { version } => (Some(p.success), format!("Docker {version}{on}")),
+        Connection::Connected { version } => (Some(p.success), format!("{kind} {version}{on}")),
         Connection::Disconnected { .. } if on.is_empty() => {
             (Some(p.danger), "Docker not running".to_owned())
         }
@@ -287,13 +291,17 @@ fn engine_picker(ui: &mut egui::Ui, p: &Palette, store: &Store) -> Option<crate:
             }
         }
         let row = ui
-            .add(egui::Button::new(RichText::new(text).color(p.muted)).frame(false))
+            .add(
+                egui::Button::new(RichText::new(&text).color(p.muted))
+                    .frame(false)
+                    .truncate(),
+            )
             .on_hover_cursor(egui::CursorIcon::PointingHand)
-            .on_hover_text("Switch Docker engine");
-        row.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, "Docker engine"));
+            .on_hover_text(format!("{text}\nSwitch container engine"));
+        row.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, "Container engine"));
         egui::Popup::menu(&row).show(|ui| {
             ui.set_min_width(240.0);
-            ui.label(RichText::new("DOCKER ENGINES").size(11.0).color(p.muted));
+            ui.label(RichText::new("CONTAINER ENGINES").size(11.0).color(p.muted));
             for engine in &store.engines {
                 let active = store.engine.as_deref() == Some(engine.name.as_str());
                 let label = if engine.current && engine.name != "default" {
