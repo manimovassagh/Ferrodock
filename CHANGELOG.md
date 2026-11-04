@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.36.0](https://github.com/manimovassagh/Ferrodock/compare/v1.35.4...v1.36.0) - 2026-11-04
+
+### Added
+
+- detect local Podman engines ([#316](https://github.com/manimovassagh/Ferrodock/pull/316))
+
 ## [1.35.3](https://github.com/manimovassagh/Ferrodock/compare/v1.35.2...v1.35.3) - 2026-11-01
 
 ### Fixed
