@@ -115,6 +115,10 @@ fn physical_memory_mib() -> Option<u64> {
     None
 }
 
+/// How long quitting waits for an engine that's booting, to stop it.
+#[cfg(engine)]
+const QUIT_WAIT: std::time::Duration = std::time::Duration::from_secs(60);
+
 /// Where the engine is at.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(not(engine), allow(dead_code))]
@@ -170,6 +174,10 @@ pub struct Engine {
     given: Arc<Mutex<Option<Resources>>>,
     #[cfg(engine)]
     running: Arc<Mutex<Option<platform::Running>>>,
+    /// Ferrodock is quitting: an engine that finishes booting now is
+    /// stopped instead of kept, so none is left running behind it.
+    #[cfg(engine)]
+    quitting: Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl Engine {
@@ -191,6 +199,8 @@ impl Engine {
             given: Arc::default(),
             #[cfg(engine)]
             running: Arc::default(),
+            #[cfg(engine)]
+            quitting: Arc::default(),
         };
         // On Linux the service starts with the computer: it may run already.
         #[cfg(all(engine, target_os = "linux"))]
@@ -370,6 +380,8 @@ impl Engine {
         let given = self.given.clone();
         #[cfg(engine)]
         let running = self.running.clone();
+        #[cfg(engine)]
+        let quitting = self.quitting.clone();
         Some(move || {
             let result = (|| {
                 private_dir(&paths.dir).map_err(|e| e.to_string())?;
@@ -414,6 +426,9 @@ impl Engine {
                         updated = platform::update(&paths, &archive)
                             .and_then(|()| download::record(&paths));
                     }
+                    if quitting.load(std::sync::atomic::Ordering::SeqCst) {
+                        return Ok(State::Stopped);
+                    }
                     Self::set(&state, State::Starting);
                     repaint();
                     let engine = platform::Running::start(&paths, &resources).map_err(|e| {
@@ -421,8 +436,18 @@ impl Engine {
                             .err()
                             .map_or(e, |u| format!("Updating the engine failed: {u}"))
                     })?;
-                    if let Ok(mut slot) = running.lock() {
-                        *slot = Some(engine);
+                    // Kept, unless Ferrodock started quitting meanwhile: the
+                    // flag is read under the lock `stop` sets it under.
+                    let leftover = match running.lock() {
+                        Ok(mut slot) if !quitting.load(std::sync::atomic::Ordering::SeqCst) => {
+                            *slot = Some(engine);
+                            None
+                        }
+                        _ => Some(engine),
+                    };
+                    if let Some(engine) = leftover {
+                        engine.stop();
+                        return Ok(State::Stopped);
                     }
                     // For `docker context use ferrodock`; not having it
                     // doesn't stop the engine.
@@ -455,11 +480,28 @@ impl Engine {
         (Self::RESTARTS && console.is_file()).then(|| console.clone())
     }
 
-    /// Shuts the engine down (waits up to a few seconds).
+    /// Shuts the engine down as Ferrodock quits (waits up to a few
+    /// seconds). An engine still booting is stopped once it's up, so
+    /// none is left running after Ferrodock.
     pub fn stop(&self) {
         #[cfg(engine)]
-        if let Some(engine) = self.running.lock().ok().and_then(|mut slot| slot.take()) {
-            engine.stop();
+        {
+            let engine = self.running.lock().ok().and_then(|mut slot| {
+                self.quitting
+                    .store(true, std::sync::atomic::Ordering::SeqCst);
+                slot.take()
+            });
+            match engine {
+                Some(engine) => engine.stop(),
+                // A boot under way sees the flag and stops the engine
+                // itself; give it time to.
+                None => {
+                    let deadline = std::time::Instant::now() + QUIT_WAIT;
+                    while self.state() == State::Starting && std::time::Instant::now() < deadline {
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                    }
+                }
+            }
         }
         let installed = self.paths.as_ref().is_some_and(Paths::installed);
         Self::set(
@@ -516,6 +558,8 @@ mod tests {
             given: Arc::default(),
             #[cfg(engine)]
             running: Arc::default(),
+            #[cfg(engine)]
+            quitting: Arc::default(),
         }
     }
 
@@ -609,6 +653,31 @@ mod tests {
         engine.stop();
         // Nothing is set up without a home folder.
         assert_eq!(engine.state(), State::NotInstalled);
+    }
+
+    #[test]
+    #[cfg(engine)]
+    fn quitting_while_booting_stops_the_engine_once_up() {
+        use std::sync::atomic::Ordering;
+        // A boot is under way: quitting marks it and waits for it to end.
+        let engine = bare(State::Starting);
+        let state = engine.state.clone();
+        let finisher = std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(300));
+            *state.lock().unwrap() = State::Stopped;
+        });
+        let started = std::time::Instant::now();
+        engine.stop();
+        finisher.join().unwrap();
+        assert!(engine.quitting.load(Ordering::SeqCst));
+        assert!(started.elapsed() >= std::time::Duration::from_millis(250));
+        assert!(started.elapsed() < QUIT_WAIT);
+        // With nothing booting, quitting doesn't wait.
+        let idle = bare(State::Stopped);
+        let started = std::time::Instant::now();
+        idle.stop();
+        assert!(started.elapsed() < std::time::Duration::from_millis(100));
+        assert!(idle.quitting.load(Ordering::SeqCst));
     }
 
     #[test]

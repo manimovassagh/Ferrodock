@@ -10,6 +10,10 @@ const config = {
   headTags: [
     { tagName: "meta", attributes: { property: "og:image", content: "https://manimovassagh.github.io/Ferrodock/img/social-card.png" } },
     { tagName: "meta", attributes: { name: "twitter:card", content: "summary_large_image" } },
+    // The site lives under /Ferrodock/, where search engines don't look for
+    // a robots.txt (only the domain's root has one), so every page names
+    // its sitemap instead.
+    { tagName: "link", attributes: { rel: "sitemap", type: "application/xml", href: "/Ferrodock/sitemap.xml" } },
   ],
   favicon: "img/logo.png",
   url: "https://manimovassagh.github.io",
