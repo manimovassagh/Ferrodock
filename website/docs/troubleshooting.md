@@ -84,8 +84,9 @@ Compose reported. If the download itself fails (offline, or a proxy in the
 way), installing Docker Compose yourself works too.
 
 **Pulling or pushing a private image fails.**
-Ferrodock uses the logins of the Docker CLI. Run `docker login <registry>`
-once, then try again.
+Sign in to the registry in [Settings → Registries](./using/settings.md#registries),
+then try again. Logins made with `docker login` work too: they're the same
+ones.
 
 **The Disk page says the engine doesn't report disk usage.**
 That page needs Docker Engine 29 or newer.

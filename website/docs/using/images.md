@@ -66,9 +66,11 @@ In an image's details, the **⋯** menu has:
 To load a saved image, drop its `.tar` on the window while the Images page
 is open.
 
-Pulling and pushing use the Docker CLI's logins: whatever `docker login`
-stored in `~/.docker/config.json`, including credential helpers such as the
-macOS keychain. Private registries work the same way.
+For a private registry, sign in under
+[Settings → Registries](./settings.md#registries). Ferrodock keeps the login
+where the Docker CLI does (`~/.docker/config.json`, or a credential helper
+such as the macOS keychain), so logins made with `docker login` work too,
+and the other way round.
 
 ## History
 
