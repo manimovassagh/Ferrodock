@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.36.1](https://github.com/manimovassagh/Ferrodock/compare/v1.36.0...v1.36.1) - 2026-11-05
+
+### Fixed
+
+- stop the engine when quitting while it boots; docs for registry sign-in ([#320](https://github.com/manimovassagh/Ferrodock/pull/320))
+
 ## [1.36.0](https://github.com/manimovassagh/Ferrodock/compare/v1.35.4...v1.36.0) - 2026-11-04
 
 ### Added
