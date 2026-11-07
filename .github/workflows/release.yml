@@ -35,7 +35,7 @@ jobs:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
-          toolchain: stable
+          toolchain: "1.99.1" # rust-toolchain.toml
       - id: release-plz
         uses: release-plz/action@f67a7e724bdad4a0f6875f186060a0ca2770d76c # v0.5.147
         with:
@@ -96,7 +96,7 @@ jobs:
           fi
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
-          toolchain: stable
+          toolchain: "1.99.1" # rust-toolchain.toml
         if: steps.main.outputs.moved != 'true'
       - uses: release-plz/action@f67a7e724bdad4a0f6875f186060a0ca2770d76c # v0.5.147
         if: steps.main.outputs.moved != 'true'

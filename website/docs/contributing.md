@@ -19,7 +19,10 @@ welcome.
 - **Found a security issue?** Please report it privately, as described in
   [SECURITY.md](https://github.com/manimovassagh/Ferrodock/blob/main/SECURITY.md).
 
-To work on Ferrodock you need [Rust](https://rustup.rs) 1.95 or newer:
+To work on Ferrodock you need [Rust](https://rustup.rs) 1.95 or newer.
+
+The repository pins the Rust version it's built and released with in
+`rust-toolchain.toml`; rustup installs it the first time you build.
 
 ```bash
 git clone https://github.com/manimovassagh/Ferrodock.git
