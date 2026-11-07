@@ -104,7 +104,8 @@ Or download a build from the
 
 Each release has a `SHA256SUMS.txt` to check your download. Ferrodock
 updates itself: when a new version is out, click **Update to x.y.z** in the sidebar
-(or run `brew upgrade --cask ferrodock`).
+(or run `brew upgrade --cask ferrodock`). If a new version won't start,
+Ferrodock goes back to the one you had.
 
 The [installation guide](https://manimovassagh.github.io/Ferrodock/docs/installation)
 has the details for each platform.
