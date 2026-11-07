@@ -12,7 +12,9 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 use bollard::exec::{CreateExecOptions, StartExecResults};
-use bollard::models::{ContainerCreateBody, HealthConfig, HostConfig};
+use bollard::models::{
+    ContainerCreateBody, HealthConfig, HostConfig, Mount, MountType, SystemInfo, SystemVersion,
+};
 use bollard::query_parameters::{
     CreateContainerOptionsBuilder, ListContainersOptions, RemoveContainerOptions,
     StartContainerOptions, UploadToContainerOptions,
@@ -873,7 +875,19 @@ impl<'r, 'a> JobRun<'r, 'a> {
                 env.push(format!("{k}={}", text(v)?));
             }
         }
-        let body = ContainerCreateBody {
+        // The engine itself, as on GitHub's runners, so `docker build`,
+        // `docker run` and `docker compose` work in a job.
+        let engine = (client.docker.info().await, client.docker.version().await);
+        let socket = match engine {
+            (Ok(info), Ok(version)) if engine_socket(&info, &version) => Some(Mount {
+                target: Some(DOCKER_SOCKET.into()),
+                source: Some(DOCKER_SOCKET.into()),
+                typ: Some(MountType::BIND),
+                ..Mount::default()
+            }),
+            _ => None,
+        };
+        let mut body = ContainerCreateBody {
             image: Some(image.clone()),
             entrypoint: Some(vec!["tail".into(), "-f".into(), "/dev/null".into()]),
             cmd: Some(Vec::new()),
@@ -892,11 +906,22 @@ impl<'r, 'a> JobRun<'r, 'a> {
                     ),
                 ]),
                 extra_hosts: (!service_hosts.is_empty()).then_some(service_hosts),
+                mounts: socket.clone().map(|m| vec![m]),
                 ..HostConfig::default()
             }),
             ..ContainerCreateBody::default()
         };
-        self.container = self.create(&name, body).await?;
+        self.container = match self.create(&name, body.clone()).await {
+            Ok(id) => id,
+            // The engine has its socket elsewhere: the job runs without it.
+            Err(_) if socket.is_some() => {
+                if let Some(host) = body.host_config.as_mut() {
+                    host.mounts = None;
+                }
+                self.create(&name, body).await?
+            }
+            Err(e) => return Err(e),
+        };
         // The image's PATH, which GITHUB_PATH adds to.
         if let Ok(inspect) = client.docker.inspect_container(&self.container, None).await
             && let Some(path) = inspect
@@ -911,7 +936,9 @@ impl<'r, 'a> JobRun<'r, 'a> {
         let p = &self.paths;
         let prepare = format!(
             "mkdir -p '{ws}' '{home}' '{tmp}/_runner_file_commands' '{tmp}/_github_workflow' && touch {files} && \
-             (id runner >/dev/null 2>&1 && chown -R runner:runner '{ws}' '{tmp}' || true)",
+             (id runner >/dev/null 2>&1 && chown -R runner:runner '{ws}' '{tmp}' || true) && \
+             {docker_group}",
+            docker_group = DOCKER_GROUP,
             ws = p.workspace,
             home = p.home,
             tmp = p.temp,
@@ -1364,9 +1391,22 @@ impl<'r, 'a> JobRun<'r, 'a> {
         working_dir: &str,
         extra: &[(String, String)],
     ) -> Result<(i64, Vec<(String, String)>), String> {
-        let file = format!("{}/{step_id}-{number}.sh", self.paths.temp);
+        // PowerShell runs only .ps1 files; as on GitHub, it stops at the
+        // first error and exits with the last program's code.
+        let (extension, body) = match shell {
+            Some("pwsh") => (
+                "ps1",
+                format!(
+                    "$ErrorActionPreference = 'stop'\n{script}\n\
+                     if ((Test-Path -LiteralPath variable:\\LASTEXITCODE)) {{ exit $LASTEXITCODE }}\n"
+                ),
+            ),
+            Some("python") => ("py", script.to_owned()),
+            _ => ("sh", script.to_owned()),
+        };
+        let file = format!("{}/{step_id}-{number}.{extension}", self.paths.temp);
         let (dir, base) = file.rsplit_once('/').unwrap_or((".", "script.sh"));
-        self.put_file(dir, base, script.as_bytes()).await?;
+        self.put_file(dir, base, body.as_bytes()).await?;
         let has_bash = self
             .capture(&["sh", "-c", "command -v bash"], "")
             .await
@@ -1380,8 +1420,14 @@ impl<'r, 'a> JobRun<'r, 'a> {
             Some("bash") => return Err("bash isn't in this container".into()),
             None | Some("sh") => ["sh", "-e", &file].map(str::to_owned).to_vec(),
             Some("python") => ["python3", &file].map(str::to_owned).to_vec(),
-            Some("pwsh" | "powershell" | "cmd") => {
-                return Err(format!("{} doesn't run on Linux here", shell.unwrap_or("")));
+            Some("pwsh") => ["pwsh", "-command", &format!(". '{file}'")]
+                .map(str::to_owned)
+                .to_vec(),
+            Some("powershell" | "cmd") => {
+                return Err(format!(
+                    "{} is Windows only; use pwsh, which runs on Linux too",
+                    shell.unwrap_or("")
+                ));
             }
             Some(custom) => custom
                 .split_whitespace()
@@ -1765,6 +1811,32 @@ fn health_from(options: &str) -> Option<HealthConfig> {
     })
 }
 
+/// Where Docker listens, on the engine's host and in a job.
+const DOCKER_SOCKET: &str = "/var/run/docker.sock";
+
+/// Lets `runner` use the engine's socket: it joins the socket's group,
+/// whatever its id. The socket itself, the engine's, is left as it is.
+const DOCKER_GROUP: &str = "(! [ -S /var/run/docker.sock ] || ! id runner >/dev/null 2>&1 || \
+     { g=$(stat -c %g /var/run/docker.sock); \
+       getent group \"$g\" >/dev/null || groupadd -g \"$g\" docker-host; \
+       usermod -aG \"$(getent group \"$g\" | cut -d: -f1)\" runner; } || true)";
+
+/// Whether the engine's socket is at [`DOCKER_SOCKET`] on its host:
+/// Docker run as root, not Podman or rootless Docker.
+fn engine_socket(info: &SystemInfo, version: &SystemVersion) -> bool {
+    let rootless = info
+        .security_options
+        .iter()
+        .flatten()
+        .any(|o| o.contains("rootless"));
+    let podman = version
+        .components
+        .iter()
+        .flatten()
+        .any(|c| c.name.to_lowercase().contains("podman"));
+    !rootless && !podman
+}
+
 /// Splits like a shell: spaces separate, quotes group.
 fn shell_words(text: &str) -> Vec<String> {
     let mut words = Vec::new();
@@ -1845,6 +1917,26 @@ mod tests {
         assert_eq!(health.retries, Some(5));
         assert!(health_from("--cpus 2").is_none());
         assert_eq!(shell_words("a 'b c' \"\" d"), ["a", "b c", "", "d"]);
+    }
+
+    #[test]
+    fn shares_the_socket_of_docker_only() {
+        use bollard::models::SystemVersionComponents as ComponentVersion;
+        let docker = SystemVersion::default();
+        let podman = SystemVersion {
+            components: Some(vec![ComponentVersion {
+                name: "Podman Engine".into(),
+                ..ComponentVersion::default()
+            }]),
+            ..SystemVersion::default()
+        };
+        let rootless = SystemInfo {
+            security_options: Some(vec!["name=seccomp".into(), "name=rootless".into()]),
+            ..SystemInfo::default()
+        };
+        assert!(engine_socket(&SystemInfo::default(), &docker));
+        assert!(!engine_socket(&SystemInfo::default(), &podman));
+        assert!(!engine_socket(&rootless, &docker));
     }
 
     #[test]

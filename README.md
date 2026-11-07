@@ -53,7 +53,8 @@ that instead.
   before you push, in the app or with `fdock ci run`. Jobs run in
   containers, step by step, with live logs, services, matrices, secrets,
   artifacts, and actions from GitHub (JavaScript and composite), in a view
-  like GitHub's.
+  like GitHub's. The runner comes with what GitHub's does, PowerShell and
+  Docker included.
 - **Volumes and networks**: create them, browse a volume's files, connect
   and disconnect containers.
 - **Disk**: see where the space goes and free it in one step, with a preview

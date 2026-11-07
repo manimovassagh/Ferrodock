@@ -48,12 +48,20 @@ The dialog also says which jobs can't run here (macOS and Windows jobs;
 Local CI runs Linux jobs only). They're shown as skipped.
 
 The first run makes the runner image, which takes a few minutes and about
-3 GB; later runs start in seconds. It's Ubuntu with what GitHub's Ubuntu
+3.5 GB; later runs start in seconds. It's Ubuntu with what GitHub's Ubuntu
 runners come with, so workflows find the same tools here as there:
 
 - **Rust** (stable, with clippy and rustfmt, in `~/.cargo`), **Go**,
   **Java** 21 (`JAVA_HOME`), **Node.js** 22 with npm, yarn and pnpm, and
-  **Python** 3 with pip and pipx.
+  **Python** 3 with pip and pipx, **Ruby** and **Maven**.
+- **PowerShell** (`pwsh`), so steps with `shell: pwsh` run as on GitHub.
+- **Docker**, with Buildx and Compose: `docker build`, `docker run` and
+  `docker compose` in a step use the engine Ferrodock runs on, as GitHub's
+  runners use theirs. (Paths in `docker run -v` are the engine's, not the
+  job's, as in a `container:` job on GitHub. With Podman or rootless Docker
+  the engine's socket isn't shared, and jobs run without it.)
+- Cloud and cluster tools: `kubectl`, `helm` and the AWS CLI, and the
+  `psql` and `mysql` clients for services.
 - Build tools: `build-essential`, `cmake`, `ninja`, `clang`, `lld`,
   autotools, `pkg-config`, `protoc`, OpenSSL and SQLite headers.
 - Everyday tools: `git` and Git LFS, `gh`, `jq`, `yq`, `curl`, `zip`,
