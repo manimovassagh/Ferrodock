@@ -1,5 +1,6 @@
-//! Disk page: where the engine's disk space goes, and a clean-up that
-//! shows exactly what it will delete before it runs.
+//! Disk page: what the engine's containers use right now (CPU and
+//! memory, the busiest first), where its disk space goes, and a clean-up
+//! that shows exactly what it will delete before it runs.
 
 use std::collections::BTreeSet;
 
@@ -10,12 +11,16 @@ use crate::app::components::widgets;
 use crate::app::page::{Command, ConfirmOption, Confirmation, Intent, Page, PageCtx, TypedCheck};
 use crate::app::store::Store;
 use crate::docker::{
-    Action, DiskUsage, PruneKind, RESET_WORD, Resource, Task, Usage, format_size, plural,
+    Action, Capacity, DiskUsage, PruneKind, RESET_WORD, Resource, StatsSample, Task, Total, Usage,
+    format_size, plural,
 };
 use crate::theme::Palette;
 
 /// How many names the preview lists per kind before "and n more".
 const PREVIEW: usize = 6;
+
+/// How many of the busiest containers the overview lists.
+const BUSIEST: usize = 5;
 
 #[derive(Default)]
 pub struct DiskPage {
@@ -211,6 +216,10 @@ impl Page for DiskPage {
         egui::ScrollArea::vertical()
             .auto_shrink(false)
             .show(ui, |ui| {
+                if let Some(capacity) = store.capacity {
+                    resources(ui, p, store, capacity);
+                    ui.add_space(22.0);
+                }
                 if disk.is_reported() {
                     ui.columns(4, |cols| {
                         let parts = [
@@ -480,6 +489,99 @@ fn confirm_reset(store: &Store) -> Intent {
     })
 }
 
+/// The latest reading of each running container, the busiest first.
+fn latest(store: &Store) -> Vec<(&str, StatsSample)> {
+    let mut rows: Vec<(&str, StatsSample)> = store
+        .usage
+        .iter()
+        .filter_map(|(id, history)| {
+            let name = store
+                .containers
+                .iter()
+                .find(|c| &c.id == id)
+                .map_or(id.as_str(), |c| c.name.as_str());
+            history.back().map(|s| (name, *s))
+        })
+        .collect();
+    rows.sort_by(|a, b| {
+        b.1.cpu_percent
+            .total_cmp(&a.1.cpu_percent)
+            .then(b.1.memory_used.cmp(&a.1.memory_used))
+    });
+    rows
+}
+
+/// What the running containers use of the engine's CPUs and memory, and
+/// the busiest of them. Read only while this page is open.
+fn resources(ui: &mut egui::Ui, p: &Palette, store: &Store, capacity: Capacity) {
+    let rows = latest(store);
+    let total = Total::of(rows.iter().map(|(_, s)| s));
+    let cpus = capacity.cpus.max(1);
+    ui.columns(2, |cols| {
+        meter(
+            &mut cols[0],
+            p,
+            "CPU",
+            &format!("{:.0}%", total.cpu_percent),
+            &format!("of {}", plural(cpus as usize, "CPU")),
+            total.cpu_percent / (cpus as f64 * 100.0),
+        );
+        meter(
+            &mut cols[1],
+            p,
+            "MEMORY",
+            &format_size(total.memory as i64),
+            &format!("of {}", format_size(capacity.memory as i64)),
+            total.memory as f64 / capacity.memory.max(1) as f64,
+        );
+    });
+    ui.add_space(10.0);
+    let heading = if rows.is_empty() {
+        "No containers are running"
+    } else {
+        "BUSIEST CONTAINERS"
+    };
+    ui.label(RichText::new(heading).size(11.0).color(p.muted));
+    egui::Grid::new("busiest")
+        .num_columns(3)
+        .spacing(vec2(24.0, 6.0))
+        .show(ui, |ui| {
+            for (name, sample) in rows.iter().take(BUSIEST) {
+                ui.label(RichText::new(*name).color(p.text));
+                ui.label(
+                    RichText::new(format!("{:.1}% CPU", sample.cpu_percent))
+                        .monospace()
+                        .color(p.muted),
+                );
+                ui.label(
+                    RichText::new(format_size(sample.memory_used as i64))
+                        .monospace()
+                        .color(p.muted),
+                );
+                ui.end_row();
+            }
+        });
+}
+
+/// One live figure against its limit, with a bar.
+fn meter(ui: &mut egui::Ui, p: &Palette, title: &str, value: &str, limit: &str, share: f64) {
+    egui::Frame::new()
+        .fill(p.bg)
+        .stroke(Stroke::new(1.0, p.border))
+        .corner_radius(CornerRadius::same(10))
+        .inner_margin(egui::Margin::same(14))
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.label(RichText::new(title).size(11.0).color(p.muted));
+            ui.horizontal(|ui| {
+                ui.label(RichText::new(value).size(22.0).strong().color(p.text));
+                ui.label(RichText::new(limit).size(13.0).color(p.muted));
+            });
+            ui.add_space(6.0);
+            bar(ui, p, (share.clamp(0.0, 1.0) * 1000.0) as i64, 1000);
+        });
+}
+
 /// One usage summary: size, a bar of how much could be freed, counts.
 fn card(ui: &mut egui::Ui, p: &Palette, title: &str, usage: Option<&Usage>, noun: &str) {
     egui::Frame::new()
@@ -524,7 +626,7 @@ fn card(ui: &mut egui::Ui, p: &Palette, title: &str, usage: Option<&Usage>, noun
         });
 }
 
-/// A thin bar: the freeable share of `total`, in the theme's data colour
+/// A thin bar: `part` of `total`, in the theme's data colour
 /// (the accent reads as a warning, which freeable space isn't).
 fn bar(ui: &mut egui::Ui, p: &Palette, part: i64, total: i64) {
     let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 6.0), Sense::hover());
