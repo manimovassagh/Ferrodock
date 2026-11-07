@@ -7,6 +7,16 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.37.0](https://github.com/manimovassagh/Ferrodock/compare/v1.36.2...v1.37.0) - 2026-11-07
+
+### Added
+
+- PowerShell and Docker in Local CI jobs, more runner tools ([#327](https://github.com/manimovassagh/Ferrodock/pull/327))
+
+### Fixed
+
+- bound the Windows mux's per-connection queue and pin the Rust toolchain ([#325](https://github.com/manimovassagh/Ferrodock/pull/325))
+
 ## [1.36.2](https://github.com/manimovassagh/Ferrodock/compare/v1.36.1...v1.36.2) - 2026-11-07
 
 ### Other
