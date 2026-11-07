@@ -82,7 +82,7 @@ pub fn show(
             ui.label(RichText::new("DOCKER").size(11.0).color(p.muted));
             ui.add_space(2.0);
             for (i, page) in pages.iter().enumerate().filter(|(_, page)| !page.bottom()) {
-                let item = widgets::nav_item(
+                let mut item = widgets::nav_item(
                     ui,
                     p,
                     page.icon(),
@@ -90,6 +90,9 @@ pub fn show(
                     &page.badge(store),
                     i == active,
                 );
+                if let Some(hint) = page.badge_hint(store) {
+                    item = item.on_hover_text(hint);
+                }
                 if item.clicked() {
                     clicked = Some(Click::Page(i));
                 }
@@ -203,7 +206,7 @@ fn bottom(
     if !bottom.is_empty() {
         ui.add_space(if compact { 6.0 } else { 14.0 });
         for (i, page) in bottom.iter().rev() {
-            let item = widgets::nav_item(
+            let mut item = widgets::nav_item(
                 ui,
                 p,
                 page.icon(),
@@ -211,6 +214,9 @@ fn bottom(
                 &page.badge(store),
                 *i == active,
             );
+            if let Some(hint) = page.badge_hint(store) {
+                item = item.on_hover_text(hint);
+            }
             if item.clicked() {
                 *clicked = Some(Click::Page(*i));
             }
