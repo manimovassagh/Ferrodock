@@ -287,7 +287,7 @@ const SHOWCASE = [
   },
   {
     title: "Your CI, before you push",
-    text: "Run a project's GitHub Actions workflows on your own computer, in the app or with fdock ci run. Jobs run in containers step by step, with services, matrices, secrets, artifacts and actions from GitHub, and live logs in a view like GitHub's.",
+    text: "Run a project's GitHub Actions workflows on your own computer, in the app or with fdock ci run. Jobs run in containers step by step, with services, matrices, secrets, artifacts, actions from GitHub, PowerShell and Docker, and live logs in a view like GitHub's.",
     src: "/img/local-ci.png",
     alt: "A Local CI run in Ferrodock: its jobs, and a job's steps and log",
   },
