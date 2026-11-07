@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::windows::named_pipe::{NamedPipeServer, ServerOptions};
-use tokio::sync::mpsc::{self, UnboundedSender, unbounded_channel};
+use tokio::sync::mpsc::{self, Sender, error::TrySendError};
 
 use super::wsl::{Wsl, decode, linux_path, pem, readiness};
 use super::{Paths, Resources, download, mux};
@@ -37,8 +37,10 @@ const CANCELLED: i32 = 1223;
 const REBOOT: i32 = 3010;
 
 /// Where each connection's data from the engine goes; None once the
-/// engine has sent everything.
-type Connections = Arc<Mutex<HashMap<u32, UnboundedSender<Option<Vec<u8>>>>>>;
+/// engine has sent everything. Each inbox holds at most [`QUEUED`]
+/// frames, so a slow reader of a `docker save` holds the engine back
+/// instead of filling memory.
+type Connections = Arc<Mutex<HashMap<u32, Sender<Option<Vec<u8>>>>>>;
 
 /// Frames on their way to the agent, at most [`QUEUED`] of them: a client
 /// sending faster than WSL takes it in (a `docker load`, a big build
@@ -47,6 +49,11 @@ type ToAgent = mpsc::Sender<Vec<u8>>;
 
 /// Frames of up to 64 KiB each, so 16 MiB at most.
 const QUEUED: usize = 256;
+
+/// How long a connection may leave its inbox full. All connections share
+/// one stream from the agent, so one that stops reading would hold up the
+/// rest: after this long it's closed instead.
+const STALLED: Duration = Duration::from_secs(10);
 
 /// Runs `wsl.exe` with `args` and returns what it printed.
 fn wsl(args: &[&str]) -> Result<String, String> {
@@ -281,18 +288,23 @@ impl Running {
         let dispatch = connections.clone();
         thread::spawn(move || {
             while let Ok(Some((id, kind, data))) = mux::read(&mut output) {
-                let Ok(mut map) = dispatch.lock() else { break };
-                match kind {
-                    mux::DATA => {
-                        if let Some(inbox) = map.get(&id) {
-                            let _ = inbox.send(Some(data));
-                        }
+                // Not sent under the lock: a full inbox waits for its
+                // reader, and new connections must still get in.
+                let inbox = {
+                    let Ok(mut map) = dispatch.lock() else { break };
+                    if kind == mux::DATA {
+                        map.get(&id).cloned()
+                    } else {
+                        map.remove(&id)
                     }
-                    _ => {
-                        if let Some(inbox) = map.remove(&id) {
-                            let _ = inbox.send(None);
-                        }
-                    }
+                };
+                let Some(inbox) = inbox else { continue };
+                let message = (kind == mux::DATA).then_some(data);
+                if !deliver(&inbox, message)
+                    && let Ok(mut map) = dispatch.lock()
+                {
+                    // Gone, or stopped reading: the connection ends.
+                    map.remove(&id);
                 }
             }
             // The agent is gone: every connection ends.
@@ -364,6 +376,25 @@ impl Running {
     }
 }
 
+/// Hands `message` to a connection, waiting while its inbox is full, for
+/// up to [`STALLED`]. False when the connection is gone or stalled.
+fn deliver(inbox: &Sender<Option<Vec<u8>>>, mut message: Option<Vec<u8>>) -> bool {
+    let started = std::time::Instant::now();
+    loop {
+        match inbox.try_send(message) {
+            Ok(()) => return true,
+            Err(TrySendError::Closed(_)) => return false,
+            Err(TrySendError::Full(back)) => {
+                if started.elapsed() >= STALLED {
+                    return false;
+                }
+                message = back;
+                thread::sleep(Duration::from_millis(2));
+            }
+        }
+    }
+}
+
 /// Accepts clients on the pipe `name`, one connection to the engine each.
 async fn listen(
     name: &'static str,
@@ -396,7 +427,7 @@ async fn listen(
 
 /// Carries one client's connection to the engine and back.
 async fn serve(pipe: NamedPipeServer, id: u32, to_agent: ToAgent, connections: Connections) {
-    let (inbox, mut messages) = unbounded_channel();
+    let (inbox, mut messages) = mpsc::channel(QUEUED);
     if let Ok(mut map) = connections.lock() {
         map.insert(id, inbox);
     }
