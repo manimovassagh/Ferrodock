@@ -13,6 +13,9 @@ the Ferrodock version.
 
 You need [Rust](https://rustup.rs) 1.95 or newer and a running Docker Engine.
 
+The repository pins the Rust version it's built and released with in
+`rust-toolchain.toml`; rustup installs it the first time you build.
+
 ```bash
 git clone https://github.com/manimovassagh/Ferrodock.git
 cd Ferrodock

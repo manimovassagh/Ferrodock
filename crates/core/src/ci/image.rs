@@ -1,12 +1,13 @@
 //! The image jobs run in, like GitHub's Ubuntu runners: the toolchains
-//! they come with (Rust, Go, Java, Node.js, Python), the usual build tools
-//! and CLIs, and a `runner` user with `sudo`. Built here from the
+//! they come with (Rust, Go, Java, Node.js, Python, Ruby), PowerShell, the
+//! Docker CLI with Buildx and Compose, the usual build tools and CLIs, and
+//! a `runner` user with `sudo`. Built here from the
 //! Dockerfile below the first time a job needs it.
 
 use super::super::{BuildSpec, DockerClient};
 
 /// Bumped when the Dockerfile changes, so the image is built again.
-const REVISION: u32 = 2;
+const REVISION: u32 = 3;
 const REPOSITORY: &str = "ferrodock-ci-runner";
 
 /// The Ubuntu version for a job's `runs-on`, or why it can't run here.
@@ -53,13 +54,39 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential pkg-config cmake ninja-build clang lld llvm \
       autoconf automake libtool libssl-dev protobuf-compiler sqlite3 libsqlite3-dev \
       python3 python3-pip python3-venv python3-dev pipx \
-      openjdk-21-jdk-headless shellcheck \
+      openjdk-21-jdk-headless maven ruby-full shellcheck libicu-dev \
+      postgresql-client default-mysql-client \
     && rm -rf /var/lib/apt/lists/* \
     && ln -s "$(dirname $(dirname $(readlink -f $(command -v javac))))" /usr/lib/jvm/java-21
 # The GitHub CLI, its latest release.
 RUN v=$(curl -fsSL -o /dev/null -w '%{{url_effective}}' https://github.com/cli/cli/releases/latest | sed 's#.*/v##') \
     && curl -fsSL "https://github.com/cli/cli/releases/download/v$v/gh_"$v"_linux_$(dpkg --print-architecture).tar.gz" \
       | tar -xz -C /tmp && mv /tmp/gh_*/bin/gh /usr/local/bin/ && rm -rf /tmp/gh_*
+# The Docker CLI with Buildx and Compose; jobs reach the engine through
+# its socket, as on GitHub's runners.
+RUN install -m 0755 -d /etc/apt/keyrings \
+    && curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" \
+      > /etc/apt/sources.list.d/docker.list \
+    && apt-get update && apt-get install -y --no-install-recommends \
+      docker-ce-cli docker-buildx-plugin docker-compose-plugin \
+    && rm -rf /var/lib/apt/lists/*
+# PowerShell (pwsh), its latest release.
+RUN v=$(curl -fsSL -o /dev/null -w '%{{url_effective}}' https://github.com/PowerShell/PowerShell/releases/latest | sed 's#.*/v##') \
+    && mkdir -p /opt/microsoft/powershell/7 \
+    && curl -fsSL "https://github.com/PowerShell/PowerShell/releases/download/v$v/powershell-$v-linux-$(dpkg --print-architecture | sed 's/amd64/x64/').tar.gz" \
+      | tar -xz -C /opt/microsoft/powershell/7 \
+    && chmod +x /opt/microsoft/powershell/7/pwsh \
+    && ln -s /opt/microsoft/powershell/7/pwsh /usr/bin/pwsh
+# kubectl and Helm, their latest releases.
+RUN curl -fsSL "https://dl.k8s.io/release/$(curl -fsSL https://dl.k8s.io/release/stable.txt)/bin/linux/$(dpkg --print-architecture)/kubectl" \
+      -o /usr/local/bin/kubectl && chmod +x /usr/local/bin/kubectl \
+    && v=$(curl -fsSL -o /dev/null -w '%{{url_effective}}' https://github.com/helm/helm/releases/latest | sed 's#.*/##') \
+    && curl -fsSL "https://get.helm.sh/helm-$v-linux-$(dpkg --print-architecture).tar.gz" | tar -xz -C /tmp \
+    && mv /tmp/linux-*/helm /usr/local/bin/ && rm -rf /tmp/linux-*
+# The AWS CLI.
+RUN curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o /tmp/awscli.zip \
+    && unzip -q /tmp/awscli.zip -d /tmp && /tmp/aws/install && rm -rf /tmp/aws /tmp/awscli.zip
 # yq.
 RUN curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_$(dpkg --print-architecture)" \
       -o /usr/local/bin/yq && chmod +x /usr/local/bin/yq
@@ -150,6 +177,6 @@ mod tests {
         );
         assert!(ubuntu_for(&[]).is_err());
         assert!(dockerfile("24.04").starts_with("FROM ubuntu:24.04"));
-        assert_eq!(tag("24.04"), "ferrodock-ci-runner:24.04-2");
+        assert_eq!(tag("24.04"), "ferrodock-ci-runner:24.04-3");
     }
 }
