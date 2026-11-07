@@ -7,7 +7,7 @@ description: "Install Ferrodock on macOS, Windows or Linux, check the download, 
 # Installation
 
 Ferrodock runs on macOS 11 or newer (Apple Silicon and Intel), Windows 10
-and 11 (x64), and Linux (x64). Downloads are on the
+and 11 (x64), and Linux (x64 and arm64). Downloads are on the
 [Releases page](https://github.com/manimovassagh/Ferrodock/releases/latest).
 
 ## Let your AI assistant install it
@@ -68,6 +68,15 @@ Docker engine you already run; see
 
 ## Windows
 
+With [Scoop](https://scoop.sh):
+
+```powershell
+scoop install https://raw.githubusercontent.com/manimovassagh/Ferrodock/main/packaging/scoop/ferrodock.json
+```
+
+Scoop puts **Ferrodock** in the Start menu and `fdock` and `ferrodock-mcp`
+on your PATH; `scoop update ferrodock` updates it. Or by hand:
+
 1. Download `Ferrodock-<version>-windows-x64.zip` and unzip it.
 2. Run **Ferrodock.exe**. If SmartScreen appears, choose
    **More info → Run anyway**.
@@ -79,6 +88,18 @@ Docker engine you already run; see
 More in [Ferrodock's own engine](./engine.md#windows).
 
 ## Linux
+
+On Debian, Ubuntu and their relatives, install the `.deb` (`amd64` for
+x64, `arm64` for ARM). It puts Ferrodock in the applications menu, and
+`fdock` and `ferrodock-mcp` in `/usr/bin`:
+
+```bash
+sudo apt install ./Ferrodock-<version>-linux-amd64.deb
+```
+
+A Ferrodock installed this way is updated by installing the next `.deb`,
+not from inside the app. Elsewhere, unpack the `.tar.gz` (`x64` or `arm64`)
+anywhere and run it; it updates itself:
 
 ```bash
 tar -xzf Ferrodock-<version>-linux-x64.tar.gz
@@ -158,8 +179,9 @@ Settings first. Then:
 - **macOS:** quit Ferrodock and move **Ferrodock.app** to the Trash, or run
   `brew uninstall --cask ferrodock`.
 - **Windows:** quit Ferrodock (from its icon in the notification area) and
-  delete the folder you unzipped it to.
-- **Linux:** delete the `ferrodock` executable, and its `.desktop` file if
+  delete the folder you unzipped it to, or run `scoop uninstall ferrodock`.
+- **Linux:** run `sudo apt remove ferrodock` if you installed the `.deb`;
+  otherwise delete the `ferrodock` executable, and its `.desktop` file if
   you made one.
 
 Ferrodock also put the `fdock` and `ferrodock-mcp` commands on your PATH,

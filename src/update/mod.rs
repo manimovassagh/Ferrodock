@@ -175,6 +175,8 @@ fn asset_suffix() -> Option<&'static str> {
         Some("-windows-x64.zip")
     } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
         Some("-linux-x64.tar.gz")
+    } else if cfg!(all(target_os = "linux", target_arch = "aarch64")) {
+        Some("-linux-arm64.tar.gz")
     } else {
         None
     }

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Ferrodock
+GenericName=Container manager
+Comment=The native container manager, written in Rust
+Exec=ferrodock
+Icon=ferrodock
+Terminal=false
+Categories=Development;System;
+Keywords=docker;podman;containers;compose;kubernetes;
+StartupWMClass=ferrodock

@@ -22,6 +22,8 @@ Each release has these files:
 | `Ferrodock-<version>-macos-universal.zip` | The same app, as a zip |
 | `Ferrodock-<version>-windows-x64.zip` | Windows 10 and 11, x64 |
 | `Ferrodock-<version>-linux-x64.tar.gz` | Linux, x64 |
+| `Ferrodock-<version>-linux-arm64.tar.gz` | Linux, arm64 |
+| `Ferrodock-<version>-linux-amd64.deb` / `-arm64.deb` | Debian, Ubuntu and relatives, with a menu entry |
 | `SHA256SUMS.txt` | Checksums of all of the above |
 
 To check a download, see [Installation](./installation.md#check-your-download).
