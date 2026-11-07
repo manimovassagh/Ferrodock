@@ -68,7 +68,8 @@ pub fn field(ui: &mut egui::Ui, p: &Palette, label: &str, value: &str) {
 const COPIED_FOR: f64 = 1.5;
 
 /// A row showing `short` in monospace, shortened in the middle when it
-/// doesn't fit. Clicking it, or the Copy button, copies `full`.
+/// doesn't fit. Clicking it, or the Copy button that shows while the
+/// pointer is on the row, copies `full`.
 pub fn copy_field(ui: &mut egui::Ui, p: &Palette, label: &str, short: &str, full: &str) {
     ui.label(RichText::new(label).color(p.muted));
     ui.horizontal(|ui| {
@@ -95,8 +96,11 @@ pub fn copy_field(ui: &mut egui::Ui, p: &Palette, label: &str, short: &str, full
             ui.ctx()
                 .request_repaint_after(std::time::Duration::from_secs_f64(COPIED_FOR));
         } else {
+            // Only on the row the pointer is on, so the pane isn't a column
+            // of Copy buttons; its room is kept, so nothing moves.
+            let show = ui.ui_contains_pointer();
             copy |= ui
-                .small_button("Copy")
+                .add_visible(show, egui::Button::new("Copy").small())
                 .on_hover_text("Copy to clipboard")
                 .clicked();
         }
@@ -128,11 +132,15 @@ pub fn shorten_middle(text: &str, max: usize) -> String {
 pub fn link_field(ui: &mut egui::Ui, p: &Palette, label: &str, items: &[&str]) -> Option<usize> {
     ui.label(RichText::new(label).color(p.muted));
     let mut clicked = None;
-    ui.vertical(|ui| {
+    // On the label's line, wrapping when there are many.
+    ui.horizontal_wrapped(|ui| {
         if items.is_empty() {
             ui.label(RichText::new("—").color(p.text));
         }
         for (i, item) in items.iter().enumerate() {
+            if i > 0 {
+                ui.label(RichText::new(",").color(p.muted));
+            }
             let link = ui
                 .add(
                     egui::Label::new(RichText::new(*item).color(p.accent))

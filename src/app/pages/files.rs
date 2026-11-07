@@ -275,15 +275,17 @@ fn row(
         icon_color,
     );
     let font = egui::FontId::proportional(13.0);
-    let meta_font = egui::FontId::proportional(12.0);
-    // Size and date on the right, the name gets what's left.
+    // Monospace, so the columns line up from row to row.
+    let meta_font = egui::FontId::monospace(11.5);
+    // Permissions, owner, size and date on the right; the name gets
+    // what's left.
     let meta = entry
         .map(|e| {
             let size = match e.kind {
                 FileKind::File => format_size(e.size as i64),
                 _ => String::new(),
             };
-            format!("{size:>9}   {}", e.modified)
+            format!("{}  {:<8} {size:>9}  {:>12}", e.mode, e.owner, e.modified)
         })
         .unwrap_or_default();
     let meta_galley = painter.layout_no_wrap(meta, meta_font, p.muted);

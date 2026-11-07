@@ -69,6 +69,9 @@ starting Ferrodock.
 The **Files** tab browses the container's filesystem, no `docker cp`
 needed. Stopped containers can be browsed too.
 
+Each entry shows its permissions, owner, size and when it last changed,
+like `ls -l`.
+
 - Click a folder to open it, **..** to go up, or a part of the path at the
   top to jump back.
 - Click a file to preview it. Text files up to 512 KB show inline.
