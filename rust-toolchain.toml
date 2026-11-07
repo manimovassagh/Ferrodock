@@ -1,0 +1,6 @@
+# The Rust version Ferrodock is built and released with, so a release
+# never depends on what `stable` happened to be that day. The workflows
+# install the same version; bump both together.
+[toolchain]
+channel = "1.99.1"
+components = ["rustfmt", "clippy"]
