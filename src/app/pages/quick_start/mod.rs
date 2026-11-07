@@ -66,6 +66,19 @@ impl Page for QuickStartPage {
         }
     }
 
+    fn badge_hint(&self, store: &Store) -> Option<String> {
+        let running = TEMPLATES
+            .iter()
+            .filter(|t| running(store, t).is_some())
+            .count();
+        (running > 0).then(|| {
+            format!(
+                "{} from Quick start running",
+                crate::docker::plural(running, "service")
+            )
+        })
+    }
+
     fn summary(&self, _store: &Store) -> String {
         "Popular services, ready for local development".into()
     }

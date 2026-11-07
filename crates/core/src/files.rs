@@ -68,6 +68,10 @@ pub struct FileEntry {
     pub modified: String,
     /// Where a symbolic link points.
     pub target: Option<String>,
+    /// Permissions as `ls` shows them, e.g. `-rw-r--r--`.
+    pub mode: String,
+    /// Who owns it, e.g. `root`, or a number when there's no name for it.
+    pub owner: String,
 }
 
 /// The contents of one folder.
@@ -128,7 +132,7 @@ fn parse_ls_line(line: &str) -> Option<FileEntry> {
         'c' | 'b' | 'p' | 's' => FileKind::Other,
         _ => return None, // "total 12"
     };
-    let (_links, _owner, _group) = (next()?, next()?, next()?);
+    let (_links, owner, _group) = (next()?, next()?, next()?);
     let mut size = next()?;
     if size.ends_with(',') {
         // A device: "major, minor" instead of a size.
@@ -150,6 +154,8 @@ fn parse_ls_line(line: &str) -> Option<FileEntry> {
         size: size.parse().unwrap_or(0),
         modified: date,
         target,
+        mode: perms.to_owned(),
+        owner: owner.to_owned(),
     })
 }
 
@@ -188,9 +194,44 @@ fn parse_tar_listing(bytes: &[u8]) -> Vec<FileEntry> {
                 .ok()
                 .flatten()
                 .map(|t| t.to_string_lossy().into_owned()),
+            mode: mode_text(kind, header.mode().unwrap_or(0)),
+            owner: header
+                .username()
+                .ok()
+                .flatten()
+                .filter(|u| !u.is_empty())
+                .map(str::to_owned)
+                .or_else(|| {
+                    header
+                        .uid()
+                        .ok()
+                        .map(|u| if u == 0 { "root".into() } else { u.to_string() })
+                })
+                .unwrap_or_default(),
         });
     }
     entries
+}
+
+/// Permissions as `ls` shows them, from a mode: `drwxr-xr-x`.
+fn mode_text(kind: FileKind, mode: u32) -> String {
+    let first = match kind {
+        FileKind::Dir => 'd',
+        FileKind::Link => 'l',
+        FileKind::File => '-',
+        FileKind::Other => '?',
+    };
+    let bits = ['r', 'w', 'x'];
+    let rest: String = (0..9)
+        .map(|i| {
+            if mode & (1 << (8 - i)) == 0 {
+                '-'
+            } else {
+                bits[i % 3]
+            }
+        })
+        .collect();
+    format!("{first}{rest}")
 }
 
 /// Whether the tar of a path holds a folder (its first entry is one).
@@ -475,6 +516,8 @@ mod tests {
         assert_eq!(entries[0].name, "my notes.txt");
         assert_eq!(entries[0].size, 612);
         assert_eq!(entries[0].modified, "Aug 11 2025");
+        assert_eq!(entries[0].mode, "-rw-r--r--");
+        assert_eq!(entries[0].owner, "root");
         assert_eq!(entries[1].kind, FileKind::Link);
         assert_eq!(entries[1].target.as_deref(), Some("usr/bin"));
         assert_eq!(
@@ -482,10 +525,14 @@ mod tests {
             ("null", FileKind::Other)
         );
 
-        let busybox = "drwxr-xr-x    2 root     root          4096 Oct 17 21:02 conf.d\n";
+        let busybox = "drwxr-x---    2 nginx    root          4096 Oct 17 21:02 conf.d\n";
         let entries = parse_ls(busybox);
         assert_eq!(entries[0].name, "conf.d");
         assert_eq!(entries[0].kind, FileKind::Dir);
+        assert_eq!(
+            (entries[0].mode.as_str(), entries[0].owner.as_str()),
+            ("drwxr-x---", "nginx")
+        );
     }
 
     #[test]
@@ -507,6 +554,8 @@ mod tests {
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].name, "hosts");
         assert_eq!(entries[0].size, 20);
+        assert_eq!(entries[0].mode, "-rw-r--r--");
+        assert_eq!(mode_text(FileKind::Dir, 0o750), "drwxr-x---");
     }
 
     #[test]

@@ -128,9 +128,12 @@ pub(super) fn show(
                     });
                 });
             };
+            // Unwrapped, long lines run off to the right: the scroll bars
+            // stay in view so that's plain.
             let mut area = egui::ScrollArea::both()
                 .auto_shrink(false)
-                .stick_to_bottom(true);
+                .stick_to_bottom(true)
+                .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible);
             if view.wrap {
                 area = egui::ScrollArea::vertical()
                     .auto_shrink(false)

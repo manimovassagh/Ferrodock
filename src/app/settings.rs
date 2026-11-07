@@ -12,6 +12,9 @@ use crate::theme::Palette;
 use crate::update::{Status, Updater};
 use crate::vm;
 
+/// Width of the label column in Settings' grids, so they line up.
+const LABEL_WIDTH: f32 = 96.0;
+
 /// Key the settings are stored under.
 pub const STORAGE_KEY: &str = "settings";
 
@@ -200,6 +203,7 @@ pub fn show(
                 heading(ui, p, "Appearance");
                 egui::Grid::new("settings-grid")
                     .num_columns(2)
+                    .min_col_width(LABEL_WIDTH)
                     .spacing([18.0, 12.0])
                     .show(ui, |ui| {
                         ui.label(RichText::new("Theme").color(p.muted));
@@ -217,7 +221,35 @@ pub fn show(
                             }
                         });
                         ui.end_row();
-
+                    });
+                // One choice: Ferrodock's colours above, or an editor's here.
+                ui.add_space(8.0);
+                ui.label(
+                    RichText::new("…or the colours of an editor theme")
+                        .size(12.5)
+                        .color(p.muted),
+                );
+                ui.add_space(6.0);
+                egui::Grid::new("editor-themes")
+                    .num_columns(3)
+                    .spacing([12.0, 10.0])
+                    .show(ui, |ui| {
+                        for (i, editor) in crate::theme::EDITOR_THEMES.iter().enumerate() {
+                            let on = settings.editor_theme.as_deref() == Some(editor.id);
+                            if theme_swatch(ui, p, editor, on).clicked() {
+                                settings.editor_theme = Some(editor.id.to_owned());
+                            }
+                            if i % 3 == 2 {
+                                ui.end_row();
+                            }
+                        }
+                    });
+                ui.add_space(12.0);
+                egui::Grid::new("settings-grid-2")
+                    .num_columns(2)
+                    .min_col_width(LABEL_WIDTH)
+                    .spacing([18.0, 12.0])
+                    .show(ui, |ui| {
                         ui.label(RichText::new("Density").color(p.muted));
                         ui.horizontal(|ui| {
                             ui.selectable_value(
@@ -248,23 +280,6 @@ pub fn show(
                         ui.end_row();
                     });
 
-                ui.add_space(14.0);
-                ui.label(RichText::new("Editor themes").color(p.muted));
-                ui.add_space(6.0);
-                egui::Grid::new("editor-themes")
-                    .num_columns(3)
-                    .spacing([12.0, 10.0])
-                    .show(ui, |ui| {
-                        for (i, editor) in crate::theme::EDITOR_THEMES.iter().enumerate() {
-                            let on = settings.editor_theme.as_deref() == Some(editor.id);
-                            if theme_swatch(ui, p, editor, on).clicked() {
-                                settings.editor_theme = Some(editor.id.to_owned());
-                            }
-                            if i % 3 == 2 {
-                                ui.end_row();
-                            }
-                        }
-                    });
                 ui.add_space(18.0);
                 heading(ui, p, "Notifications");
                 ui.checkbox(

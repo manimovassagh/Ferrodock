@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.36.2](https://github.com/manimovassagh/Ferrodock/compare/v1.36.1...v1.36.2) - 2026-11-07
+
+### Other
+
+- UI polish: file permissions, grouped theme settings, copy on hover ([#323](https://github.com/manimovassagh/Ferrodock/pull/323))
+
 ## [1.36.1](https://github.com/manimovassagh/Ferrodock/compare/v1.36.0...v1.36.1) - 2026-11-05
 
 ### Fixed

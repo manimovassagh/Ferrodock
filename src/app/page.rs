@@ -209,6 +209,11 @@ pub trait Page {
     /// Shown next to the page in the sidebar, usually how many items it has.
     fn badge(&self, store: &Store) -> String;
 
+    /// What the badge counts, shown when the pointer is on it.
+    fn badge_hint(&self, _store: &Store) -> Option<String> {
+        None
+    }
+
     /// One-line summary under the page title, e.g. "3 running · 4 total".
     fn summary(&self, store: &Store) -> String;
 
