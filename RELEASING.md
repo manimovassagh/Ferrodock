@@ -78,3 +78,23 @@ exists, so it builds nothing.
   `RELEASE_PLZ_TOKEN` secret (contents and pull requests: read/write). CI
   then also runs on the release PR, which PRs opened with the default
   token don't trigger.
+
+## Signing and notarizing the macOS app
+
+Releases are ad-hoc signed until these secrets exist; then the macOS job
+signs every program with a Developer ID (hardened runtime, timestamp) and
+notarizes and staples both the app and the DMG, so it opens without the
+**Open Anyway** step.
+
+| Secret | What |
+| --- | --- |
+| `MACOS_CERT_P12` | The **Developer ID Application** certificate with its private key, exported from Keychain Access as `.p12`, then `base64 -i cert.p12` |
+| `MACOS_CERT_PW` | The password it was exported with |
+| `AC_API_KEY` | An App Store Connect API key (Users and Access → Integrations → Keys, role Developer): the contents of its `.p8` file |
+| `AC_KEY_ID` | That key's ID |
+| `AC_ISSUER` | The issuer ID shown above the keys |
+
+The certificate needs a paid Apple Developer Program membership. The
+`com.apple.security.virtualization` entitlement works with a Developer ID
+and needs no provisioning profile. Once a signed release is out, the
+quarantine step can go from the Homebrew cask and the install docs.
