@@ -7,7 +7,9 @@ on:
 
 # One run per pull request, or per branch: a new push cancels the PR's run
 # that's still going, so stale runs don't hold the few macOS runners. On
-# main, runs queue instead, so every merged commit is still checked.
+# main, runs aren't cancelled, but GitHub keeps only one waiting run per
+# group: when several commits land quickly, the ones in between are
+# skipped and the latest is checked.
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -117,4 +119,10 @@ jobs:
         with:
           toolchain: "1.99.1" # rust-toolchain.toml
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-      - run: cargo build --workspace
+      # On pull requests a check is enough to catch what breaks on these
+      # systems, and much quicker; main, or a PR labelled `full-build`,
+      # builds and links everything.
+      - if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-build')
+        run: cargo check --workspace --all-targets
+      - if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-build')
+        run: cargo build --workspace
