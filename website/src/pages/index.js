@@ -293,7 +293,7 @@ const SHOWCASE = [
   },
   {
     title: "Win back your disk space",
-    text: "See how much images, containers, volumes and build cache take, and free it in one step, with a preview of exactly what goes.",
+    text: "See what your containers use of the engine's CPUs and memory right now, how much images, containers, volumes and build cache take, and free it in one step, with a preview of exactly what goes.",
     src: "/img/disk.png",
     alt: "Disk usage page",
   },

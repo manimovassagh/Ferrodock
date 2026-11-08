@@ -123,6 +123,8 @@ pub enum Response {
     Disk(DiskUsage),
     /// CPU and memory of every running container, by ID.
     Usage(Vec<(String, StatsSample)>),
+    /// The engine's CPUs and memory.
+    Capacity(crate::docker::Capacity),
     /// Something the user should know about even though they didn't ask,
     /// e.g. a container crashed.
     Alert(String),
@@ -415,7 +417,9 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
             // Each request runs as its own task so a slow `stop` (which
             // waits for the container to exit) doesn't hold up refreshes.
             Request::Refresh(resource) | Request::Poll(resource) => {
-                if polled == Resource::Containers && shared.usage_due() {
+                // Container usage is read for the containers' sparklines
+                // and the Disk page's overview, only while one is open.
+                if matches!(polled, Resource::Containers | Resource::Disk) && shared.usage_due() {
                     let (docker, shared) = (docker.clone(), shared.clone());
                     tokio::spawn(async move { usage(&docker, &shared).await });
                 }
@@ -791,6 +795,9 @@ async fn create_cluster(
 
 /// Reads CPU and memory of every running container, all at once.
 async fn usage(client: &DockerClient, shared: &Shared) {
+    if let Ok(capacity) = client.capacity().await {
+        shared.send(Response::Capacity(capacity));
+    }
     let Ok(containers) = client.list_containers().await else {
         return;
     };
