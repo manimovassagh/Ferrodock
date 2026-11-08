@@ -13,13 +13,28 @@ mod worker;
 use eframe::egui;
 
 fn main() -> eframe::Result {
+    // Left behind by an update, to start the new version and put this one
+    // back if it won't start.
+    if update::run_if_asked() {
+        return Ok(());
+    }
     // Held until Ferrodock exits, after it stopped its engine.
     let instance = match instance::start(app::started_in_background()) {
         instance::Start::Run(instance) => instance,
         instance::Start::Exit => return Ok(()),
     };
-    // The version an update replaced has quit by now: its files can go.
-    std::thread::spawn(update::clean_up);
+    // The version an update replaced has quit by now. Its files go once
+    // this one has run a while: until then, it can be put back.
+    let after_update = std::env::args().any(|a| a == instance::AFTER_UPDATE_FLAG);
+    std::thread::spawn(move || {
+        if after_update {
+            std::thread::sleep(update::SETTLE);
+            update::mark_started();
+            // The watcher sees it and exits before its folder goes.
+            std::thread::sleep(std::time::Duration::from_secs(3));
+        }
+        update::clean_up();
+    });
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("Ferrodock")
