@@ -90,7 +90,41 @@ impl From<&ContainerStatsResponse> for StatsSample {
     }
 }
 
+/// What the engine has to share between its containers: its CPUs and
+/// memory (the VM's, for an engine that runs in one).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Capacity {
+    pub cpus: u64,
+    pub memory: u64,
+}
+
+/// What a set of running containers uses together.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct Total {
+    /// 100% = one full CPU core.
+    pub cpu_percent: f64,
+    pub memory: u64,
+}
+
+impl Total {
+    pub fn of<'a>(samples: impl IntoIterator<Item = &'a StatsSample>) -> Self {
+        samples.into_iter().fold(Self::default(), |t, s| Self {
+            cpu_percent: t.cpu_percent + s.cpu_percent,
+            memory: t.memory + s.memory_used,
+        })
+    }
+}
+
 impl DockerClient {
+    /// The engine's CPUs and memory.
+    pub async fn capacity(&self) -> Result<Capacity, String> {
+        let info = self.docker.info().await.map_err(describe)?;
+        Ok(Capacity {
+            cpus: info.ncpu.unwrap_or(0).max(0) as u64,
+            memory: info.mem_total.unwrap_or(0).max(0) as u64,
+        })
+    }
+
     /// One reading. Docker samples twice, about a second apart, so the CPU
     /// figure is meaningful.
     pub async fn stats_once(&self, id: &str) -> Result<StatsSample, String> {
@@ -176,6 +210,23 @@ mod tests {
     #[test]
     fn first_reading_has_no_cpu_delta() {
         let sample = StatsSample::from(&ContainerStatsResponse::default());
+        let busy = StatsSample {
+            cpu_percent: 150.0,
+            memory_used: 300,
+            ..StatsSample::default()
+        };
+        let idle = StatsSample {
+            cpu_percent: 0.5,
+            memory_used: 20,
+            ..StatsSample::default()
+        };
+        assert_eq!(
+            Total::of([&busy, &idle]),
+            Total {
+                cpu_percent: 150.5,
+                memory: 320
+            }
+        );
         assert_eq!(sample, StatsSample::default());
     }
 }
