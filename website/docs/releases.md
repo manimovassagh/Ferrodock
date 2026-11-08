@@ -36,10 +36,17 @@ release notes, and click it to update:
 
 1. The new build for your platform downloads in the background.
 2. It's checked against the release's `SHA256SUMS.txt`, and refused if it
-   doesn't match.
+   doesn't match. On macOS the app's code signature is checked too.
 3. It replaces the installed app in place: the whole `Ferrodock.app` on
-   macOS, the executable on Windows and Linux.
-4. Click **Restart to update** to switch to it.
+   macOS, the executable on Windows and Linux. The version you're running is
+   kept next to it for now.
+4. Click **Restart to update** to switch to it. The new version starts only
+   once the old one has quit, after stopping its engine.
+
+If the new version doesn't start, or quits within its first 30 seconds,
+Ferrodock puts the previous version back and starts it, says so, and doesn't
+offer that version again (a newer one is offered as usual). Once the new
+version has run for 30 seconds, the previous one is removed.
 
 In **Settings → Updates** you can check by hand with **Check now**, or turn
 off **Check for updates when Ferrodock starts**. Ferrodock only ever offers

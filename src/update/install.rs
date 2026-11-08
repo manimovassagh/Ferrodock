@@ -8,32 +8,45 @@ use self_update::{ArchiveKind, Compression, Download, Extract};
 use sha2::{Digest, Sha256};
 
 use super::Available;
+use super::watch::Watch;
 
-/// How to start the new version once it's installed.
+/// What an update put in place.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Relaunch {
-    /// Run this executable.
+pub enum Installed {
+    /// This executable.
     Exe(PathBuf),
-    /// `open` this app bundle (macOS).
+    /// This app bundle (macOS).
     App(PathBuf),
 }
 
-impl Relaunch {
-    /// Starts the new version, which waits for this one to exit before
-    /// it runs. The caller then quits this one (not to the tray).
-    pub fn start(&self) -> std::io::Result<()> {
+impl Installed {
+    /// Starts it, telling it it's just been updated.
+    pub fn launch(&self) -> std::io::Result<()> {
         let flag = crate::instance::AFTER_UPDATE_FLAG;
         match self {
-            Relaunch::Exe(path) => std::process::Command::new(path).arg(flag).spawn().map(drop),
-            // `-n`: this one still runs, and `open` would only bring it
-            // forward.
-            Relaunch::App(path) => std::process::Command::new("open")
+            Installed::Exe(path) => std::process::Command::new(path).arg(flag).spawn().map(drop),
+            // `-n`: a new instance, even if one seems to run.
+            Installed::App(path) => std::process::Command::new("open")
                 .arg("-n")
                 .arg(path)
                 .args(["--args", flag])
                 .spawn()
                 .map(drop),
         }
+    }
+}
+
+/// How to start the new version once it's installed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Relaunch(pub(super) Watch);
+
+impl Relaunch {
+    /// Leaves a watcher behind (the old version's binary) that starts the
+    /// new version once this one has quit, and puts this one back if the
+    /// new one won't start. The caller then quits this one (not to the
+    /// tray).
+    pub fn start(&self) -> std::io::Result<()> {
+        self.0.spawn().or_else(|_| self.0.installed.launch())
     }
 }
 
@@ -59,35 +72,61 @@ pub fn install(
     }
     let work = tempfile_dir(&base)?;
     let result = install_in(available, progress, &exe, &work);
-    match result {
-        // On macOS the folder now holds the app that's still running
-        // (`previous.app`): deleting it under a running app can make it
-        // crash as it quits. The next start removes it (`clean_up`).
-        Ok(Relaunch::App(_)) => {
+    match &result {
+        // The folder now holds the version that's still running, which
+        // the watcher puts back if the new one won't start. The new one
+        // removes it once it has started (`clean_up`).
+        Ok(_) => {
             let _ = fs::remove_dir_all(work.join("unpacked"));
         }
-        _ => {
+        Err(_) => {
             let _ = fs::remove_dir_all(&work);
         }
     }
-    result
+    result.map(|installed| {
+        Relaunch(Watch {
+            installed,
+            work,
+            version: available.version.clone(),
+        })
+    })
+}
+
+/// The folder Ferrodock is installed in: where updates work.
+fn install_base() -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    let exe = exe.canonicalize().unwrap_or(exe);
+    app_bundle(&exe)
+        .and_then(|app| app.parent().map(Path::to_path_buf))
+        .or_else(|| exe.parent().map(Path::to_path_buf))
+}
+
+/// The working folders of updates next to this install.
+pub(super) fn work_dirs() -> Vec<PathBuf> {
+    let Some(base) = install_base() else {
+        return Vec::new();
+    };
+    let Ok(entries) = fs::read_dir(&base) else {
+        return Vec::new();
+    };
+    entries
+        .flatten()
+        .filter(|e| {
+            e.file_name()
+                .to_string_lossy()
+                .starts_with(".ferrodock-update-")
+        })
+        .map(|e| e.path())
+        .collect()
 }
 
 /// Removes what earlier updates left next to the app: their working
 /// folders, with the version they replaced. Called once the previous
 /// version has quit.
 pub fn clean_up() {
-    let Ok(exe) = std::env::current_exe() else {
-        return;
-    };
-    let exe = exe.canonicalize().unwrap_or(exe);
-    let Some(base) = app_bundle(&exe)
-        .and_then(|app| app.parent().map(Path::to_path_buf))
-        .or_else(|| exe.parent().map(Path::to_path_buf))
-    else {
-        return;
-    };
-    clean_up_in(&base);
+    if let Some(base) = install_base() {
+        clean_up_in(&base);
+    }
 }
 
 fn clean_up_in(base: &Path) {
@@ -108,7 +147,7 @@ fn install_in(
     progress: impl Fn(u64, Option<u64>) + Send + Sync + 'static,
     exe: &Path,
     work: &Path,
-) -> Result<Relaunch, String> {
+) -> Result<Installed, String> {
     let unpacked = prepare(available, progress, work, app_bundle(exe).is_some())?;
     swap(exe, &unpacked, work)
 }
@@ -169,20 +208,22 @@ fn prepare(
     Ok(unpacked)
 }
 
-/// Puts the unpacked build in place of the running one.
-fn swap(exe: &Path, unpacked: &Path, work: &Path) -> Result<Relaunch, String> {
+/// Puts the unpacked build in place of the running one, keeping the
+/// running one in `work` (`previous.app`, or `previous/<binary>`).
+fn swap(exe: &Path, unpacked: &Path, work: &Path) -> Result<Installed, String> {
     if let Some(app) = app_bundle(exe) {
         let new_app = unpacked.join("Ferrodock.app");
         if !new_app.exists() {
             return Err("the download doesn't contain Ferrodock.app".into());
         }
+        verify_signature(&new_app)?;
         let backup = work.join("previous.app");
         fs::rename(&app, &backup).map_err(|e| format!("couldn't replace the app: {e}"))?;
         if let Err(e) = fs::rename(&new_app, &app) {
             let _ = fs::rename(&backup, &app);
             return Err(format!("couldn't replace the app: {e}"));
         }
-        return Ok(Relaunch::App(app));
+        return Ok(Installed::App(app));
     }
 
     let name = if cfg!(windows) {
@@ -194,8 +235,33 @@ fn swap(exe: &Path, unpacked: &Path, work: &Path) -> Result<Relaunch, String> {
     if !new_exe.exists() {
         return Err(format!("the download doesn't contain {name}"));
     }
+    // A copy of the running one, for the watcher to run from and to put
+    // back.
+    let previous = work.join("previous");
+    fs::create_dir_all(&previous).map_err(|e| e.to_string())?;
+    let file_name = exe.file_name().unwrap_or(name.as_ref());
+    fs::copy(exe, previous.join(file_name))
+        .map_err(|e| format!("couldn't keep the current version: {e}"))?;
     self_replace::self_replace(&new_exe).map_err(|e| format!("couldn't replace the app: {e}"))?;
-    Ok(Relaunch::Exe(exe.to_path_buf()))
+    Ok(Installed::Exe(exe.to_path_buf()))
+}
+
+/// On macOS, checks the new app's code signature before it replaces this
+/// one: a damaged or altered bundle is refused.
+fn verify_signature(app: &Path) -> Result<(), String> {
+    if !cfg!(target_os = "macos") {
+        return Ok(());
+    }
+    let status = std::process::Command::new("codesign")
+        .args(["--verify", "--deep", "--strict"])
+        .arg(app)
+        .status()
+        .map_err(|e| format!("couldn't check the app's signature: {e}"))?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err("the downloaded app's signature doesn't check out".into())
+    }
 }
 
 /// `…/Ferrodock.app` when running from an app bundle.
@@ -434,13 +500,13 @@ mod tests {
         let exe = fake_app(&dir.join("Applications"), "old");
         let work = dir.join("work");
         fake_app(&work.join("unpacked"), "new");
-        let relaunch = swap(&exe, &work.join("unpacked"), &work).unwrap();
+        let installed = swap(&exe, &work.join("unpacked"), &work).unwrap();
         assert_eq!(
-            relaunch,
-            Relaunch::App(dir.join("Applications/Ferrodock.app"))
+            installed,
+            Installed::App(dir.join("Applications/Ferrodock.app"))
         );
         assert_eq!(fs::read_to_string(&exe).unwrap(), "new");
-        // The old one waits in the work folder, which `install` removes.
+        // The old one waits in the work folder, for the watcher.
         assert_eq!(
             fs::read_to_string(work.join("previous.app/Contents/MacOS/ferrodock")).unwrap(),
             "old"

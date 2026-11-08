@@ -8,6 +8,7 @@
 //! [`Status`].
 
 mod install;
+mod watch;
 
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -15,6 +16,7 @@ use std::thread;
 use self_update::backends::github::ReleaseList;
 
 pub use install::{Relaunch, clean_up};
+pub use watch::{SETTLE, mark_started, rolled_back, run_if_asked};
 
 const OWNER: &str = "manimovassagh";
 const REPO: &str = "Ferrodock";
@@ -206,6 +208,11 @@ fn latest() -> Result<Option<Available>, String> {
         return Ok(None);
     };
     if !is_newer(CURRENT, release.version()) {
+        return Ok(None);
+    }
+    // It was installed once and wouldn't start: Ferrodock went back. A
+    // newer release is offered again.
+    if watch::skipped().is_some_and(|v| v == release.version()) {
         return Ok(None);
     }
     let asset = release

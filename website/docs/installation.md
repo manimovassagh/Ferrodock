@@ -87,6 +87,10 @@ on your PATH; `scoop update ferrodock` updates it. Or by hand:
 
 More in [Ferrodock's own engine](./engine.md#windows).
 
+New versions are also submitted to winget, so once one has been accepted
+there, `winget install ManiMovassagh.Ferrodock` installs Ferrodock and puts
+`ferrodock`, `fdock` and `ferrodock-mcp` on your PATH.
+
 ## Linux
 
 On Debian, Ubuntu and their relatives, install the `.deb` (`amd64` for

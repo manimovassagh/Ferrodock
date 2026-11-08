@@ -57,8 +57,9 @@ that instead.
   Docker included.
 - **Volumes and networks**: create them, browse a volume's files, connect
   and disconnect containers.
-- **Disk**: see where the space goes and free it in one step, with a preview
-  of exactly what's deleted. Or start over with **Reset Docker**.
+- **Disk**: what your containers use of the engine's CPUs and memory right
+  now, the busiest first; where the space goes, freed in one step with a
+  preview of exactly what's deleted. Or start over with **Reset Docker**.
 - **Command palette** (⌘K / Ctrl+K) and keyboard shortcuts for everything.
 - **Any engine**: Ferrodock's own, a local `dockerd`, local Podman on macOS
   and Linux, or any Docker context, including remote ones over TLS or SSH.
@@ -104,7 +105,8 @@ Or download a build from the
 
 Each release has a `SHA256SUMS.txt` to check your download. Ferrodock
 updates itself: when a new version is out, click **Update to x.y.z** in the sidebar
-(or run `brew upgrade --cask ferrodock`).
+(or run `brew upgrade --cask ferrodock`). If a new version won't start,
+Ferrodock goes back to the one you had.
 
 The [installation guide](https://manimovassagh.github.io/Ferrodock/docs/installation)
 has the details for each platform.
