@@ -36,6 +36,15 @@ cargo deny check licenses advisories          # permissive licenses, no known vu
 The guest agent is its own crate, outside the workspace: if you change
 `agent/`, run the same with `--manifest-path agent/Cargo.toml`.
 
+On pull requests, CI only checks (`cargo check`) the Windows and macOS
+builds, which is much quicker; main builds them in full. Add the
+`full-build` label to a pull request to build it in full too.
+
+A change to what goes into the engine images (`engine/`, `agent/`,
+`src/vm/mux.rs`) is published only with a new `engine/VERSION`: CI warns
+when it isn't bumped. Their base images are pinned by digest, and moved
+to newer ones on purpose.
+
 With Docker or local Podman running, run the corresponding API smoke test:
 
 ```bash

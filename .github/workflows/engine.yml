@@ -24,11 +24,50 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   # LinuxKit's kernel: its source and config are the base for ours.
-  KERNEL_IMAGE: linuxkit/kernel:6.12.59
+  # Pinned by digest, like the Docker engine image in engine/*build.sh.
+  KERNEL_IMAGE: linuxkit/kernel:6.12.59@sha256:9b6408a5ca773c4d15b7c872625dedfce7a085480f93ac4b0c3e1f4619c2449f
 
 jobs:
+  # Which images a pull request's changes touch: only those are built.
+  # On main every image is built, as publishing needs them all.
+  changes:
+    name: Changes
+    runs-on: ubuntu-24.04
+    outputs:
+      mac: ${{ steps.diff.outputs.mac }}
+      wsl: ${{ steps.diff.outputs.wsl }}
+      linux: ${{ steps.diff.outputs.linux }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ -z "$BASE" ]; then
+            printf 'mac=true\nwsl=true\nlinux=true\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files=$(git diff --name-only "$BASE" HEAD)
+          touched() { grep -qE "$1" <<<"$files" && echo true || echo false; }
+          # Shared by every image: the workflow, the version, the notice.
+          shared='^(\.github/workflows/engine\.yml|engine/(VERSION|NOTICE\.md))$'
+          agent='^(agent/|src/vm/mux\.rs$)'
+          echo "mac=$(touched "$shared|$agent|^engine/(build\.sh|kernel/)")" >> "$GITHUB_OUTPUT"
+          echo "wsl=$(touched "$shared|$agent|^engine/wsl/")" >> "$GITHUB_OUTPUT"
+          echo "linux=$(touched "$shared|^engine/linux/")" >> "$GITHUB_OUTPUT"
+          # A change to what goes into the images needs a new engine/VERSION,
+          # or it's built here but never published.
+          if grep -qE '^(agent/|engine/|src/vm/mux\.rs$)' <<<"$files" \
+            && ! grep -qxE 'engine/(VERSION|SHA256SUMS)' <<<"$files"; then
+            echo "::warning title=engine/VERSION not bumped::This changes the engine's inputs without bumping engine/VERSION, so the images built here won't be published. Bump it if the change should reach users."
+          fi
+
   image:
     name: Build the engine image (Mac, ${{ matrix.arch }})
+    needs: changes
+    if: needs.changes.outputs.mac == 'true'
     strategy:
       matrix:
         include:
@@ -96,6 +135,8 @@ jobs:
 
   wsl:
     name: Build the engine image (Windows, WSL)
+    needs: changes
+    if: needs.changes.outputs.wsl == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -126,6 +167,8 @@ jobs:
 
   linux:
     name: Build the engine image (Linux, ${{ matrix.arch }})
+    needs: changes
+    if: needs.changes.outputs.linux == 'true'
     strategy:
       matrix:
         include:
@@ -167,6 +210,17 @@ jobs:
         with:
           path: engine-release
           merge-multiple: true
+      # Both Mac images come with the kernel's source, which is the same
+      # for both: published once, not twice.
+      - name: One kernel source
+        working-directory: engine-release
+        run: |
+          a=ferrodock-engine-arm64.kernel-source.tar.xz
+          b=ferrodock-engine-amd64.kernel-source.tar.xz
+          if cmp -s "$a" "$b"; then
+            mv "$a" ferrodock-engine-kernel-source.tar.xz
+            rm "$b"
+          fi
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
