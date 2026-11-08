@@ -1,9 +1,10 @@
 # Benchmarks
 
-`bench.sh` measures a Docker desktop app the same way for every tool, so
-the numbers can be compared. It prints one JSON line per run; the results
-on [the comparison page](https://manimovassagh.github.io/Ferrodock/compare)
-come from `website/src/data/benchmarks.json`, made from these lines.
+`bench.sh` (macOS and Linux) and `bench.ps1` (Windows) measure a container
+app the same way for every tool, so the numbers can be compared. Each run
+prints one JSON line; collect them in `website/src/data/benchmarks.json`.
+The method is also on the
+[Benchmarks page](https://manimovassagh.github.io/Ferrodock/docs/benchmarks).
 
 | Number | What it is |
 | --- | --- |
@@ -11,6 +12,10 @@ come from `website/src/data/benchmarks.json`, made from these lines.
 | `idle_cpu_percent` | CPU they use in that minute, as a share of one core |
 | `cold_start_s` | Seconds from opening the app until `docker info` answers (only with a start command) |
 | `docker_run_ms` | Median time of `docker run --rm alpine:3.20 true`, over 20 runs |
+| `mount_write_mib_s` | MiB/s writing 256 MiB to a folder of your home bind-mounted into a container |
+| `mount_small_files_s` | Seconds to write 2,000 small files there (like `npm install`) |
+| `app_size_mib` | Size on disk of the installed app (with `APP_PATH` / `-AppPath`) |
+| `download_mib` | Size of the download (with `DOWNLOAD` / `-Download`) |
 
 ## Running it
 
@@ -26,6 +31,13 @@ bench/bench.sh "Docker Desktop"   'Docker|com.docker|com.apple.Virtualization.Vi
 bench/bench.sh "OrbStack"         'OrbStack|orbstack|com.apple.Virtualization.VirtualMachine' 'open -a OrbStack'
 bench/bench.sh "Rancher Desktop"  'Rancher Desktop|lima|qemu|com.apple.Virtualization.VirtualMachine' 'open -a "Rancher Desktop"'
 bench/bench.sh "Podman Desktop"   'Podman Desktop|podman|vfkit|gvproxy|krunkit' 'open -a "Podman Desktop"'
+```
+
+On Windows, from PowerShell:
+
+```powershell
+bench\bench.ps1 -Name Ferrodock -Pattern 'Ferrodock|vmmem|wsl' -Start 'start "" "%LOCALAPPDATA%\Ferrodock\Ferrodock.exe"' -AppPath "$env:LOCALAPPDATA\Ferrodock"
+bench\bench.ps1 -Name "Docker Desktop" -Pattern 'Docker|com.docker|vmmem|wsl' -Start 'start "" "C:\Program Files\Docker\Docker\Docker Desktop.exe"'
 ```
 
 Each pattern matches the tool's own processes and the virtual machine it

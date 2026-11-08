@@ -11,6 +11,9 @@
 #   start command    how to open the tool; give it to measure the cold
 #                    start (quit the tool first)
 #
+# APP_PATH (e.g. /Applications/Ferrodock.app) adds the size on disk of the
+# installed app, and DOWNLOAD (the .dmg or .zip) its download size.
+#
 # Prints one JSON line; bench/README.md explains every number.
 # Needs: bash, ps, awk, the docker CLI pointed at the tool's engine.
 set -euo pipefail
@@ -80,5 +83,21 @@ for _ in $(seq "$runs"); do
 done
 run_ms=$(printf '%s\n' "${times[@]}" | sort -n | awk '{ a[NR] = $1 } END { print a[int((NR + 1) / 2)] }')
 
-printf '{"tool":"%s","idle_memory_mib":%s,"idle_cpu_percent":%s,"cold_start_s":%s,"docker_run_ms":%s,"os":"%s","date":"%s"}\n' \
-    "$name" "$idle_mem" "$idle_cpu" "$cold_start" "$run_ms" "$(uname -sm)" "$(date -u +%F)"
+# Bind mounts: a folder of this computer's home, written and read from a
+# container. Writing 256 MiB in one file, then 2,000 small files, which is
+# what `npm install` does.
+mount=$(mktemp -d "$HOME/.ferrodock-bench.XXXXXX")
+trap 'rm -rf "$mount"' EXIT
+began=$(now)
+docker run --rm -v "$mount:/w" alpine:3.20 sh -c 'dd if=/dev/zero of=/w/big bs=1M count=256 conv=fsync 2>/dev/null'
+mount_write=$(python3 -c "print(round(256 / ($(now) - $began)))")
+began=$(now)
+docker run --rm -v "$mount:/w" alpine:3.20 sh -c 'mkdir /w/small && i=0; while [ $i -lt 2000 ]; do echo $i > /w/small/$i; i=$((i + 1)); done'
+small_files=$(python3 -c "print(round(($(now) - $began), 2))")
+
+size_mib() { [ -e "${1:-}" ] && du -sk "$1" | awk '{ printf "%.0f", $1 / 1024 }' || echo null; }
+app_size=$(size_mib "${APP_PATH:-}")
+download_size=$(size_mib "${DOWNLOAD:-}")
+
+printf '{"tool":"%s","idle_memory_mib":%s,"idle_cpu_percent":%s,"cold_start_s":%s,"docker_run_ms":%s,"mount_write_mib_s":%s,"mount_small_files_s":%s,"app_size_mib":%s,"download_mib":%s,"os":"%s","date":"%s"}\n' \
+    "$name" "$idle_mem" "$idle_cpu" "$cold_start" "$run_ms" "$mount_write" "$small_files" "$app_size" "$download_size" "$(uname -sm)" "$(date -u +%F)"

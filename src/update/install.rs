@@ -63,6 +63,13 @@ pub fn install(
         .and_then(|app| app.parent().map(Path::to_path_buf))
         .or_else(|| exe.parent().map(Path::to_path_buf))
         .ok_or("can't tell where Ferrodock is installed")?;
+    // Installed by the package manager (the .deb): it owns the files.
+    if cfg!(target_os = "linux") && base == Path::new("/usr/bin") {
+        return Err(
+            "Ferrodock was installed as a package: download the new .deb from the release page"
+                .into(),
+        );
+    }
     let work = tempfile_dir(&base)?;
     let result = install_in(available, progress, &exe, &work);
     match &result {

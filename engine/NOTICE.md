@@ -11,7 +11,7 @@ is needed.
 | Part | License | Source |
 | --- | --- | --- |
 | ferrodock-agent (the VM's first process) | MIT | `agent/` in https://github.com/manimovassagh/Ferrodock |
-| Linux kernel, Mac image only (LinuxKit build, with `engine/kernel/ferrodock.config`) | GPL-2.0 | `ferrodock-engine-arm64.kernel-source.tar.xz` (or `-amd64`) in the same release as the image, plus `ferrodock-engine-arm64.kernel-config` (or `-amd64`). On Windows, WSL runs its own kernel, which is part of Windows; Ferrodock doesn't ship one. |
+| Linux kernel, Mac image only (LinuxKit build, with `engine/kernel/ferrodock.config`) | GPL-2.0 | `ferrodock-engine-kernel-source.tar.xz` in the same release as the image (`ferrodock-engine-arm64.kernel-source.tar.xz` and `-amd64` in earlier releases), plus `ferrodock-engine-arm64.kernel-config` (or `-amd64`). On Windows, WSL runs its own kernel, which is part of Windows; Ferrodock doesn't ship one. |
 | Docker Engine (dockerd), Docker CLI, containerd, runc, BuildKit/buildx, Compose | Apache-2.0 | https://github.com/moby/moby, https://github.com/docker/cli, https://github.com/containerd/containerd, https://github.com/opencontainers/runc, https://github.com/docker/buildx, https://github.com/docker/compose |
 | Alpine Linux base system (BusyBox, musl, iptables, e2fsprogs and others) | Each package's own license (GPL-2.0, MIT, BSD and similar) | https://pkgs.alpinelinux.org and https://gitlab.alpinelinux.org/alpine/aports |
 

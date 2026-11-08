@@ -52,7 +52,8 @@ that without the `v`. The files are at
 | --- | --- |
 | macOS (Apple Silicon and Intel) | `Ferrodock-<version>-macos-universal.dmg` |
 | Windows x64 | `Ferrodock-<version>-windows-x64.zip` |
-| Linux x64 | `Ferrodock-<version>-linux-x64.tar.gz` |
+| Linux x64 | `Ferrodock-<version>-linux-x64.tar.gz`, or `Ferrodock-<version>-linux-amd64.deb` |
+| Linux arm64 | `Ferrodock-<version>-linux-arm64.tar.gz`, or `Ferrodock-<version>-linux-arm64.deb` |
 | All | `SHA256SUMS.txt` |
 
 ## 2. Install
@@ -101,6 +102,11 @@ Then `open -a Ferrodock`, and delete `$tmp`.
 
 ### Windows (PowerShell)
 
+If the person uses [Scoop](https://scoop.sh) (`scoop --version` answers),
+`scoop install https://raw.githubusercontent.com/manimovassagh/Ferrodock/main/packaging/scoop/ferrodock.json`
+installs it, checks the download and adds the Start menu entry; nothing
+below is needed. Otherwise:
+
 ```powershell
 $version = "<version>"
 $tmp = Join-Path $env:TEMP "ferrodock-install"
@@ -132,7 +138,13 @@ Windows SmartScreen may say it "protected your PC" because the app is new
 and not yet widely downloaded. Tell the person to choose **More info → Run
 anyway**; don't remove the download mark yourself without asking.
 
-### Linux (x64)
+### Linux (x64 and arm64)
+
+On Debian or Ubuntu, prefer the `.deb` (`amd64` or `arm64`, from
+`dpkg --print-architecture`), checked like any download, then
+`sudo apt install ./Ferrodock-<version>-linux-<arch>.deb`: it adds the
+menu entry and the commands, and nothing below is needed. Elsewhere, use
+the `.tar.gz` (`x64` or `arm64`):
 
 ```bash
 tmp=$(mktemp -d) && cd "$tmp"
