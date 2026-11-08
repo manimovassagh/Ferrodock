@@ -17,6 +17,11 @@ install -Dm644 assets/icon-256.png "$root/usr/share/icons/hicolor/256x256/apps/f
 install -Dm644 LICENSE "$root/usr/share/doc/ferrodock/copyright"
 
 size=$(du -sk "$root/usr" | cut -f1)
+# The newest glibc symbol any binary uses, so the package never installs
+# on a system whose libc is too old to run it.
+glibc=$(objdump -T "$bin/ferrodock" "$bin/fdock" "$bin/ferrodock-mcp" \
+    | grep -o 'GLIBC_[0-9][0-9.]*' | sed 's/^GLIBC_//' | sort -Vu | tail -n 1)
+[ -n "$glibc" ] || { echo "no glibc symbols found in the binaries" >&2; exit 1; }
 mkdir -p "$root/DEBIAN"
 cat > "$root/DEBIAN/control" <<CONTROL
 Package: ferrodock
@@ -24,7 +29,7 @@ Version: $version
 Architecture: $arch
 Maintainer: Mani Movassagh <74688476+manimovassagh@users.noreply.github.com>
 Installed-Size: $size
-Depends: libc6 (>= 2.35)
+Depends: libc6 (>= $glibc)
 Recommends: libxkbcommon0, libgl1, libvulkan1
 Section: admin
 Priority: optional
