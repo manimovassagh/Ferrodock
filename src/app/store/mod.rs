@@ -93,6 +93,8 @@ pub struct Store {
     /// Recent CPU and memory of each running container (oldest first),
     /// while the Containers page is open.
     pub usage: HashMap<String, VecDeque<StatsSample>>,
+    /// The engine's CPUs and memory, read with the usage.
+    pub capacity: Option<crate::docker::Capacity>,
     /// Pulls in progress, by image reference.
     pub pulls: Vec<(String, PullProgress)>,
     /// Why the last run of an image failed, by image reference, until it's
@@ -142,6 +144,7 @@ impl Store {
             kube_reading: HashSet::new(),
             kube_errors: HashMap::new(),
             usage: HashMap::new(),
+            capacity: None,
             processes: None,
             history: None,
             files: None,
@@ -204,6 +207,7 @@ impl Store {
             Response::Volumes(list) => self.volumes = list,
             Response::Networks(list) => self.networks = list,
             Response::Disk(usage) => self.disk = Some(usage),
+            Response::Capacity(capacity) => self.capacity = Some(capacity),
             Response::Usage(readings) => {
                 // Forget containers that stopped.
                 self.usage

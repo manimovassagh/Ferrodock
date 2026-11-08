@@ -133,6 +133,15 @@ impl FerrodockApp {
     /// opened at login.
     fn started(mut self, ctx: &egui::Context) -> Self {
         self.settings.launch_at_login = autostart::enabled();
+        if let Some(version) = crate::update::rolled_back() {
+            self.notify(
+                format!(
+                    "Version {version} didn't start, so Ferrodock went back to {}",
+                    crate::update::CURRENT
+                ),
+                true,
+            );
+        }
         if self.tray.is_some() && autostart::started_in_background() {
             ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
         }
@@ -532,6 +541,8 @@ impl eframe::App for FerrodockApp {
     /// panic can't unwind and would end in a crash report: whatever goes
     /// wrong stopping the engine, quitting goes on.
     fn on_exit(&mut self) {
+        // Quit on purpose: if this is a new version, it started fine.
+        crate::update::mark_started();
         let builtin = &self.engine_starter.builtin;
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| builtin.stop()));
     }
