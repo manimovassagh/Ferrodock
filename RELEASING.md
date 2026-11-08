@@ -98,3 +98,13 @@ The certificate needs a paid Apple Developer Program membership. The
 `com.apple.security.virtualization` entitlement works with a Developer ID
 and needs no provisioning profile. Once a signed release is out, the
 quarantine step can go from the Homebrew cask and the install docs.
+
+## Submitting to winget
+
+With a `WINGET_TOKEN` secret, each latest release opens a pull request on
+[microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs) with the
+manifests of `packaging/winget/manifests.sh` (package
+`ManiMovassagh.Ferrodock`). It's a classic personal access token with the
+`public_repo` scope: the pull request comes from that account's fork of
+winget-pkgs, made the first time. winget's moderators review the first
+submission; later versions are usually merged automatically.

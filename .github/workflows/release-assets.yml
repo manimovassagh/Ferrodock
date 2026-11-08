@@ -258,10 +258,70 @@ jobs:
             fi
           done
 
+  # Submits the new version to winget (microsoft/winget-pkgs), as a pull
+  # request from a fork owned by the account of the WINGET_TOKEN secret (a
+  # classic token with the public_repo scope). Skipped without it.
+  winget:
+    needs: publish
+    if: needs.publish.outputs.latest == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: windows
+          path: dist
+      - name: Open a pull request on winget-pkgs
+        env:
+          GH_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::notice::No WINGET_TOKEN secret, so not submitting to winget."
+            exit 0
+          fi
+          version=${TAG#v}
+          id=ManiMovassagh.Ferrodock
+          sha=$(sha256sum "dist/Ferrodock-$version-windows-x64.zip" | cut -d' ' -f1)
+          packaging/winget/manifests.sh "$version" "$sha" manifests
+
+          me=$(gh api user -q .login)
+          fork="$me/winget-pkgs"
+          gh repo fork microsoft/winget-pkgs --clone=false || true
+          for _ in $(seq 30); do gh api "repos/$fork" > /dev/null 2>&1 && break; sleep 10; done
+          gh api -X POST "repos/$fork/merge-upstream" -f branch=master > /dev/null || true
+
+          branch="ferrodock-$version"
+          if ! gh api "repos/$fork/git/ref/heads/$branch" > /dev/null 2>&1; then
+            base=$(gh api "repos/$fork/git/ref/heads/master" -q .object.sha)
+            gh api -X POST "repos/$fork/git/refs" -f ref="refs/heads/$branch" -f sha="$base" > /dev/null
+          fi
+          dir="manifests/m/ManiMovassagh/Ferrodock/$version"
+          for file in manifests/*.yaml; do
+            path="$dir/$(basename "$file")"
+            existing=$(gh api "repos/$fork/contents/$path?ref=$branch" -q .sha 2>/dev/null || true)
+            gh api -X PUT "repos/$fork/contents/$path" \
+              -f message="New version: $id version $version" \
+              -f branch="$branch" \
+              -f content="$(base64 -w0 "$file")" \
+              ${existing:+-f sha="$existing"} > /dev/null
+          done
+
+          open=$(gh api "repos/microsoft/winget-pkgs/pulls?head=$me:$branch&state=all" -q length)
+          if [ "$open" != "0" ]; then
+            echo "Already submitted."
+            exit 0
+          fi
+          gh pr create --repo microsoft/winget-pkgs --base master --head "$me:$branch" \
+            --title "New version: $id version $version" \
+            --body "Ferrodock $version, the native container manager, written in Rust: https://github.com/manimovassagh/Ferrodock/releases/tag/$TAG"
+
   # A build that failed, hung or was cancelled leaves the release a draft
   # with no downloads. Say so in an issue, with how to finish it.
   report:
-    needs: [windows, macos, linux, publish, homebrew, crates]
+    needs: [windows, macos, linux, publish, homebrew, crates, winget]
     if: always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
