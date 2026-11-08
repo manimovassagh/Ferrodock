@@ -82,7 +82,7 @@ pub use processes::{Layer, Processes};
 pub use registry::{ImageOp, SearchResult};
 pub use reset::RESET_WORD;
 pub use run::{PullProgress, Restart, RunSpec};
-pub use stats::StatsSample;
+pub use stats::{Capacity, StatsSample, Total};
 pub use templates::{Choices, Overrides, TEMPLATES, Template, port_free, template};
 pub use terminal::{TermOp, exit_message, next_session};
 pub use volumes::VolumeInfo;
