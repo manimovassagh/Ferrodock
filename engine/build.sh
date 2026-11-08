@@ -18,7 +18,9 @@ set -euo pipefail
 
 arch=$1 kernel=$2 modules=$3 agent=$4 out=$5
 # The Docker engine release inside the VM.
-engine_image=${ENGINE_IMAGE:-docker:28-dind}
+# Pinned by digest, so one engine/VERSION always builds from the same
+# image; moved to a newer one on purpose, with a VERSION bump.
+engine_image=${ENGINE_IMAGE:-docker:28-dind@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac}
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT

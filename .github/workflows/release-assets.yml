@@ -43,6 +43,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
           toolchain: "1.99.1" # rust-toolchain.toml
+      # Dependencies built once and reused: a release build is a full LTO
+      # build of a few hundred crates.
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: release-windows
       - run: cargo build --release --locked --workspace
       - name: Package
         shell: bash
@@ -67,6 +72,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
           toolchain: "1.99.1" # rust-toolchain.toml
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: release-macos
       # With a Developer ID certificate and an App Store Connect API key in
       # the repository's secrets, the app is signed and notarized; without
       # them, ad-hoc signed as before. See RELEASING.md.
@@ -120,6 +128,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
           toolchain: "1.99.1" # rust-toolchain.toml
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: release-linux
       - run: cargo build --release --locked --workspace
       - name: Package
         run: |
