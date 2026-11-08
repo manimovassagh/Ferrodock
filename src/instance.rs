@@ -186,6 +186,18 @@ fn parse_port_file(text: &str) -> Option<(u16, &str)> {
 mod tests {
     use super::*;
 
+    /// The new version waits longer than the old one can take to quit:
+    /// up to a minute for an engine still booting, then its containers'
+    /// grace time, with room left for WSL's own shutdown.
+    #[test]
+    fn outwaits_the_engine_stopping() {
+        let slowest_quit = crate::vm::QUIT_WAIT + crate::vm::STOP_GRACE;
+        assert!(
+            HANDOFF >= slowest_quit + Duration::from_secs(30),
+            "{HANDOFF:?} vs {slowest_quit:?}"
+        );
+    }
+
     #[test]
     fn compares_tokens_whole() {
         assert!(same(b"show abc", b"show abc"));

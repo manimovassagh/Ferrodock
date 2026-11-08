@@ -116,8 +116,13 @@ fn physical_memory_mib() -> Option<u64> {
 }
 
 /// How long quitting waits for an engine that's booting, to stop it.
-#[cfg(engine)]
-const QUIT_WAIT: std::time::Duration = std::time::Duration::from_secs(60);
+#[cfg_attr(not(engine), allow(dead_code))]
+pub(crate) const QUIT_WAIT: std::time::Duration = std::time::Duration::from_secs(60);
+
+/// How long a stopping engine gives its containers to stop (Windows; the
+/// others stop sooner).
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) const STOP_GRACE: std::time::Duration = std::time::Duration::from_secs(20);
 
 /// Where the engine is at.
 #[derive(Debug, Clone, PartialEq)]
