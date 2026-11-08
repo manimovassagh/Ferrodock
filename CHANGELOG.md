@@ -7,6 +7,16 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.38.0](https://github.com/manimovassagh/Ferrodock/compare/v1.37.0...v1.38.0) - 2026-11-08
+
+### Added
+
+- CPU and memory overview on the Disk page ([#333](https://github.com/manimovassagh/Ferrodock/pull/333))
+
+### Fixed
+
+- roll back an update that won't start, verify the macOS app ([#330](https://github.com/manimovassagh/Ferrodock/pull/330))
+
 ## [1.37.0](https://github.com/manimovassagh/Ferrodock/compare/v1.36.2...v1.37.0) - 2026-11-07
 
 ### Added
