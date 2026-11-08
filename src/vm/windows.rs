@@ -30,7 +30,7 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 /// when nothing else serves it, so `docker` works with no setup.
 const PIPES: [&str; 2] = [r"\\.\pipe\ferrodock_engine", r"\\.\pipe\docker_engine"];
 /// How long the engine gets to stop its containers.
-const GRACE: Duration = Duration::from_secs(20);
+const GRACE: Duration = super::STOP_GRACE;
 /// The administrator prompt was dismissed (ERROR_CANCELLED).
 const CANCELLED: i32 = 1223;
 /// Installed, but only works after a restart (ERROR_SUCCESS_REBOOT_REQUIRED).
