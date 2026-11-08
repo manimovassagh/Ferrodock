@@ -78,6 +78,10 @@ Docker engine you already run; see
 
 More in [Ferrodock's own engine](./engine.md#windows).
 
+New versions are also submitted to winget, so once one has been accepted
+there, `winget install ManiMovassagh.Ferrodock` installs Ferrodock and puts
+`ferrodock`, `fdock` and `ferrodock-mcp` on your PATH.
+
 ## Linux
 
 ```bash
