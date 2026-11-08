@@ -75,7 +75,42 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           key: release-macos
+      # With a Developer ID certificate and an App Store Connect API key in
+      # the repository's secrets, the app is signed and notarized; without
+      # them, ad-hoc signed as before. See RELEASING.md.
+      - name: Signing keys
+        id: keys
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PW: ${{ secrets.MACOS_CERT_PW }}
+          AC_API_KEY: ${{ secrets.AC_API_KEY }}
+        run: |
+          if [ -z "$MACOS_CERT_P12" ]; then
+            echo "No MACOS_CERT_P12 secret: ad-hoc signing."
+            exit 0
+          fi
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password=$(openssl rand -hex 16)
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          echo "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" -P "$MACOS_CERT_PW" -T /usr/bin/codesign
+          rm "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain"
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          identity=$(security find-identity -v -p codesigning "$keychain" | grep -o '"Developer ID Application[^"]*"' | head -1 | tr -d '"')
+          echo "identity=$identity" >> "$GITHUB_OUTPUT"
+          if [ -n "$AC_API_KEY" ]; then
+            echo "$AC_API_KEY" > "$RUNNER_TEMP/notary.p8"
+            echo "key=$RUNNER_TEMP/notary.p8" >> "$GITHUB_OUTPUT"
+          fi
       - run: packaging/macos/bundle.sh
+        env:
+          MACOS_SIGN_IDENTITY: ${{ steps.keys.outputs.identity || '-' }}
+          NOTARY_KEY: ${{ steps.keys.outputs.key }}
+          NOTARY_KEY_ID: ${{ secrets.AC_KEY_ID }}
+          NOTARY_ISSUER: ${{ secrets.AC_ISSUER }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: macos

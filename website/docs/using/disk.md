@@ -6,11 +6,19 @@ description: "See what takes space in your Docker engine, free it safely, or res
 
 # Disk cleanup and reset
 
-The **Disk** page shows how much space images, containers, volumes and the
-build cache take, and how much of it can be freed. The total is also shown
-in the sidebar.
+The **Disk** page shows what your containers use right now, how much space
+images, containers, volumes and the build cache take, and how much of it can
+be freed. The disk total is also shown in the sidebar.
 
 ![The Disk page](/img/disk.png)
+
+## CPU and memory
+
+At the top, **CPU** and **Memory** show what the running containers use
+together, against what the engine has: its CPUs and memory (for Ferrodock's
+own engine, the VM's, as set in [Settings → Engine](./settings.md#ferrodocks-engine)). Below,
+the busiest containers are listed, the one using the most CPU first. The
+figures are read every few seconds, only while the page is open.
 
 Disk usage is loaded when you open the page or press refresh, never in the
 background. It needs Docker Engine 29 or newer.
