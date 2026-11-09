@@ -6,6 +6,6 @@ Comment=The native container manager, written in Rust
 Exec=ferrodock
 Icon=ferrodock
 Terminal=false
-Categories=Development;System;
+Categories=Development;
 Keywords=docker;podman;containers;compose;kubernetes;
 StartupWMClass=ferrodock

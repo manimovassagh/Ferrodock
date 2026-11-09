@@ -101,7 +101,7 @@ Or download a build from the
 |---|---|---|
 | **macOS** 11+, Apple Silicon and Intel | `Ferrodock-<version>-macos-universal.dmg` (or `.zip`) | Drag **Ferrodock.app** to Applications. It isn't notarized yet, so allow it once with **Open Anyway** in System Settings → Privacy & Security (Homebrew does this for you). |
 | **Windows** 10 / 11, x64 | `Ferrodock-<version>-windows-x64.zip`, or [Scoop](https://manimovassagh.github.io/Ferrodock/docs/installation#windows) | Unzip and run **Ferrodock.exe**. If SmartScreen appears, choose **More info → Run anyway**. |
-| **Linux** x64 and arm64 | `Ferrodock-<version>-linux-amd64.deb` (or `arm64`), or the `.tar.gz` | `sudo apt install ./Ferrodock-*.deb`, or `tar -xzf Ferrodock-*.tar.gz && ./ferrodock` |
+| **Linux** x64 and arm64 | `Ferrodock-<version>-linux-amd64.deb` (or `arm64`), the `.AppImage`, or the `.tar.gz` | `sudo apt install ./Ferrodock-*.deb`, or `chmod +x Ferrodock-*.AppImage` and run it, or `tar -xzf Ferrodock-*.tar.gz && ./ferrodock` |
 
 Each release has a `SHA256SUMS.txt` to check your download. Ferrodock
 updates itself: when a new version is out, click **Update to x.y.z** in the sidebar
