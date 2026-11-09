@@ -52,7 +52,21 @@ ureq = "3.4.2"
 ferrodock-core.workspace = true
 bollard.workspace = true
 bytes.workspace = true
-eframe = { version = "0.37.0", features = ["persistence"] }
+# eframe's defaults, but with only the GPU backends each system uses (the
+# wgpu entries below), not all of them on every system.
+eframe = { version = "0.37.0", default-features = false, features = [
+    "accesskit",
+    "clipboard",
+    "default_fonts",
+    "links",
+    "persistence",
+    "system_fonts",
+    "wayland",
+    "wgpu_no_default_features",
+    "x11",
+] }
+# What eframe's `winit/default` feature turns on.
+winit = "0.30.13"
 egui_extras = { version = "0.37", default-features = false }
 futures-util.workspace = true
 serde.workspace = true
@@ -70,6 +84,29 @@ tokio.workspace = true
 rfd = { version = "0.17.2", default-features = false, features = ["xdg-portal"] }
 
 # Contexts over SSH run the system's ssh, which bollard supports on Unix.
+# The GPU backends wgpu draws the window with: Metal on macOS; Direct3D 12
+# on Windows, with OpenGL for machines without it (some VMs); Vulkan on
+# Linux, with OpenGL where there's no Vulkan driver.
+[target.'cfg(target_os = "macos")'.dependencies.wgpu]
+version = "30"
+default-features = false
+features = ["std", "parking_lot", "wgsl", "metal"]
+
+[target.'cfg(target_os = "macos")'.dependencies.egui-wgpu]
+version = "0.37"
+default-features = false
+features = ["macos-window-resize-jitter-fix"]
+
+[target.'cfg(target_os = "windows")'.dependencies.wgpu]
+version = "30"
+default-features = false
+features = ["std", "parking_lot", "wgsl", "dx12", "gles"]
+
+[target.'cfg(all(unix, not(target_os = "macos")))'.dependencies.wgpu]
+version = "30"
+default-features = false
+features = ["std", "parking_lot", "wgsl", "vulkan", "gles"]
+
 [target.'cfg(unix)'.dependencies]
 bollard = { version = "0.21.1", features = ["ssh"] }
 

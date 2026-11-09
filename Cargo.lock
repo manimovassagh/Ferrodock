@@ -1777,6 +1777,7 @@ dependencies = [
  "bytes",
  "dispatch2",
  "eframe",
+ "egui-wgpu",
  "egui_extras",
  "egui_kittest",
  "ferrodock-core",
@@ -1800,6 +1801,8 @@ dependencies = [
  "tray-icon",
  "ureq",
  "vt100 0.16.2",
+ "wgpu",
+ "winit",
  "winresource",
 ]
 
