@@ -7,6 +7,16 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.39.0](https://github.com/manimovassagh/Ferrodock/compare/v1.38.0...v1.39.0) - 2026-11-09
+
+### Added
+
+- AppImage builds for Linux x64 and arm64 ([#343](https://github.com/manimovassagh/Ferrodock/pull/343))
+
+### Performance
+
+- *(build)* compile only the GPU backends each system uses ([#344](https://github.com/manimovassagh/Ferrodock/pull/344))
+
 ## [1.38.0](https://github.com/manimovassagh/Ferrodock/compare/v1.37.0...v1.38.0) - 2026-11-08
 
 ### Added
