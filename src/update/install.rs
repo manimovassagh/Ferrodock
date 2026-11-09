@@ -63,6 +63,10 @@ pub fn install(
         .and_then(|app| app.parent().map(Path::to_path_buf))
         .or_else(|| exe.parent().map(Path::to_path_buf))
         .ok_or("can't tell where Ferrodock is installed")?;
+    // An AppImage runs from a read-only image of itself.
+    if cfg!(target_os = "linux") && std::env::var_os("APPIMAGE").is_some() {
+        return Err("this is an AppImage: download the new one from the release page".into());
+    }
     // Installed by the package manager (the .deb): it owns the files.
     if cfg!(target_os = "linux") && base == Path::new("/usr/bin") {
         return Err(

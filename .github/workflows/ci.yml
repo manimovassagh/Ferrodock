@@ -100,6 +100,32 @@ jobs:
       - run: cargo deny check licenses advisories
       - run: cargo deny --manifest-path agent/Cargo.toml --config deny.toml check licenses advisories
 
+  # The Linux packages (.deb and AppImage) a release makes, built from
+  # stand-in programs so it takes seconds: the scripts, the desktop entry
+  # and what ends up inside are checked on every pull request.
+  packages:
+    name: Linux packages
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build and check them
+        run: |
+          stub=$(mktemp -d)
+          for program in ferrodock fdock ferrodock-mcp; do
+            printf '#!/bin/sh\necho %s\n' "$program" > "$stub/$program"
+            chmod +x "$stub/$program"
+          done
+          packaging/linux/deb.sh amd64 0.0.0 "$stub" out
+          dpkg-deb -c out/Ferrodock-0.0.0-linux-amd64.deb | grep -q usr/share/applications/ferrodock.desktop
+          packaging/linux/appimage.sh x86_64 0.0.0 "$stub" out
+          cd out
+          ./Ferrodock-0.0.0-linux-x86_64.AppImage --appimage-extract > /dev/null
+          test -x squashfs-root/usr/bin/fdock
+          test -f squashfs-root/ferrodock.desktop
+          [ "$(squashfs-root/AppRun)" = ferrodock ]
+
   build:
     name: Build (${{ matrix.name }})
     needs: changes

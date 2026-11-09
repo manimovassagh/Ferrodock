@@ -119,13 +119,13 @@ jobs:
             dist/*.dmg
 
   # x64 and arm64, each on its own runner: a .tar.gz (what the in-app
-  # updater downloads) and a .deb with a desktop entry.
+  # updater downloads), a .deb with a desktop entry, and an AppImage.
   linux:
     strategy:
       matrix:
         include:
-          - { arch: amd64, tar: x64, runner: ubuntu-24.04 }
-          - { arch: arm64, tar: arm64, runner: ubuntu-24.04-arm }
+          - { arch: amd64, tar: x64, appimage: x86_64, runner: ubuntu-24.04 }
+          - { arch: arm64, tar: arm64, appimage: aarch64, runner: ubuntu-24.04-arm }
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:
@@ -144,12 +144,14 @@ jobs:
           mkdir dist
           tar -czf "dist/Ferrodock-${TAG#v}-linux-${{ matrix.tar }}.tar.gz" -C target/release ferrodock fdock ferrodock-mcp
           packaging/linux/deb.sh ${{ matrix.arch }} "${TAG#v}" target/release dist
+          packaging/linux/appimage.sh ${{ matrix.appimage }} "${TAG#v}" target/release dist
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: linux-${{ matrix.arch }}
           path: |
             dist/*.tar.gz
             dist/*.deb
+            dist/*.AppImage
 
   publish:
     needs: [windows, macos, linux]

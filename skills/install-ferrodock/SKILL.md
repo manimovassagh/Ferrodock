@@ -144,7 +144,8 @@ On Debian or Ubuntu, prefer the `.deb` (`amd64` or `arm64`, from
 `dpkg --print-architecture`), checked like any download, then
 `sudo apt install ./Ferrodock-<version>-linux-<arch>.deb`: it adds the
 menu entry and the commands, and nothing below is needed. Elsewhere, use
-the `.tar.gz` (`x64` or `arm64`):
+the `.tar.gz` (`x64` or `arm64`), which updates itself (the AppImage
+works too, but has to be replaced by hand for each new version):
 
 ```bash
 tmp=$(mktemp -d) && cd "$tmp"

@@ -24,6 +24,7 @@ Each release has these files:
 | `Ferrodock-<version>-linux-x64.tar.gz` | Linux, x64 |
 | `Ferrodock-<version>-linux-arm64.tar.gz` | Linux, arm64 |
 | `Ferrodock-<version>-linux-amd64.deb` / `-arm64.deb` | Debian, Ubuntu and relatives, with a menu entry |
+| `Ferrodock-<version>-linux-x86_64.AppImage` / `-aarch64.AppImage` | Any Linux distribution, as one file |
 | `SHA256SUMS.txt` | Checksums of all of the above |
 
 To check a download, see [Installation](./installation.md#check-your-download).

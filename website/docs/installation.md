@@ -102,8 +102,19 @@ sudo apt install ./Ferrodock-<version>-linux-amd64.deb
 ```
 
 A Ferrodock installed this way is updated by installing the next `.deb`,
-not from inside the app. Elsewhere, unpack the `.tar.gz` (`x64` or `arm64`)
-anywhere and run it; it updates itself:
+not from inside the app.
+
+On any distribution, the AppImage (`x86_64` or `aarch64`) is one file that
+runs as it is; desktop tools like Gear Lever add it to the applications
+menu. Download the next one to update:
+
+```bash
+chmod +x Ferrodock-<version>-linux-x86_64.AppImage
+./Ferrodock-<version>-linux-x86_64.AppImage
+```
+
+Or unpack the `.tar.gz` (`x64` or `arm64`) anywhere and run it; it updates
+itself:
 
 ```bash
 tar -xzf Ferrodock-<version>-linux-x64.tar.gz
