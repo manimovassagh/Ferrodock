@@ -141,6 +141,8 @@ jobs:
       - run: cargo build --release --locked --workspace
       - name: Package
         run: |
+          # appimagetool checks the desktop entry with it.
+          sudo apt-get update -qq && sudo apt-get install -y -qq desktop-file-utils
           mkdir dist
           tar -czf "dist/Ferrodock-${TAG#v}-linux-${{ matrix.tar }}.tar.gz" -C target/release ferrodock fdock ferrodock-mcp
           packaging/linux/deb.sh ${{ matrix.arch }} "${TAG#v}" target/release dist
