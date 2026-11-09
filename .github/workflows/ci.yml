@@ -113,9 +113,10 @@ jobs:
       - name: Build and check them
         run: |
           stub=$(mktemp -d)
+          # Real (tiny) programs: deb.sh reads the glibc they need.
           for program in ferrodock fdock ferrodock-mcp; do
-            printf '#!/bin/sh\necho %s\n' "$program" > "$stub/$program"
-            chmod +x "$stub/$program"
+            printf '#include <stdio.h>\nint main(void) { puts("%s"); return 0; }\n' "$program" > "$stub/$program.c"
+            cc -o "$stub/$program" "$stub/$program.c"
           done
           packaging/linux/deb.sh amd64 0.0.0 "$stub" out
           dpkg-deb -c out/Ferrodock-0.0.0-linux-amd64.deb | grep -q usr/share/applications/ferrodock.desktop
