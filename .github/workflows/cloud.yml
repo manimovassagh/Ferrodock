@@ -1,0 +1,81 @@
+name: Cloud
+
+# Builds ferrocloud, Ferrodock's cloud emulator (crates/cloud), as the
+# static program its image is made of, for both architectures, and checks
+# the image the way it's used: as a container, with the real AWS CLI.
+
+on:
+  push:
+    branches: [main]
+    paths: ["crates/cloud/**", "Cargo.lock", ".github/workflows/cloud.yml"]
+  pull_request:
+    paths: ["crates/cloud/**", "Cargo.lock", ".github/workflows/cloud.yml"]
+
+concurrency:
+  group: cloud-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Read-only: nothing here publishes.
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  image:
+    name: Image (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: amd64, runner: ubuntu-24.04, target: x86_64-unknown-linux-musl }
+          - { arch: arm64, runner: ubuntu-24.04-arm, target: aarch64-unknown-linux-musl }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: "1.99.1" # rust-toolchain.toml
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: cloud-${{ matrix.arch }}
+      # SQLite is compiled in, so the C compiler has to target musl too.
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq musl-tools
+      - run: cargo test --locked -p ferrodock-cloud
+      - name: Build the program
+        run: cargo build --locked --release -p ferrodock-cloud --target ${{ matrix.target }}
+      - name: Build the image
+        run: |
+          mkdir image
+          cp target/${{ matrix.target }}/release/ferrocloud image/ferrocloud-${{ matrix.arch }}
+          cp crates/cloud/Dockerfile image/
+          docker build -t ferrocloud:ci image
+          docker save ferrocloud:ci | zstd -19 -T0 > ferrocloud-${{ matrix.arch }}.tar.zst
+          ls -la ferrocloud-${{ matrix.arch }}.tar.zst
+      - name: Run it and ask it things
+        env:
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_ENDPOINT_URL: http://localhost:4566
+        run: |
+          docker run -d --name ferrocloud -p 4566:4566 ferrocloud:ci
+          # Its own health check says when it's up.
+          for _ in $(seq 30); do
+            [ "$(docker inspect -f '{{.State.Health.Status}}' ferrocloud)" = healthy ] && break
+            sleep 1
+          done
+          curl -fsS http://localhost:4566/_ferrocloud/health
+          crates/cloud/tests/aws-cli.sh
+          # A stop is honoured at once, not after Docker's ten seconds.
+          start=$(date +%s)
+          docker stop ferrocloud
+          [ $(( $(date +%s) - start )) -lt 5 ]
+      - if: failure()
+        run: docker logs ferrocloud
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ferrocloud-${{ matrix.arch }}
+          path: ferrocloud-${{ matrix.arch }}.tar.zst
