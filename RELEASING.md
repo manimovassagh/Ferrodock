@@ -130,3 +130,24 @@ is used when the release assets are run again by hand. Until trusted
 publishing works the `CARGO_REGISTRY_TOKEN` secret is used instead; once
 a release shows "Publishing with a trusted-publishing token" in its
 crates job, delete that secret.
+
+## Signing the Windows build
+
+Releases are unsigned on Windows (SmartScreen asks "Run anyway?") until
+these secrets exist; then the Windows job signs `Ferrodock.exe`,
+`fdock.exe` and `ferrodock-mcp.exe` with
+[Azure Artifact Signing](https://learn.microsoft.com/azure/artifact-signing/)
+(formerly Trusted Signing) before they're zipped.
+
+| Secret | What |
+| --- | --- |
+| `AZURE_TENANT_ID` | The Microsoft Entra tenant (directory) ID |
+| `AZURE_CLIENT_ID` | The app registration's application (client) ID |
+| `AZURE_CLIENT_SECRET` | A client secret of that app registration |
+| `AZURE_SIGNING_ENDPOINT` | The signing account's endpoint, e.g. `https://weu.codesigning.azure.net/` |
+| `AZURE_SIGNING_ACCOUNT` | The signing account's name |
+| `AZURE_CERTIFICATE_PROFILE` | The certificate profile's name (Public Trust) |
+
+The app registration needs the **Artifact Signing Certificate Profile
+Signer** role on the signing account. Identity validation for a Public
+Trust profile can take a few days.

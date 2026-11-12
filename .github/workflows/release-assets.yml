@@ -36,6 +36,10 @@ jobs:
   windows:
     runs-on: windows-2025
     timeout-minutes: 40
+    # Signing with Azure Artifact Signing (formerly Trusted Signing), once
+    # its secrets are set; unsigned as before until then. See RELEASING.md.
+    env:
+      SIGNING_ENDPOINT: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -49,6 +53,25 @@ jobs:
         with:
           key: release-windows
       - run: cargo build --release --locked --workspace
+      - name: Sign
+        if: env.SIGNING_ENDPOINT != ''
+        uses: azure/artifact-signing-action@208f8af4bf26cf2af8597424e3cb5582801523ba # v2.0.0
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ secrets.AZURE_CERTIFICATE_PROFILE }}
+          files: |
+            ${{ github.workspace }}\target\release\ferrodock.exe
+            ${{ github.workspace }}\target\release\fdock.exe
+            ${{ github.workspace }}\target\release\ferrodock-mcp.exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+          description: Ferrodock
+          description-url: https://manimovassagh.github.io/Ferrodock/
       - name: Package
         shell: bash
         run: |
