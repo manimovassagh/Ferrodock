@@ -249,9 +249,17 @@ jobs:
   # Every release, not just the latest: crates.io takes an older version
   # after a newer one. Needs a CARGO_REGISTRY_TOKEN secret; without it this
   # step is skipped.
+  # Trusted publishing: crates.io trusts this repository's release
+  # workflows (set up once per crate on crates.io, see RELEASING.md) and
+  # hands out a token that lasts for this job only. The CARGO_REGISTRY_TOKEN
+  # secret is the fallback until then; delete it once trusted publishing
+  # works.
   crates:
     needs: publish
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -259,13 +267,24 @@ jobs:
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
           toolchain: "1.99.1" # rust-toolchain.toml
+      - name: Trusted publishing
+        id: auth
+        # Not set up on crates.io yet: the secret is used instead.
+        continue-on-error: true
+        uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
       - name: Publish
         env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token || secrets.CARGO_REGISTRY_TOKEN }}
+          TRUSTED: ${{ steps.auth.outputs.token != '' }}
         run: |
           if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
-            echo "::notice::No CARGO_REGISTRY_TOKEN secret, so not publishing to crates.io."
+            echo "::notice::Neither trusted publishing nor a CARGO_REGISTRY_TOKEN secret, so not publishing to crates.io."
             exit 0
+          fi
+          if [ "$TRUSTED" = true ]; then
+            echo "Publishing with a trusted-publishing token."
+          else
+            echo "::notice::Publishing with the CARGO_REGISTRY_TOKEN secret: trusted publishing isn't set up on crates.io yet."
           fi
           version=${TAG#v}
           # The shared crate first: the others depend on it.

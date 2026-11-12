@@ -108,3 +108,25 @@ manifests of `packaging/winget/manifests.sh` (package
 `public_repo` scope: the pull request comes from that account's fork of
 winget-pkgs, made the first time. winget's moderators review the first
 submission; later versions are usually merged automatically.
+
+## Publishing to crates.io
+
+Each release publishes `ferrodock-core`, `ferrodock-cli`, `ferrodock-mcp`
+and `ferrodock` to crates.io with **trusted publishing**: no stored token,
+crates.io trusts this repository's release workflows and hands out a
+token that only lasts for the publishing job. Set it up once for each of
+the four crates, on crates.io → the crate → **Settings → Trusted
+Publishing → Add**:
+
+| Field | Value |
+| --- | --- |
+| Repository owner | `manimovassagh` |
+| Repository name | `Ferrodock` |
+| Workflow filename | `release.yml` |
+| Environment | (empty) |
+
+Add a second one with the workflow filename `release-assets.yml`, which
+is used when the release assets are run again by hand. Until trusted
+publishing works the `CARGO_REGISTRY_TOKEN` secret is used instead; once
+a release shows "Publishing with a trusted-publishing token" in its
+crates job, delete that secret.

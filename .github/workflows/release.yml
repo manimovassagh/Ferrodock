@@ -59,9 +59,11 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
+      # crates.io trusted publishing.
+      id-token: write
     uses: ./.github/workflows/release-assets.yml
     # Called workflows don't see the repository's secrets unless passed on;
-    # the crates.io step needs CARGO_REGISTRY_TOKEN.
+    # the crates.io step falls back to CARGO_REGISTRY_TOKEN.
     secrets: inherit
     with:
       tag: ${{ needs.release.outputs.tag }}
