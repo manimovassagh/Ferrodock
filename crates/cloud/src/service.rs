@@ -65,7 +65,7 @@ pub struct Registry {
 impl Registry {
     /// Every service ferrocloud comes with.
     pub fn standard() -> Self {
-        Self::default()
+        Self::default().with(crate::sts::Sts).with(crate::iam::Iam)
     }
 
     pub fn with(mut self, service: impl Service + 'static) -> Self {
