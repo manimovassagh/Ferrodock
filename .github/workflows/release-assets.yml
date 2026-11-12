@@ -173,6 +173,21 @@ jobs:
       - name: Checksums
         working-directory: dist
         run: sha256sum Ferrodock-* | tee SHA256SUMS.txt
+      # Signed with the key whose public half is in packaging/minisign.pub:
+      # the app checks it before an update. Skipped without the secret.
+      - name: Sign the checksums
+        working-directory: dist
+        env:
+          MINISIGN_SECRET_KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
+        run: |
+          if [ -z "$MINISIGN_SECRET_KEY" ]; then
+            echo "::notice::No MINISIGN_SECRET_KEY secret, so SHA256SUMS.txt isn't signed."
+            exit 0
+          fi
+          sudo apt-get update -qq && sudo apt-get install -y -qq minisign
+          printf '%s\n' "$MINISIGN_SECRET_KEY" > "$RUNNER_TEMP/minisign.key"
+          minisign -S -s "$RUNNER_TEMP/minisign.key" -m SHA256SUMS.txt -t "Ferrodock $TAG"
+          shred -u "$RUNNER_TEMP/minisign.key"
       - name: Attach to the release
         run: gh release upload "$TAG" dist/* --clobber
       # Two releases can finish in either order (v1.24.0 once published two

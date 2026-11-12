@@ -130,3 +130,26 @@ is used when the release assets are run again by hand. Until trusted
 publishing works the `CARGO_REGISTRY_TOKEN` secret is used instead; once
 a release shows "Publishing with a trusted-publishing token" in its
 crates job, delete that secret.
+
+## Signing the checksums
+
+Each release's `SHA256SUMS.txt` is signed with [minisign](https://jedisct1.github.io/minisign/),
+and the app checks that signature before it installs an update, so
+someone able to replace a release's files still can't make the app
+install them. Set it up once:
+
+1. Make a key pair without a password (`brew install minisign`):
+
+   ```bash
+   minisign -G -W -p ferrodock.pub -s ferrodock.key
+   ```
+
+2. Add the whole of `ferrodock.key` as the `MINISIGN_SECRET_KEY` secret
+   (`gh secret set MINISIGN_SECRET_KEY < ferrodock.key`), keep a copy in
+   your password manager, and delete the file.
+3. Put `ferrodock.pub` in `packaging/minisign.pub` in a pull request.
+
+Order matters: the secret first, so the release that ships the public
+key is already signed. A build with the key installs only signed
+updates; while `packaging/minisign.pub` is empty, the checksums alone
+are checked, as before.

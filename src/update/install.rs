@@ -177,6 +177,20 @@ fn prepare(
         .request_header("Accept", "application/octet-stream")
         .download_to(&mut sums)
         .map_err(|e| e.to_string())?;
+    // Signed by the release workflow's key, once this build knows it: the
+    // checksums then can't be swapped along with the download.
+    if let Some(key) = super::signature::public_key() {
+        let url = available
+            .sig_url
+            .as_deref()
+            .ok_or("the release isn't signed")?;
+        let mut sig = Vec::new();
+        Download::from_url(url)
+            .request_header("Accept", "application/octet-stream")
+            .download_to(&mut sig)
+            .map_err(|e| e.to_string())?;
+        super::signature::verify(key, &sums, &String::from_utf8_lossy(&sig))?;
+    }
     let sums = String::from_utf8_lossy(&sums);
     let expected = expected_sum(&sums, &available.asset_name)
         .ok_or("the release has no checksum for this download")?;
@@ -413,6 +427,7 @@ mod tests {
             asset_name: "Ferrodock-9.9.9-linux-x64.tar.gz".into(),
             asset_url: format!("{base}/Ferrodock-9.9.9-linux-x64.tar.gz"),
             sums_url: format!("{base}/SHA256SUMS.txt"),
+            sig_url: None,
         }
     }
 
@@ -578,6 +593,11 @@ mod tests {
                 .unwrap()
                 .download_url()
                 .into(),
+            sig_url: release
+                .assets()
+                .iter()
+                .find(|a| a.name() == super::super::signature::SIG_NAME)
+                .map(|a| a.download_url().into()),
         };
         let work = std::env::temp_dir().join(format!("ferrodock-prepare-{}", std::process::id()));
         fs::create_dir_all(&work).unwrap();

@@ -37,7 +37,9 @@ release notes, and click it to update:
 
 1. The new build for your platform downloads in the background.
 2. It's checked against the release's `SHA256SUMS.txt`, and refused if it
-   doesn't match. On macOS the app's code signature is checked too.
+   doesn't match. Once releases are signed, that file's signature is
+   checked too, against a key built into Ferrodock. On macOS the app's code
+   signature is checked as well.
 3. It replaces the installed app in place: the whole `Ferrodock.app` on
    macOS, the executable on Windows and Linux. The version you're running is
    kept next to it for now.

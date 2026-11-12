@@ -8,6 +8,7 @@
 //! [`Status`].
 
 mod install;
+mod signature;
 mod watch;
 
 use std::sync::{Arc, Mutex};
@@ -32,6 +33,8 @@ pub struct Available {
     /// Its `SHA256SUMS.txt`. A release without one is never offered: the
     /// download couldn't be checked.
     sums_url: String,
+    /// Its `SHA256SUMS.txt.minisig`, when this build checks signatures.
+    sig_url: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -165,6 +168,7 @@ impl Available {
             asset_name: String::new(),
             asset_url: String::new(),
             sums_url: String::new(),
+            sig_url: None,
         }
     }
 }
@@ -203,6 +207,9 @@ fn latest() -> Result<Option<Available>, String> {
         .find(|r| {
             r.assets().iter().any(|a| a.name().ends_with(suffix))
                 && r.assets().iter().any(|a| a.name() == "SHA256SUMS.txt")
+                // And, once releases are signed, its signature.
+                && (signature::public_key().is_none()
+                    || r.assets().iter().any(|a| a.name() == signature::SIG_NAME))
         });
     let Some(release) = newest else {
         return Ok(None);
@@ -227,12 +234,20 @@ fn latest() -> Result<Option<Available>, String> {
         .expect("filtered above")
         .download_url()
         .to_owned();
+    let sig_url = signature::public_key().and_then(|_| {
+        release
+            .assets()
+            .iter()
+            .find(|a| a.name() == signature::SIG_NAME)
+            .map(|a| a.download_url().to_owned())
+    });
     Ok(Some(Available {
         version: release.version().to_owned(),
         notes: release.body().unwrap_or_default().to_owned(),
         asset_name: asset.name().to_owned(),
         asset_url: asset.download_url().to_owned(),
         sums_url,
+        sig_url,
     }))
 }
 
