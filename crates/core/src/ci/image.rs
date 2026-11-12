@@ -1,5 +1,5 @@
 //! The image jobs run in, like GitHub's Ubuntu runners: the toolchains
-//! they come with (Rust, Go, Java, Node.js, Python, Ruby), PowerShell, the
+//! they come with (Rust, Go, Java, Node.js, Python, Ruby, .NET), PowerShell, the
 //! Docker CLI with Buildx and Compose, the usual build tools and CLIs, and
 //! a `runner` user with `sudo`. Built here from the
 //! Dockerfile below the first time a job needs it.
@@ -7,7 +7,7 @@
 use super::super::{BuildSpec, DockerClient};
 
 /// Bumped when the Dockerfile changes, so the image is built again.
-const REVISION: u32 = 3;
+const REVISION: u32 = 4;
 const REPOSITORY: &str = "ferrodock-ci-runner";
 
 /// The Ubuntu version for a job's `runs-on`, or why it can't run here.
@@ -71,6 +71,11 @@ RUN install -m 0755 -d /etc/apt/keyrings \
     && apt-get update && apt-get install -y --no-install-recommends \
       docker-ce-cli docker-buildx-plugin docker-compose-plugin \
     && rm -rf /var/lib/apt/lists/*
+# The .NET SDKs, the long-term-support ones Ubuntu ships (8, and 10
+# where the release has it), as on GitHub's runners.
+RUN apt-get update && apt-get install -y --no-install-recommends dotnet-sdk-8.0 \
+    && (apt-get install -y --no-install-recommends dotnet-sdk-10.0 || true) \
+    && rm -rf /var/lib/apt/lists/*
 # PowerShell (pwsh), its latest release.
 RUN v=$(curl -fsSL -o /dev/null -w '%{{url_effective}}' https://github.com/PowerShell/PowerShell/releases/latest | sed 's#.*/v##') \
     && mkdir -p /opt/microsoft/powershell/7 \
@@ -112,6 +117,7 @@ RUN curl -fsSL "https://static.rust-lang.org/rustup/dist/$(uname -m)-unknown-lin
     && /tmp/rustup-init -y --no-modify-path --profile minimal --default-toolchain stable -c clippy -c rustfmt \
     && rm /tmp/rustup-init
 USER root
+ENV DOTNET_NOLOGO=1 DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
 ENV CARGO_HOME=/home/runner/.cargo RUSTUP_HOME=/home/runner/.rustup \
     JAVA_HOME=/usr/lib/jvm/java-21 \
     PATH=/home/runner/.cargo/bin:/usr/local/go/bin:/home/runner/go/bin:/home/runner/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -177,6 +183,6 @@ mod tests {
         );
         assert!(ubuntu_for(&[]).is_err());
         assert!(dockerfile("24.04").starts_with("FROM ubuntu:24.04"));
-        assert_eq!(tag("24.04"), "ferrodock-ci-runner:24.04-3");
+        assert_eq!(tag("24.04"), "ferrodock-ci-runner:24.04-4");
     }
 }
