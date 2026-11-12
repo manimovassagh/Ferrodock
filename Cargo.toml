@@ -12,7 +12,7 @@ readme = "README.md"
 keywords = ["docker", "containers", "gui", "desktop", "egui"]
 categories = ["gui", "development-tools"]
 # Only what building needs; the website, docs and packaging stay on GitHub.
-include = ["/src", "/assets", "/build.rs", "/engine/VERSION", "/engine/SHA256SUMS", "/README.md", "/LICENSE", "/CHANGELOG.md"]
+include = ["/src", "/assets", "/build.rs", "/engine/VERSION", "/engine/SHA256SUMS", "/README.md", "/LICENSE", "/CHANGELOG.md", "/packaging/minisign.pub"]
 
 # The desktop app (this package) and the crates it shares code with:
 #   crates/core  ferrodock-core, the Docker layer (no UI)
@@ -68,6 +68,8 @@ eframe = { version = "0.37.0", default-features = false, features = [
 # What eframe's `winit/default` feature turns on.
 winit = "0.30.13"
 egui_extras = { version = "0.37", default-features = false }
+# Checks the signature of a release's SHA256SUMS.txt before an update.
+minisign-verify = "0.3"
 futures-util.workspace = true
 serde.workspace = true
 serde_json.workspace = true
