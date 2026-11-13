@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.44.0](https://github.com/manimovassagh/Ferrodock/compare/v1.43.0...v1.44.0) - 2026-11-13
+
+### Added
+
+- *(cloud)* S3 in the emulator, with a bucket browser in the console ([#386](https://github.com/manimovassagh/Ferrodock/pull/386))
+
 ## [1.43.0](https://github.com/manimovassagh/Ferrodock/compare/v1.42.0...v1.43.0) - 2026-11-13
 
 ### Added
