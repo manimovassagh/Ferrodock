@@ -37,6 +37,8 @@ pub enum Icon {
     Wheel,
     /// Three jobs joined into a pipeline: Local CI.
     Workflow,
+    /// A cloud: the cloud emulator.
+    Cloud,
 }
 
 /// Paints `icon` filling `rect` (drawn on a 24-unit grid).
@@ -238,6 +240,14 @@ pub fn paint(painter: &egui::Painter, rect: Rect, icon: Icon, color: Color32) {
                 p(15.4, 12.0),
             ]),
             line(&[p(8.6, 18.0), p(11.0, 18.0), p(13.0, 16.0), p(13.0, 12.0)]),
+        ],
+        Icon::Cloud => vec![
+            // A flat base, a small bump on the left and a big one on the
+            // right, as one outline.
+            arc(p(7.5, 14.5), 4.5, 90.0, 270.0),
+            arc(p(13.5, 11.0), 6.0, 197.0, 345.0),
+            arc(p(17.5, 14.5), 4.5, -78.0, 90.0),
+            line(&[p(7.5, 19.0), p(17.5, 19.0)]),
         ],
         Icon::HardDrive => vec![
             Shape::rect_stroke(

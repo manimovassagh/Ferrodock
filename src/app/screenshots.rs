@@ -1352,3 +1352,34 @@ fn screenshots_of_local_ci() {
     click(&mut h, "← Runs");
     save(&mut h, "local-ci-runs");
 }
+
+/// The Cloud page: before the emulator runs, then running with a service
+/// unfolded, and the Terraform settings. Needs the emulator's image.
+#[test]
+#[ignore]
+fn screenshots_of_cloud() {
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(2));
+    set_theme(&mut h, Theme::Light);
+    let page = h
+        .state()
+        .pages
+        .iter()
+        .position(|p| p.title() == "Cloud")
+        .unwrap();
+    open(&mut h, page, None);
+    if h.query_by_label("Start").is_none() {
+        // Left running by an earlier try.
+        click(&mut h, "Stop the emulator");
+        settle(&mut h, Duration::from_secs(3));
+    }
+    save(&mut h, "cloud-stopped");
+    click(&mut h, "Start");
+    settle(&mut h, Duration::from_secs(4));
+    press(&mut h, "STS");
+    save(&mut h, "cloud");
+    click(&mut h, "Terraform");
+    save(&mut h, "cloud-terraform");
+    click(&mut h, "Stop the emulator");
+    settle(&mut h, Duration::from_secs(3));
+}
