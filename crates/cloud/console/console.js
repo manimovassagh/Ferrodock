@@ -1,7 +1,9 @@
 // The ferrocloud console. It reads the emulator's own API under
 // /_ferrocloud/: what each service holds (inventory) and the requests it
-// answered. Pages are picked by the address's #: #/, #/s/<service> and
-// #/requests. Everything shown is built with textContent, never as HTML,
+// answered. Pages are picked by the address's #: #/, #/s/<service>,
+// #/s/<service>/<path> for a service's own browser, and #/requests.
+// A service with more to show than its listings (S3's buckets) adds a
+// browser to BROWSERS from its own file, e.g. s3.js. Everything shown is built with textContent, never as HTML,
 // since names come from whoever called the APIs.
 
 "use strict";
@@ -11,6 +13,11 @@ const REFRESH_MS = 2000;
 const REQUESTS_MS = 1000;
 /// The most requests the log keeps, like the emulator's own.
 const KEEP = 1000;
+
+/// Per service name, a browser: `{ open(item), page(main, path), actions() }`.
+/// `open` replaces showing a listing row's record, `page` draws
+/// #/s/<service>/<path>, `actions` adds buttons next to the filter.
+const BROWSERS = {};
 
 const state = {
   health: null,
@@ -56,6 +63,18 @@ function plural(n, word) {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 
+/// A size for people: `512 B`, `1.4 MB`.
+function bytes(n) {
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = n;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return unit === 0 ? `${n} B` : `${value.toFixed(1)} ${units[unit]}`;
+}
+
 function time(ms) {
   return new Date(ms).toLocaleTimeString([], { hour12: false });
 }
@@ -85,7 +104,9 @@ function expanded(value) {
 
 /// A body as text, laid out when it's JSON.
 function readable(body) {
-  if (!body || body.binary) return body ? `(${body.size} bytes of binary data)` : "";
+  if (!body) return "";
+  if (body.streamed) return `(${bytes(body.size)} streamed by, not kept)`;
+  if (body.binary) return `(${bytes(body.size)} of binary data)`;
   let text = body.text || "";
   try {
     text = JSON.stringify(JSON.parse(text), null, 2);
@@ -282,7 +303,10 @@ function servicePage(main, name) {
         key: item.cells[0],
         cells: item.cells,
         mono: [1],
-        open: () => openDrawer(item.cells[0], h("h3", {}, "RECORD"), h("pre", {}, JSON.stringify(expanded(item.detail), null, 2))),
+        open: () =>
+          BROWSERS[name] && BROWSERS[name].open
+            ? BROWSERS[name].open(item)
+            : openDrawer(item.cells[0], h("h3", {}, "RECORD"), h("pre", {}, JSON.stringify(expanded(item.detail), null, 2))),
       }));
   const showListing = () => {
     const l = listing();
@@ -313,7 +337,8 @@ function servicePage(main, name) {
     );
   drawTabs();
   showListing();
-  main.append(tabs, h("div", { class: "toolbar" }, filterBox(() => shown.update())), holder);
+  const actions = BROWSERS[name] && BROWSERS[name].actions ? BROWSERS[name].actions() : [];
+  main.append(tabs, h("div", { class: "toolbar" }, filterBox(() => shown.update()), ...actions), holder);
   return () => {
     if (!service()) return;
     drawTabs();
@@ -402,8 +427,8 @@ async function openRequest(r) {
 // --- Routing and refreshing -------------------------------------------------
 
 function current() {
-  const [, page, name] = location.hash.split("/");
-  if (page === "s" && name) return { page: "service", name: decodeURIComponent(name) };
+  const [, page, name, ...rest] = location.hash.split("/");
+  if (page === "s" && name) return { page: "service", name: decodeURIComponent(name), path: rest.join("/") };
   if (page === "requests") return { page: "requests" };
   return { page: "home" };
 }
@@ -414,7 +439,9 @@ function route() {
   state.filter = "";
   closeDrawer();
   renderSide(where);
-  if (where.page === "service") state.update = servicePage(main, where.name);
+  const browser = where.page === "service" && where.path ? BROWSERS[where.name] : null;
+  if (browser && browser.page) state.update = browser.page(main, where.path);
+  else if (where.page === "service") state.update = servicePage(main, where.name);
   else if (where.page === "requests") state.update = requestsPage(main);
   else state.update = homePage(main);
   main.focus();
@@ -467,8 +494,13 @@ function every(ms, load) {
   setInterval(() => document.visibilityState === "visible" && load(), ms);
 }
 
-addEventListener("hashchange", route);
-addEventListener("keydown", (e) => e.key === "Escape" && closeDrawer());
-route();
-every(REFRESH_MS, loadInventory);
-every(REQUESTS_MS, loadRequests);
+/// Starts once every script is in, so each service's browser is there.
+function start() {
+  addEventListener("hashchange", route);
+  addEventListener("keydown", (e) => e.key === "Escape" && closeDrawer());
+  route();
+  every(REFRESH_MS, loadInventory);
+  every(REQUESTS_MS, loadRequests);
+}
+
+addEventListener("DOMContentLoaded", start);

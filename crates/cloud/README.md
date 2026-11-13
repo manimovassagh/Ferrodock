@@ -37,6 +37,7 @@ Under `/_ferrocloud/`, for Ferrodock and for scripts:
 | --- | --- |
 | STS | `GetCallerIdentity`, `GetSessionToken`, `AssumeRole`, `AssumeRoleWithWebIdentity` |
 | IAM | Roles, users, managed policies with versions, inline and attached policies, instance profiles, access keys, tags |
+| S3 | Buckets, objects of any size (streamed to disk), uploads in parts, copying, versions, tags, metadata, presigned URLs; buckets by path (`localhost:4566/photos`) or by host (`photos.localhost:4566`). Bucket settings (CORS, policy, lifecycle, website…) are kept and given back |
 
 IAM keeps what you create and gives it back; it doesn't enforce it. Every
 request is allowed, whatever the policies say.

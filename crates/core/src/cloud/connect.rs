@@ -55,7 +55,7 @@ fn profile(endpoint: &str) -> String {
 
 fn terraform(endpoint: &str) -> String {
     format!(
-        "provider \"aws\" {{\n  region                      = \"{CLOUD_REGION}\"\n  access_key                  = \"{KEY}\"\n  secret_key                  = \"{KEY}\"\n  skip_credentials_validation = true\n  skip_metadata_api_check     = true\n  skip_requesting_account_id  = true\n  s3_use_path_style           = true\n\n  endpoints {{\n    iam = \"{endpoint}\"\n    sts = \"{endpoint}\"\n  }}\n}}"
+        "provider \"aws\" {{\n  region                      = \"{CLOUD_REGION}\"\n  access_key                  = \"{KEY}\"\n  secret_key                  = \"{KEY}\"\n  skip_credentials_validation = true\n  skip_metadata_api_check     = true\n  skip_requesting_account_id  = true\n  s3_use_path_style           = true\n\n  endpoints {{\n    iam = \"{endpoint}\"\n    s3  = \"{endpoint}\"\n    sts = \"{endpoint}\"\n  }}\n}}"
     )
 }
 

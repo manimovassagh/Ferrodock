@@ -23,6 +23,11 @@ const FILES: &[(&str, &str, &str)] = &[
         "text/javascript; charset=utf-8",
         include_str!("../../console/console.js"),
     ),
+    (
+        "s3.js",
+        "text/javascript; charset=utf-8",
+        include_str!("../../console/s3.js"),
+    ),
 ];
 
 /// The file at `name`, the part of the path after the console's.
