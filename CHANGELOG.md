@@ -7,6 +7,13 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.43.0](https://github.com/manimovassagh/Ferrodock/compare/v1.42.0...v1.43.0) - 2026-11-13
+
+### Added
+
+- *(cloud)* a web console in the browser, served by the emulator ([#382](https://github.com/manimovassagh/Ferrodock/pull/382))
+- *(cloud)* the Cloud emulator page, a launcher with an AWS tag ([#381](https://github.com/manimovassagh/Ferrodock/pull/381))
+
 ## [1.42.0](https://github.com/manimovassagh/Ferrodock/compare/v1.41.0...v1.42.0) - 2026-11-13
 
 ### Added
