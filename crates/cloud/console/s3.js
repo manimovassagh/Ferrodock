@@ -54,11 +54,11 @@ async function listFolder(bucket, prefix, token) {
 /// The link back to S3's page, then one link per folder down to `prefix`.
 function crumbs(bucket, prefix) {
   const parts = prefix.split("/").filter(Boolean);
-  const links = [h("a", { href: "#/s/s3" }, "S3"), h("span", { class: "dim" }, " / ")];
+  const links = [h("a", { href: "#/s/s3" }, "S3"), "›"];
   links.push(h("a", { href: `#/s/s3/${encodeURIComponent(bucket)}/` }, bucket));
   parts.forEach((part, i) => {
     const down = parts.slice(0, i + 1).join("/") + "/";
-    links.push(h("span", { class: "dim" }, " / "), h("a", { href: `#/s/s3/${encodeURIComponent(bucket)}/${keyPath(down)}` }, part));
+    links.push("›", h("a", { href: `#/s/s3/${encodeURIComponent(bucket)}/${keyPath(down)}` }, part));
   });
   return h("div", { class: "crumbs" }, links);
 }
@@ -122,21 +122,21 @@ function bucketPage(main, path) {
   let objects = [];
   let next = null;
   let problem = "";
-  const status = h("p", { class: "dim" });
+  const status = h("p", { class: "lead" });
 
   const rows = () => [
     ...folders
       .filter((f) => matches([f]))
       .map((f) => ({
         key: f,
-        cells: [h("span", { class: "folder" }, f.slice(prefix.length)), "", ""],
+        cells: [h("span", { class: "name-cell folder" }, icon("folder", 17), f.slice(prefix.length)), "—", ""],
         open: () => (location.hash = `#/s/s3/${encodeURIComponent(bucket)}/${keyPath(f)}`),
       })),
     ...objects
       .filter((o) => matches([o.key]))
       .map((o) => ({
         key: o.key,
-        cells: [o.key.slice(prefix.length), bytes(o.size), o.modified],
+        cells: [h("span", { class: "name-cell" }, icon("file", 17), o.key.slice(prefix.length)), bytes(o.size), o.modified],
         mono: [2],
         open: () => openObject(bucket, o, load),
       })),
@@ -145,9 +145,9 @@ function bucketPage(main, path) {
     h(
       "div",
       { class: "empty" },
-      problem || (state.filter ? "Nothing matches the filter." : "This folder is empty. Upload a file, or copy one in:"),
-      problem ? null : h("br"),
-      problem ? null : h("code", {}, `aws s3 cp ./file.txt s3://${bucket}/${prefix}`),
+      h("strong", {}, problem || (state.filter ? "Nothing matches the filter" : "This folder is empty")),
+      problem || state.filter ? null : h("p", {}, "Drop files here, click Upload, or copy one in:"),
+      problem || state.filter ? null : h("code", {}, `aws s3 cp ./file.txt s3://${bucket}/${prefix}`),
     ),
   );
   const more = h("button", { class: "button", hidden: true, onclick: () => load(true) }, "Show more");
@@ -166,38 +166,50 @@ function bucketPage(main, path) {
       problem = e.message;
     }
     more.hidden = !next;
-    status.textContent = problem ? "" : `${plural(folders.length, "folder")} · ${plural(objects.length, "object")}${next ? " so far" : ""}`;
+    const parts = [folders.length && plural(folders.length, "folder"), plural(objects.length, "object")].filter(Boolean);
+    status.textContent = problem ? "" : `${parts.join(" · ")}${next ? " so far" : ""}`;
     shown.update();
+  }
+
+  /// Puts `files` in this folder, one after the other.
+  async function upload(files) {
+    for (const [i, file] of files.entries()) {
+      status.textContent = `Uploading ${file.name} (${i + 1} of ${files.length})…`;
+      try {
+        await s3("PUT", objectUrl(bucket, prefix + file.name), file, file.type ? { "content-type": file.type } : {});
+      } catch (err) {
+        alert(`${file.name}: ${err.message}`);
+      }
+    }
+    load();
   }
 
   const picker = h("input", {
     type: "file",
     multiple: true,
     hidden: true,
-    onchange: async (e) => {
+    onchange: (e) => {
       const files = [...e.target.files];
       e.target.value = "";
-      for (const [i, file] of files.entries()) {
-        status.textContent = `Uploading ${file.name} (${i + 1} of ${files.length})…`;
-        try {
-          await s3("PUT", objectUrl(bucket, prefix + file.name), file, file.type ? { "content-type": file.type } : {});
-        } catch (err) {
-          alert(`${file.name}: ${err.message}`);
-        }
-      }
-      load();
+      upload(files);
     },
   });
 
   main.replaceChildren(
+    dropZone(upload),
     crumbs(bucket, prefix),
-    h("h1", {}, prefix ? prefix.split("/").filter(Boolean).pop() : bucket),
-    status,
+    h(
+      "header",
+      { class: "heading" },
+      serviceTile("s3", 48),
+      h("div", {}, h("h1", {}, prefix ? prefix.split("/").filter(Boolean).pop() : bucket), status),
+    ),
     h(
       "div",
       { class: "toolbar" },
+      h("span", { class: "grow" }),
       filterBox(() => shown.update()),
-      h("button", { class: "button primary", onclick: () => picker.click() }, "Upload"),
+      h("button", { class: "button primary", onclick: () => picker.click() }, icon("upload", 16), "Upload"),
       picker,
     ),
     shown.el,
@@ -215,6 +227,33 @@ function bucketPage(main, path) {
       load();
     }
   };
+}
+
+/// Files dragged onto the page go to `upload`, with an overlay while
+/// they're over it. The router clears these listeners on the next page.
+function dropZone(upload) {
+  const overlay = h("div", { class: "drop", hidden: true }, h("div", {}, icon("upload", 34), "Drop to upload here"));
+  const main = $("main");
+  let depth = 0;
+  const show = (on) => (overlay.hidden = !on);
+  const files = (e) => e.dataTransfer && [...e.dataTransfer.types].includes("Files");
+  main.ondragenter = (e) => {
+    if (!files(e)) return;
+    depth += 1;
+    show(true);
+  };
+  main.ondragleave = () => {
+    depth = Math.max(0, depth - 1);
+    if (!depth) show(false);
+  };
+  main.ondragover = (e) => files(e) && e.preventDefault();
+  main.ondrop = (e) => {
+    e.preventDefault();
+    depth = 0;
+    show(false);
+    if (e.dataTransfer.files.length) upload([...e.dataTransfer.files]);
+  };
+  return overlay;
 }
 
 /// A bucket's object count and size from the inventory, as one string.

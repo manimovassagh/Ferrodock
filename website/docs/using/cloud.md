@@ -45,22 +45,29 @@ Containers page like any other, with its logs.
 so nothing else runs, and it works in any browser on this computer. It
 shows:
 
-- **Home**: each service, with what it holds.
+- **Overview**: where the emulator is, with the endpoint to copy; how
+  many buckets, objects and requests there are, and the errors; each
+  service by group (Storage first, the Basics that tools use behind the
+  scenes last); and the latest requests as they come in.
 - **Each service**: what it holds, a tab per kind (IAM's roles, users,
   policies and instance profiles), with a filter. Click a row to see the
   whole record, policy documents laid out as JSON.
 - **S3**: your buckets, with how many objects each has and their size.
   **New bucket** makes one. Click a bucket to browse its folders and
   objects; click an object to see it, **Download** it or **Delete** it.
-  **Upload** puts files from your computer in the folder you're in.
+  **Upload**, or dropping files on the page, puts them in the folder
+  you're in.
 - **Requests**: every request the emulator answered, newest first. Click
-  one to see what was sent and what came back, secrets masked.
+  one to see what was sent and what came back, laid out as JSON or XML,
+  with secrets masked.
 
 It reads the same data as the AWS APIs and refreshes every few seconds, so
 what you create with the AWS CLI, an SDK or Terraform shows up as it
 happens.
 
-![The web console showing IAM's roles, one of them opened](/img/cloud-console.png)
+It follows your system's light or dark setting.
+
+![The web console's overview: the endpoint, the numbers, the services by group and the live activity](/img/cloud-console.png)
 
 The console works through S3's own API, so what it does shows in the
 request log like any other tool's.
@@ -106,9 +113,9 @@ service to see its operations, or type in the search box to find one.
 
 | Service | What works |
 | --- | --- |
-| STS | Who the caller is, session tokens, assuming roles |
-| IAM | Roles, users, managed policies with versions, inline and attached policies, instance profiles, access keys, tags |
 | S3 | Buckets, objects of any size (streamed to disk), uploads in parts, copying, versions, tags, metadata, presigned URLs; buckets by path (`localhost:4566/photos`) or by host (`photos.localhost:4566`). Bucket settings (CORS, policy, lifecycle, website…) are kept and given back |
+| IAM | Roles, users, managed policies with versions, inline and attached policies, instance profiles, access keys, tags |
+| STS | Who the caller is, session tokens, assuming roles. Tools call it behind the scenes |
 
 More services arrive with each version: the plan is in
 [the project's issues](https://github.com/manimovassagh/Ferrodock/issues/354).

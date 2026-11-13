@@ -6,6 +6,17 @@ use hyper::StatusCode;
 
 use crate::server::{Body, Response};
 
+/// A script of the page, built in.
+macro_rules! script {
+    ($name:literal) => {
+        (
+            $name,
+            "text/javascript; charset=utf-8",
+            include_str!(concat!("../../console/", $name)),
+        )
+    };
+}
+
 /// Each file: its name under the console's path, its type and content.
 const FILES: &[(&str, &str, &str)] = &[
     (
@@ -18,16 +29,12 @@ const FILES: &[(&str, &str, &str)] = &[
         "text/css; charset=utf-8",
         include_str!("../../console/console.css"),
     ),
-    (
-        "console.js",
-        "text/javascript; charset=utf-8",
-        include_str!("../../console/console.js"),
-    ),
-    (
-        "s3.js",
-        "text/javascript; charset=utf-8",
-        include_str!("../../console/s3.js"),
-    ),
+    script!("console.js"),
+    script!("catalog.js"),
+    script!("service.js"),
+    script!("requests.js"),
+    script!("home.js"),
+    script!("s3.js"),
 ];
 
 /// The file at `name`, the part of the path after the console's.
