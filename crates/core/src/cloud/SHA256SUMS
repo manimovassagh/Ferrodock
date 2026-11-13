@@ -2,6 +2,6 @@
 # accepts: written by the Cloud workflow once that version is published
 # (crates/cloud/VERSION is the next one to build). Published images never
 # change, so neither do these lines.
-cloud-v0.2.0
-8d6da2d0611bc4bf1aa192c735e32a8ed098dca96f4c7974dbf3f5f01f82bd06  ferrocloud-amd64.tar.gz
-0396c256262df32b8b7b2591d25e8c6c2baf1d1d1b8b1547c7801ea0e81d2bf6  ferrocloud-arm64.tar.gz
+cloud-v0.3.0
+8f0e0dac0c28ebcfc768c585433f31863213f781472e3f72eef76b078df0e17a  ferrocloud-amd64.tar.gz
+5d6ac6995f60e9f4b5637ec34f63bc1f7255db9e37ee6b18d08bf738e2b8f9ff  ferrocloud-arm64.tar.gz
