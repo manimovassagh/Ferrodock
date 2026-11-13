@@ -9,6 +9,7 @@
 //! - `protocol.rs`: what the AWS protocols share: errors, request IDs, XML.
 //! - `service.rs`: what a service is, and the list of those there are.
 //! - `admin.rs`: Ferrodock's own API under `/_ferrocloud/`.
+//! - `console/`: the web console, served under `/_ferrocloud/console/`.
 //! - `events.rs`: the record of requests, kept and streamed live.
 //! - `capture.rs`: what the record keeps of each request, secrets masked.
 //! - `store.rs`: where data lives: a folder with a SQLite database.
@@ -19,6 +20,7 @@
 pub mod admin;
 pub mod capture;
 pub mod clock;
+pub mod console;
 pub mod events;
 pub mod iam;
 pub mod protocol;

@@ -38,6 +38,26 @@ The square button stops it. Stopped, it uses no memory.
 The emulator's container is called `ferrodock-cloud` and is on the
 Containers page like any other, with its logs.
 
+## The web console
+
+**Open console** opens the emulator's web console in your browser, at
+`http://localhost:4566/_ferrocloud/console/`. The emulator serves it itself,
+so nothing else runs, and it works in any browser on this computer. It
+shows:
+
+- **Home**: each service, with what it holds.
+- **Each service**: what it holds, a tab per kind (IAM's roles, users,
+  policies and instance profiles), with a filter. Click a row to see the
+  whole record, policy documents laid out as JSON.
+- **Requests**: every request the emulator answered, newest first. Click
+  one to see what was sent and what came back, secrets masked.
+
+It reads the same data as the AWS APIs and refreshes every few seconds, so
+what you create with the AWS CLI, an SDK or Terraform shows up as it
+happens.
+
+![The web console showing IAM's roles, one of them opened](/img/cloud-console.png)
+
 ## Connecting your tools
 
 Any credentials work: the emulator accepts every key. Under **Use it from

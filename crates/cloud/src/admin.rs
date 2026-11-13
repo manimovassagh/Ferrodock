@@ -1,6 +1,7 @@
 //! Ferrodock's own API under `/_ferrocloud/`: whether the emulator is up,
-//! what it supports, a reset, and the live feed of requests. The app's
-//! Cloud page reads it; it isn't part of any cloud's API.
+//! what it supports and holds, a reset, the live feed of requests, and
+//! the web console. The app's Cloud emulator page and the console read
+//! it; it isn't part of any cloud's API.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -10,6 +11,7 @@ use hyper::{Method, StatusCode};
 use serde_json::json;
 use tokio::sync::{broadcast, mpsc};
 
+use crate::console;
 use crate::route::parse_pairs;
 use crate::server::{App, Body, Response};
 
@@ -28,6 +30,9 @@ pub fn handle(app: &Arc<App>, method: &Method, path: &str, query: Option<&str>) 
                 "status": "running",
                 "version": env!("CARGO_PKG_VERSION"),
                 "services": app.registry.services().iter().map(|s| s.name()).collect::<Vec<_>>(),
+                "account": crate::ACCOUNT,
+                "region": crate::DEFAULT_REGION,
+                "console": console::PATH,
             }),
         ),
         (&Method::GET, "services") => json_reply(
@@ -40,6 +45,11 @@ pub fn handle(app: &Arc<App>, method: &Method, path: &str, query: Option<&str>) 
                 })).collect::<Vec<_>>(),
             }),
         ),
+        (&Method::GET, "inventory") => json_reply(StatusCode::OK, &console::inventory(app)),
+        (&Method::GET, "console") => redirect(console::PATH),
+        (&Method::GET, file) if file.starts_with("console/") => {
+            console::serve(&file["console/".len()..])
+        }
         (&Method::POST, "reset") => {
             let done = app
                 .store
@@ -94,6 +104,15 @@ pub fn handle(app: &Arc<App>, method: &Method, path: &str, query: Option<&str>) 
             &json!({ "error": format!("no {method} {path} here") }),
         ),
     }
+}
+
+/// Sends the browser to `to`.
+fn redirect(to: &str) -> Response {
+    hyper::Response::builder()
+        .status(StatusCode::PERMANENT_REDIRECT)
+        .header("location", to)
+        .body(Body::full(Bytes::new()))
+        .expect("a valid response")
 }
 
 fn json_reply(status: StatusCode, value: &serde_json::Value) -> Response {
