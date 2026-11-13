@@ -302,7 +302,7 @@ pub fn show(
                 );
 
                 ui.add_space(18.0);
-                heading(ui, p, "Cloud");
+                heading(ui, p, "Cloud emulator");
                 ui.horizontal(|ui| {
                     ui.label("Port of the cloud emulator");
                     ui.add(

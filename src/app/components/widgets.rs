@@ -48,6 +48,20 @@ pub fn nav_item(
     badge: &str,
     selected: bool,
 ) -> Response {
+    tagged_nav_item(ui, p, icon, label, None, badge, selected)
+}
+
+/// [`nav_item`] with a small tag after the label, e.g. `AWS`, in its
+/// colour.
+pub fn tagged_nav_item(
+    ui: &mut egui::Ui,
+    p: &Palette,
+    icon: Icon,
+    label: &str,
+    tag: Option<(&str, Color32)>,
+    badge: &str,
+    selected: bool,
+) -> Response {
     let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), 32.0), Sense::click());
     let painter = ui.painter();
     if selected {
@@ -63,7 +77,7 @@ pub fn nav_item(
         icon,
         if selected { p.accent } else { p.muted },
     );
-    painter.text(
+    let text = painter.text(
         rect.left_center() + vec2(36.0, 0.0),
         Align2::LEFT_CENTER,
         label,
@@ -74,6 +88,19 @@ pub fn nav_item(
         },
         p.text,
     );
+    if let Some((tag, color)) = tag {
+        let galley = painter.layout_no_wrap(
+            tag.to_owned(),
+            FontId::new(9.5, crate::theme::semibold()),
+            color,
+        );
+        let chip = egui::Rect::from_min_size(
+            egui::pos2(text.right() + 6.0, rect.center().y - 8.0),
+            vec2(galley.size().x + 10.0, 16.0),
+        );
+        painter.rect_filled(chip, CornerRadius::same(5), color.gamma_multiply(0.13));
+        painter.galley(chip.center() - galley.size() / 2.0, galley, color);
+    }
     painter.text(
         rect.right_center() - vec2(10.0, 0.0),
         Align2::RIGHT_CENTER,

@@ -97,23 +97,40 @@ pub fn show(
                     ui.label(RichText::new(heading).size(11.0).color(p.muted));
                     ui.add_space(2.0);
                 }
-                let mut item = widgets::nav_item(
-                    ui,
-                    p,
-                    page.icon(),
-                    page.title(),
-                    &page.badge(store),
-                    i == active,
-                );
-                if let Some(hint) = page.badge_hint(store) {
-                    item = item.on_hover_text(hint);
-                }
-                if item.clicked() {
+                if page_item(ui, p, page.as_ref(), store, i == active).clicked() {
                     clicked = Some(Click::Page(i));
                 }
             }
         });
     clicked
+}
+
+/// One page's row: its icon, title, tag and badge, with what the badge
+/// counts on hover.
+fn page_item(
+    ui: &mut egui::Ui,
+    p: &Palette,
+    page: &dyn Page,
+    store: &Store,
+    selected: bool,
+) -> egui::Response {
+    let tag = page.tag(store).map(|tag| {
+        let color = if tag.on { p.success } else { p.accent };
+        (tag.text, color)
+    });
+    let item = widgets::tagged_nav_item(
+        ui,
+        p,
+        page.icon(),
+        page.title(),
+        tag,
+        &page.badge(store),
+        selected,
+    );
+    match page.badge_hint(store) {
+        Some(hint) => item.on_hover_text(hint),
+        None => item,
+    }
 }
 
 /// What the bottom half shows besides pages: an update, and errors not
@@ -225,18 +242,7 @@ fn bottom(
     for group in bottom.chunk_by(|a, b| a.1.heading() == b.1.heading()).rev() {
         ui.add_space(if compact { 6.0 } else { 14.0 });
         for (i, page) in group.iter().rev() {
-            let mut item = widgets::nav_item(
-                ui,
-                p,
-                page.icon(),
-                page.title(),
-                &page.badge(store),
-                *i == active,
-            );
-            if let Some(hint) = page.badge_hint(store) {
-                item = item.on_hover_text(hint);
-            }
-            if item.clicked() {
+            if page_item(ui, p, page.as_ref(), store, *i == active).clicked() {
                 *clicked = Some(Click::Page(*i));
             }
         }

@@ -1,13 +1,13 @@
 ---
 sidebar_position: 9.7
-title: Cloud
+title: Cloud emulator
 description: "Run a local emulator of AWS's APIs from Ferrodock: start it in a moment, copy the settings for the AWS CLI, an SDK or Terraform, and build against it with no account."
 ---
 
-# Cloud
+# Cloud emulator
 
-The **Cloud** page, under **CLOUD** in the sidebar, runs a local emulator
-of AWS's APIs. Tools that talk to AWS (the AWS CLI, the SDKs, Terraform)
+The **Cloud emulator** page, tagged **AWS** under **CLOUD** in the sidebar,
+runs a local emulator of AWS's APIs. Tools that talk to AWS (the AWS CLI, the SDKs, Terraform)
 talk to it the same way, so you can build and test against it with no
 account and nothing leaving your computer.
 
@@ -16,17 +16,22 @@ image of about 3 MB, part of Ferrodock and open source like the rest. It
 runs as a container on your engine, only when you start it. Until then
 nothing runs.
 
-![The Cloud page with the emulator running](/img/cloud.png)
+![The Cloud emulator page with the emulator running](/img/cloud.png)
 
 ## Starting it
 
-Click **Start**. The first time, Ferrodock downloads the emulator's image
-and checks it; after that it's up in a moment. The page then shows:
+Until it runs, the page says what the emulator is and how it's used, with
+one button: **Start the AWS emulator**. The first time, Ferrodock downloads
+the emulator's image and checks it; after that it's up in a moment. The
+**AWS** tag in the sidebar turns green while it runs. The page then shows:
 
 - **Where it is**: `http://localhost:4566`, the account `000000000000` and
   the region `us-east-1`. **Copy endpoint** copies the address.
-- **Connect**: what to tell each tool, ready to copy.
+- **Open console**: opens the emulator's web console in your browser, on
+  emulator versions that have one.
 - **Services**: what the emulator supports.
+- **Use it from the AWS CLI or your code**: folded until you open it, what
+  to tell each tool, ready to copy.
 
 The square button stops it. Stopped, it uses no memory.
 
@@ -35,8 +40,9 @@ Containers page like any other, with its logs.
 
 ## Connecting your tools
 
-Any credentials work: the emulator accepts every key. The page has the
-settings for each tool, with a **Copy** button:
+Any credentials work: the emulator accepts every key. Under **Use it from
+the AWS CLI or your code**, the page has the settings for each tool, with a
+**Copy** button:
 
 - **Shell** and **PowerShell**: four environment variables. The AWS CLI and
   every AWS SDK read them, so this is all most tools need:
@@ -60,7 +66,7 @@ Then try it:
 aws sts get-caller-identity
 ```
 
-![The Terraform settings on the Cloud page](/img/cloud-terraform.png)
+![The Terraform settings on the Cloud emulator page](/img/cloud-terraform.png)
 
 ## What it supports
 
@@ -89,7 +95,7 @@ answers it: the time, the status, the service, the operation, what it was
 about (a role's name, say), and how long it took. A failed request shows
 its AWS error code in place.
 
-![The request log on the Cloud page](/img/cloud-requests.png)
+![The request log on the Cloud emulator page](/img/cloud-requests.png)
 
 - **Filter** by service, tick **Errors only**, or type in the search box
   to find an operation, a resource, an error code or the tool that sent

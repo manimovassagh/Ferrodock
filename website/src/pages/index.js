@@ -292,10 +292,10 @@ const SHOWCASE = [
     alt: "A Local CI run in Ferrodock: its jobs, and a job's steps and log",
   },
   {
-    title: "A cloud on your own computer",
-    text: "A local emulator of AWS's APIs, written in Rust and 3 MB small. Start it in a moment, copy the settings for the AWS CLI, an SDK or Terraform, and build against it with no account. A live log shows every request your code sends and what came back. STS and IAM so far, more services with each version.",
+    title: "AWS on your own computer",
+    text: "The cloud emulator: a local emulator of AWS's APIs, written in Rust and 3 MB small. Start it with one click, copy the settings for the AWS CLI, an SDK or Terraform, and build against it with no account. A live log shows every request your code sends and what came back. STS and IAM so far, more services with each version.",
     src: "/img/cloud.png",
-    alt: "The Cloud page in Ferrodock: the emulator running, the settings to copy and its services",
+    alt: "The Cloud emulator page in Ferrodock: the AWS emulator running, with its services",
   },
   {
     title: "Win back your disk space",

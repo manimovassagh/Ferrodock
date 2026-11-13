@@ -1353,8 +1353,8 @@ fn screenshots_of_local_ci() {
     save(&mut h, "local-ci-runs");
 }
 
-/// The Cloud page: before the emulator runs, then running with a service
-/// unfolded, the Terraform settings, and the request log. Needs the emulator's image.
+/// The Cloud emulator page: before the emulator runs, then running with a
+/// service unfolded, the Terraform settings, and the request log. Needs the emulator's image.
 #[test]
 #[ignore]
 fn screenshots_of_cloud() {
@@ -1365,19 +1365,20 @@ fn screenshots_of_cloud() {
         .state()
         .pages
         .iter()
-        .position(|p| p.title() == "Cloud")
+        .position(|p| p.title() == "Cloud emulator")
         .unwrap();
     open(&mut h, page, None);
-    if h.query_by_label("Start").is_none() {
+    if h.query_by_label("Start the AWS emulator").is_none() {
         // Left running by an earlier try.
         click(&mut h, "Stop the emulator");
         settle(&mut h, Duration::from_secs(3));
     }
     save(&mut h, "cloud-stopped");
-    click(&mut h, "Start");
+    click(&mut h, "Start the AWS emulator");
     settle(&mut h, Duration::from_secs(4));
     press(&mut h, "STS");
     save(&mut h, "cloud");
+    press(&mut h, "Use it from the AWS CLI or your code");
     click(&mut h, "Terraform");
     save(&mut h, "cloud-terraform");
 

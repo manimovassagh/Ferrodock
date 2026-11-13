@@ -199,11 +199,24 @@ impl<'a> PageCtx<'a> {
     }
 }
 
+/// A short tag after a page's title in the sidebar.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Tag {
+    pub text: &'static str,
+    /// Lit up (green) while what the page runs is on.
+    pub on: bool,
+}
+
 pub trait Page {
     fn title(&self) -> &'static str;
 
     /// Shown next to the title in the sidebar.
     fn icon(&self) -> Icon;
+
+    /// A short tag after the title in the sidebar, e.g. `AWS`.
+    fn tag(&self, _store: &Store) -> Option<Tag> {
+        None
+    }
 
     /// The data this page shows; it's refreshed while the page is open.
     fn resource(&self) -> Resource;
