@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.41.0](https://github.com/manimovassagh/Ferrodock/compare/v1.40.0...v1.41.0) - 2026-11-13
+
+### Added
+
+- *(cloud)* ferrocloud, the cloud emulator's foundation ([#371](https://github.com/manimovassagh/Ferrodock/pull/371))
+
 ## [1.40.0](https://github.com/manimovassagh/Ferrodock/compare/v1.39.0...v1.40.0) - 2026-11-12
 
 ### Added
