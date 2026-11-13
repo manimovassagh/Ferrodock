@@ -1,0 +1,4 @@
+# The emulator image this Ferrodock downloads, and the only files it
+# accepts: written by the Cloud workflow once that version is published
+# (crates/cloud/VERSION is the next one to build). Published images never
+# change, so neither do these lines.

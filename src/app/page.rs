@@ -57,6 +57,8 @@ pub enum Intent {
     OpenComposeFile,
     /// Run a workflow locally, stop a run, or save what it made.
     Ci(crate::docker::ci::CiOp),
+    /// Start, stop, empty or ask the cloud emulator.
+    Cloud(crate::docker::cloud::CloudOp),
 }
 
 /// A question for the user before something destructive happens.
@@ -225,6 +227,11 @@ pub trait Page {
     /// the Docker pages.
     fn bottom(&self) -> bool {
         false
+    }
+
+    /// The heading a bottom page is listed under.
+    fn heading(&self) -> &'static str {
+        "START"
     }
 
     /// Extra buttons for the page header, e.g. "Remove unused".

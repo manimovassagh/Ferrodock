@@ -2,6 +2,7 @@
 //! file and register it in [`all`].
 
 mod ci;
+mod cloud;
 mod compose;
 mod containers;
 mod create_dialog;
@@ -35,6 +36,7 @@ pub fn all() -> Vec<Box<dyn Page>> {
         Box::new(volumes::VolumesPage::default()),
         Box::new(networks::NetworksPage::default()),
         Box::new(disk::DiskPage::default()),
+        Box::new(cloud::CloudPage::default()),
         Box::new(quick_start::QuickStartPage::default()),
         Box::new(machines::MachinesPage::default()),
         Box::new(kube::KubePage::default()),

@@ -3,6 +3,7 @@
 
 mod ci;
 mod clean;
+mod cloud;
 mod compose;
 mod containers;
 mod engine;
@@ -12,7 +13,7 @@ mod resources;
 use ferrodock_core::connect::{Connection, connect};
 use ferrodock_core::{Action, ComposeAction, Overrides, Resource};
 
-use crate::args::{CiCommand, Cli, Command, ComposeCommand, EngineCommand};
+use crate::args::{CiCommand, Cli, CloudCommand, Command, ComposeCommand, EngineCommand};
 
 /// What every command gets: the engine, and how to print.
 pub struct Ctx {
@@ -153,6 +154,13 @@ pub async fn run(cli: Cli) -> Result<(), String> {
                 .await
             }
             CiCommand::List { .. } => unreachable!("handled above"),
+        },
+        Command::Cloud { command } => match command {
+            CloudCommand::Start { port, no_data } => cloud::start(&ctx, port, !no_data).await,
+            CloudCommand::Stop => cloud::stop(&ctx).await,
+            CloudCommand::Status => cloud::status(&ctx).await,
+            CloudCommand::Reset { yes } => cloud::reset(&ctx, yes).await,
+            CloudCommand::Env { powershell } => cloud::env(&ctx, powershell).await,
         },
         Command::Engine { .. } => unreachable!("handled above"),
     }

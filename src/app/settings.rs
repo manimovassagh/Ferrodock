@@ -73,6 +73,10 @@ pub struct Settings {
     /// Ferrodock has put `fdock` on the PATH (or found that it needs a
     /// password), so it doesn't try again at start.
     pub cli_installed: bool,
+    /// The port the cloud emulator is reached on.
+    pub cloud_port: u16,
+    /// The cloud emulator keeps its data between starts.
+    pub cloud_keep_data: bool,
     /// Ferrodock opens when the user logs in. Read from the system at
     /// start, never saved: the system's login items are the record.
     #[serde(skip)]
@@ -98,12 +102,22 @@ impl Default for Settings {
             engine_memory_mib: None,
             engine_disk_gib: None,
             cli_installed: false,
+            cloud_port: crate::docker::cloud::CLOUD_PORT,
+            cloud_keep_data: true,
             launch_at_login: false,
         }
     }
 }
 
 impl Settings {
+    /// How the cloud emulator is run.
+    pub fn cloud(&self) -> crate::docker::cloud::CloudSpec {
+        crate::docker::cloud::CloudSpec {
+            port: self.cloud_port,
+            keep_data: self.cloud_keep_data,
+        }
+    }
+
     /// Compose files kept in the recent list.
     const RECENT: usize = 8;
 
@@ -285,6 +299,31 @@ pub fn show(
                 ui.checkbox(
                     &mut settings.notify_crashes,
                     "Tell me when a container crashes, even when Ferrodock is in the background",
+                );
+
+                ui.add_space(18.0);
+                heading(ui, p, "Cloud");
+                ui.horizontal(|ui| {
+                    ui.label("Port of the cloud emulator");
+                    ui.add(
+                        egui::DragValue::new(&mut settings.cloud_port)
+                            .range(1024..=65535)
+                            .speed(1.0),
+                    );
+                    if settings.cloud_port != crate::docker::cloud::CLOUD_PORT
+                        && ui.small_button("Use 4566").clicked()
+                    {
+                        settings.cloud_port = crate::docker::cloud::CLOUD_PORT;
+                    }
+                });
+                ui.checkbox(
+                    &mut settings.cloud_keep_data,
+                    "Keep what's created in the emulator between starts",
+                );
+                ui.label(
+                    RichText::new("Both apply the next time the emulator starts.")
+                        .size(12.0)
+                        .color(p.muted),
                 );
 
                 ui.add_space(18.0);

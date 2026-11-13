@@ -35,6 +35,9 @@ pub struct ContainerInfo {
     /// For a node of a Kubernetes cluster: what it records about the
     /// cluster.
     pub kube: Option<KubeLabels>,
+    /// For the cloud emulator: the port it's on, and whether it keeps
+    /// its data.
+    pub cloud: Option<crate::cloud::CloudLabels>,
 }
 
 /// What a node of a Kubernetes cluster records in its labels.
@@ -208,6 +211,10 @@ impl From<ContainerSummary> for ContainerInfo {
             Some((distro, folder))
         });
         let kube = c.labels.as_ref().and_then(KubeLabels::from_labels);
+        let cloud = c
+            .labels
+            .as_ref()
+            .and_then(crate::cloud::CloudLabels::from_labels);
 
         Self {
             id: c.id.unwrap_or_default(),
@@ -230,6 +237,7 @@ impl From<ContainerSummary> for ContainerInfo {
             compose,
             machine,
             kube,
+            cloud,
         }
     }
 }
