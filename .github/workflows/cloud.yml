@@ -139,26 +139,35 @@ jobs:
           pins=crates/core/src/cloud/SHA256SUMS
           dir=$(mktemp -d)
           gh release download "$tag" --pattern '*.tar.gz.sha256' --dir "$dir"
-          {
-            sed -n '/^#/p' "$pins"
-            echo "$tag"
-            cat "$dir"/*.sha256 | sort -k2
-          } > SHA256SUMS.new
           for arch in amd64 arm64; do
-            grep -q " ferrocloud-$arch.tar.gz$" SHA256SUMS.new \
+            grep -q " ferrocloud-$arch.tar.gz$" "$dir"/*.sha256 \
               || { echo "::error::$tag has no ferrocloud-$arch.tar.gz"; exit 1; }
           done
-          mv SHA256SUMS.new "$pins"
-          if git diff --quiet "$pins"; then
-            echo "Already pinned."
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "chore(cloud): use $tag" "$pins"
+          # Written onto main as it is now, and again if main moves before
+          # the push: another version's pin may have landed meanwhile.
           for attempt in 1 2 3; do
+            git fetch origin main
+            git checkout --detach origin/main
+            # A newer version already pinned stays.
+            pinned=$(sed -n 's/^cloud-v//p' "$pins")
+            if [ -n "$pinned" ] && [ "$(printf '%s\n%s\n' "$pinned" "$version" | sort -V | tail -1)" != "$version" ]; then
+              echo "main already uses cloud-v$pinned, which is newer."
+              exit 0
+            fi
+            {
+              sed -n '/^#/p' "$pins"
+              echo "$tag"
+              cat "$dir"/*.sha256 | sort -k2
+            } > SHA256SUMS.new
+            mv SHA256SUMS.new "$pins"
+            if git diff --quiet "$pins"; then
+              echo "Already pinned."
+              exit 0
+            fi
+            git commit -m "chore(cloud): use $tag" "$pins"
             git push origin HEAD:main && exit 0
             sleep $((attempt * 5))
-            git pull --rebase origin main
           done
           exit 1
