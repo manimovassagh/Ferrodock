@@ -7,6 +7,13 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.42.0](https://github.com/manimovassagh/Ferrodock/compare/v1.41.0...v1.42.0) - 2026-11-13
+
+### Added
+
+- *(cloud)* the live request log ([#374](https://github.com/manimovassagh/Ferrodock/pull/374))
+- *(cloud)* STS, IAM and the Cloud page ([#372](https://github.com/manimovassagh/Ferrodock/pull/372))
+
 ## [1.41.0](https://github.com/manimovassagh/Ferrodock/compare/v1.40.0...v1.41.0) - 2026-11-13
 
 ### Added
