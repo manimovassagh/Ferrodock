@@ -12,7 +12,10 @@ mod connect;
 mod container;
 mod image;
 
-pub use api::{CloudInfo, CloudService, endpoint, info, reset};
+pub use api::{
+    CloudBody, CloudDetail, CloudInfo, CloudRequest, CloudService, endpoint, info, request_detail,
+    requests, reset,
+};
 pub use connect::{SNIPPETS, Snippet, env_lines};
 pub use image::image_version;
 
@@ -65,6 +68,16 @@ pub enum CloudOp {
     Reset(u16),
     /// Ask the emulator on this port what it has.
     Info(u16),
+    /// Read the requests it answered after this one.
+    Requests {
+        port: u16,
+        after: u64,
+    },
+    /// Read a request's headers and bodies.
+    Detail {
+        port: u16,
+        id: u64,
+    },
 }
 
 /// What the emulator's container records in its labels.

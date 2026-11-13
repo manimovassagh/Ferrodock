@@ -24,6 +24,101 @@ pub struct CloudService {
     pub operations: Vec<String>,
 }
 
+/// A request the emulator answered, as its log lists it.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
+#[serde(default)]
+pub struct CloudRequest {
+    /// Counts up from 1 while the emulator runs.
+    pub id: u64,
+    /// When it arrived, in milliseconds since 1970.
+    pub time: u64,
+    pub service: String,
+    pub operation: String,
+    /// What it was about, e.g. a role's name; empty when unknown.
+    pub resource: String,
+    pub method: String,
+    pub path: String,
+    pub status: u16,
+    /// The AWS error code, for a request that failed.
+    pub error: String,
+    /// What the error said.
+    pub message: String,
+    pub duration_ms: u64,
+    pub region: String,
+    /// What made the request: the CLI, an SDK, Terraform.
+    pub user_agent: String,
+    pub request_id: String,
+}
+
+impl CloudRequest {
+    pub fn failed(&self) -> bool {
+        self.status >= 400
+    }
+
+    /// Who sent it, in a word or two: `aws-cli/2.31.0` from a long user
+    /// agent.
+    pub fn client(&self) -> &str {
+        self.user_agent
+            .split_whitespace()
+            .next()
+            .unwrap_or_default()
+    }
+}
+
+/// A body as the emulator's log keeps it.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
+#[serde(default)]
+pub struct CloudBody {
+    /// Its text, as far as it's kept; secrets are masked.
+    pub text: String,
+    /// How long the whole body was, in bytes.
+    pub size: u64,
+    pub truncated: bool,
+    /// Not text, so only its size is known.
+    pub binary: bool,
+}
+
+/// The headers and bodies of one request and its reply.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
+#[serde(default)]
+pub struct CloudDetail {
+    pub request_headers: Vec<(String, String)>,
+    pub request_body: CloudBody,
+    pub response_headers: Vec<(String, String)>,
+    pub response_body: CloudBody,
+}
+
+/// The requests after `after`, oldest first, and the newest ID there is.
+/// A newest ID below `after` means the emulator started again.
+pub fn requests(port: u16, after: u64) -> Result<(Vec<CloudRequest>, u64), String> {
+    #[derive(Deserialize)]
+    struct Listed {
+        #[serde(default)]
+        last: u64,
+        requests: Vec<CloudRequest>,
+    }
+    let text = get(
+        port,
+        &format!("requests?after={after}"),
+        Duration::from_secs(5),
+    )?;
+    let listed: Listed = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+    Ok((listed.requests, listed.last))
+}
+
+/// The headers and bodies of a request the emulator still remembers.
+pub fn request_detail(port: u16, id: u64) -> Result<CloudDetail, String> {
+    #[derive(Deserialize)]
+    struct Found {
+        detail: CloudDetail,
+    }
+    let text = get(port, &format!("requests/{id}"), Duration::from_secs(5))
+        .map_err(|_| "The emulator no longer remembers this request.".to_owned())?;
+    serde_json::from_str::<Found>(&text)
+        .map(|found| found.detail)
+        .map_err(|e| e.to_string())
+}
+
 /// Where tools reach the emulator: `http://localhost:4566`.
 pub fn endpoint(port: u16) -> String {
     format!("http://{}:{port}", crate::engine_host())
@@ -106,6 +201,22 @@ mod tests {
         assert_eq!(info.services[0].title, "STS");
         assert_eq!(info.services[0].operations.len(), 2);
         assert!(parse_info("<html>", "{}").is_err());
+    }
+
+    #[test]
+    fn reads_a_logged_request() {
+        let request: CloudRequest = serde_json::from_str(
+            r#"{"id":3,"time":1,"service":"iam","operation":"GetRole","resource":"app","method":"POST",
+                "path":"/","status":404,"error":"NoSuchEntity","message":"gone","duration_ms":2,
+                "region":"us-east-1","user_agent":"aws-cli/2.31.0 md/awscrt#0.27","request_id":"r","new":1}"#,
+        )
+        .unwrap();
+        assert!(request.failed());
+        assert_eq!(request.client(), "aws-cli/2.31.0");
+        assert_eq!(
+            (request.operation.as_str(), request.resource.as_str()),
+            ("GetRole", "app")
+        );
     }
 
     #[test]
