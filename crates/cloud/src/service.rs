@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use hyper::{HeaderMap, Method};
+use serde::Serialize;
 
 use crate::protocol::{Fault, Reply};
 use crate::route::Route;
@@ -54,6 +55,31 @@ pub trait Service: Send + Sync {
     }
 
     fn handle<'a>(&'a self, call: Call, store: &'a Store) -> Handled<'a>;
+
+    /// What it holds, for the web console: one listing per kind of thing,
+    /// e.g. IAM's roles. None for a service that keeps nothing.
+    fn inventory(&self, _store: &Store) -> Result<Vec<Listing>, String> {
+        Ok(Vec::new())
+    }
+}
+
+/// One kind of thing a service holds, as the console lists it.
+#[derive(Debug, Clone, Serialize)]
+pub struct Listing {
+    /// For people, plural: `Roles`.
+    pub title: &'static str,
+    /// The headings of the table's columns.
+    pub columns: &'static [&'static str],
+    pub items: Vec<Item>,
+}
+
+/// One row of a [`Listing`].
+#[derive(Debug, Clone, Serialize)]
+pub struct Item {
+    /// One cell per column.
+    pub cells: Vec<String>,
+    /// Everything about it, shown when it's opened.
+    pub detail: serde_json::Value,
 }
 
 /// The services this emulator has.

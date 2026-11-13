@@ -8,9 +8,11 @@
 //!   attached policies and access keys.
 //! - `policies.rs`: managed policies and their versions.
 //! - `profiles.rs`: instance profiles.
+//! - `inventory.rs`: what it holds, as the web console lists it.
 //! - `records.rs`: how all of them are stored.
 //! - `xml.rs`: how they're written in replies.
 
+mod inventory;
 mod policies;
 mod principals;
 mod profiles;
@@ -22,7 +24,7 @@ use records::{ROLE, USER};
 use crate::ACCOUNT;
 use crate::protocol::Fault;
 use crate::query::{self, Params};
-use crate::service::{Call, Handled, Service};
+use crate::service::{Call, Handled, Listing, Service};
 use crate::store::Store;
 
 const NAMESPACE: &str = "https://iam.amazonaws.com/doc/2010-05-08/";
@@ -89,6 +91,10 @@ impl Service for Iam {
 
     fn init(&self, store: &Store) -> Result<(), String> {
         records::init(store)
+    }
+
+    fn inventory(&self, store: &Store) -> Result<Vec<Listing>, String> {
+        inventory::inventory(store)
     }
 
     fn handle<'a>(&'a self, call: Call, store: &'a Store) -> Handled<'a> {

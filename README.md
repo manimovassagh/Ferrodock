@@ -58,9 +58,10 @@ that instead.
 - **Cloud emulator, AWS on your own computer**: a local emulator of AWS's
   APIs for the AWS CLI, the SDKs and Terraform, written in Rust and 3 MB
   small. One click on the Cloud emulator page or `fdock cloud start` starts
-  it, with the settings for each tool ready to copy, and a live log of every request
-  your code sends with what came back. STS and IAM so far; more services
-  with each version.
+  it, with the settings for each tool ready to copy. Its web console, in
+  your browser, shows what each service holds and every request your code
+  sends with what came back. STS and IAM so far; more services with each
+  version.
 - **Volumes and networks**: create them, browse a volume's files, connect
   and disconnect containers.
 - **Disk**: what your containers use of the engine's CPUs and memory right

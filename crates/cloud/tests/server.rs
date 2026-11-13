@@ -400,3 +400,25 @@ async fn remembers_what_was_sent_and_answered() {
     let gone = send(&address, "GET", "/_ferrocloud/requests/99", &[], "").await;
     assert_eq!(gone.status, 404);
 }
+
+#[tokio::test]
+async fn serves_the_console_and_what_each_service_holds() {
+    let address = start().await;
+    let health = send(&address, "GET", "/_ferrocloud/health", &[], "").await;
+    assert!(health.body.contains(r#""console":"/_ferrocloud/console/""#));
+
+    let page = send(&address, "GET", "/_ferrocloud/console/", &[], "").await;
+    assert_eq!(page.status, 200);
+    assert!(page.head.contains("content-type: text/html"));
+    assert!(page.body.contains("console.js"));
+    let moved = send(&address, "GET", "/_ferrocloud/console", &[], "").await;
+    assert_eq!(moved.status, 308);
+    assert!(moved.head.contains("location: /_ferrocloud/console/"));
+
+    let inventory = send(&address, "GET", "/_ferrocloud/inventory", &[], "").await;
+    assert_eq!(inventory.status, 200);
+    let inventory: serde_json::Value = serde_json::from_str(&inventory.body).unwrap();
+    assert_eq!(inventory["services"][0]["name"], "echo");
+    assert_eq!(inventory["services"][0]["operations"], 3);
+    assert_eq!(inventory["services"][0]["listings"], serde_json::json!([]));
+}
