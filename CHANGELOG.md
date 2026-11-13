@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.45.0](https://github.com/manimovassagh/Ferrodock/compare/v1.44.0...v1.45.0) - 2026-11-13
+
+### Added
+
+- *(cloud)* a redesigned web console, with the basics last ([#390](https://github.com/manimovassagh/Ferrodock/pull/390))
+
 ## [1.44.0](https://github.com/manimovassagh/Ferrodock/compare/v1.43.0...v1.44.0) - 2026-11-13
 
 ### Added
