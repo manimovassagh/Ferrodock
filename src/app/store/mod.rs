@@ -4,12 +4,14 @@
 //! UI state of its own.
 
 mod ci;
+pub mod cloud;
 mod compose;
 mod files;
 mod live;
 mod terminal;
 
 pub use ci::{CiRuns, JobRun, Run as CiRun, StepRun, elapsed};
+pub use cloud::Cloud;
 pub use compose::{ComposeJobs, Job};
 pub use files::FileView;
 pub use terminal::Terminal;
@@ -82,6 +84,8 @@ pub struct Store {
     pub recent_compose: Vec<String>,
     /// Local CI runs of this session.
     pub ci: CiRuns,
+    /// The cloud emulator: what it's doing and what it has.
+    pub cloud: Cloud,
     /// Project folders run with Local CI, newest first (a copy of the
     /// setting).
     pub recent_ci: Vec<String>,
@@ -153,6 +157,7 @@ impl Store {
             compose: ComposeJobs::default(),
             recent_compose: Vec::new(),
             ci: CiRuns::default(),
+            cloud: Cloud::default(),
             recent_ci: Vec::new(),
             engines: Vec::new(),
             engine: None,
@@ -249,6 +254,15 @@ impl Store {
                         text,
                         is_error,
                         alert: is_error,
+                    });
+                }
+            }
+            Response::Cloud(event) => {
+                if let Some((text, is_error)) = self.cloud.apply(event) {
+                    return Some(Notice {
+                        text,
+                        is_error,
+                        ..Default::default()
                     });
                 }
             }
@@ -497,6 +511,7 @@ mod tests {
             compose: None,
             machine: None,
             kube: None,
+            cloud: None,
         }
     }
 

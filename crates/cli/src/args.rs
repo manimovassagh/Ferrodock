@@ -177,6 +177,11 @@ pub enum Command {
         #[command(subcommand)]
         command: CiCommand,
     },
+    /// The local cloud emulator: AWS's APIs on this computer.
+    Cloud {
+        #[command(subcommand)]
+        command: CloudCommand,
+    },
     /// List engines and show which one is used.
     Engine {
         #[command(subcommand)]
@@ -189,6 +194,36 @@ pub enum EngineCommand {
     /// Start the engine (Ferrodock's own by opening Ferrodock) and wait
     /// until it answers.
     Start,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum CloudCommand {
+    /// Start the emulator and wait until it answers.
+    Start {
+        /// The port of this computer it's reached on.
+        #[arg(long, short, default_value_t = ferrodock_core::cloud::CLOUD_PORT)]
+        port: u16,
+        /// Start empty each time, rather than keep its data in a volume.
+        #[arg(long)]
+        no_data: bool,
+    },
+    /// Stop the emulator. Its data stays.
+    Stop,
+    /// Whether it runs, where, and what it supports.
+    Status,
+    /// Delete everything created in the emulator; it keeps running.
+    Reset {
+        /// Really do it: `fdock` never asks.
+        #[arg(long, short)]
+        yes: bool,
+    },
+    /// Print the variables that point the AWS CLI and SDKs at it:
+    /// `eval "$(fdock cloud env)"`.
+    Env {
+        /// For PowerShell: `fdock cloud env --powershell | Invoke-Expression`.
+        #[arg(long)]
+        powershell: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]

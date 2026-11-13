@@ -3,6 +3,8 @@ name: Cloud
 # Builds ferrocloud, Ferrodock's cloud emulator (crates/cloud), as the
 # static program its image is made of, for both architectures, and checks
 # the image the way it's used: as a container, with the real AWS CLI.
+# On main the images are then published, once per crates/cloud/VERSION,
+# and pinned for the app to download.
 
 on:
   push:
@@ -15,7 +17,7 @@ concurrency:
   group: cloud-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# Read-only: nothing here publishes.
+# Read-only unless a job says otherwise.
 permissions:
   contents: read
 
@@ -44,6 +46,17 @@ jobs:
       # SQLite is compiled in, so the C compiler has to target musl too.
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq musl-tools
       - run: cargo test --locked -p ferrodock-cloud
+      # A change to the emulator needs a new crates/cloud/VERSION, or it's
+      # built here but never published.
+      - name: Is this version out already?
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(tr -d '[:space:]' < crates/cloud/VERSION)
+          if gh release view "cloud-v$version" >/dev/null 2>&1; then
+            echo "::warning title=crates/cloud/VERSION not bumped::cloud-v$version is already published, so the image built here won't reach users. Bump crates/cloud/VERSION if this change should."
+          fi
       - name: Build the program
         run: cargo build --locked --release -p ferrodock-cloud --target ${{ matrix.target }}
       - name: Build the image
@@ -51,9 +64,13 @@ jobs:
           mkdir image
           cp target/${{ matrix.target }}/release/ferrocloud image/ferrocloud-${{ matrix.arch }}
           cp crates/cloud/Dockerfile image/
-          docker build -t ferrocloud:ci image
-          docker save ferrocloud:ci | zstd -19 -T0 > ferrocloud-${{ matrix.arch }}.tar.zst
-          ls -la ferrocloud-${{ matrix.arch }}.tar.zst
+          version=$(tr -d '[:space:]' < crates/cloud/VERSION)
+          docker build -t "ferrocloud:$version" -t ferrocloud:ci image
+          # The name the app looks for after loading it. Gzipped, which
+          # Docker loads as it is.
+          docker save "ferrocloud:$version" | gzip -9 > ferrocloud-${{ matrix.arch }}.tar.gz
+          sha256sum ferrocloud-${{ matrix.arch }}.tar.gz > ferrocloud-${{ matrix.arch }}.tar.gz.sha256
+          ls -la ferrocloud-${{ matrix.arch }}.tar.gz
       - name: Run it and ask it things
         env:
           AWS_ACCESS_KEY_ID: test
@@ -78,4 +95,70 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ferrocloud-${{ matrix.arch }}
-          path: ferrocloud-${{ matrix.arch }}.tar.zst
+          path: ferrocloud-${{ matrix.arch }}.tar.gz*
+
+  publish:
+    name: Publish (main only, once per version)
+    if: github.event_name != 'pull_request'
+    needs: image
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: cloud-release
+          merge-multiple: true
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(tr -d '[:space:]' < crates/cloud/VERSION)
+          tag="cloud-v$version"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            # Published images never change: a change to the emulator
+            # reaches people with the next crates/cloud/VERSION.
+            echo "$tag is already out."
+            exit 0
+          fi
+          gh release create "$tag" --prerelease --latest=false \
+            --title "Ferrodock cloud emulator $version" \
+            --notes "The image of ferrocloud, Ferrodock's local cloud emulator, for amd64 and arm64 engines. Ferrodock downloads the one it needs by itself; there's no need to get them by hand. Built from crates/cloud at ${{ github.sha }}. Free and open source." \
+            cloud-release/*
+
+      # The app downloads the version its SHA256SUMS names, and accepts
+      # only the images it lists: pin this one now that it's out. From the
+      # release itself, so the lines are those of the files people get.
+      - name: Pin it for the app
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(tr -d '[:space:]' < crates/cloud/VERSION)
+          tag="cloud-v$version"
+          pins=crates/core/src/cloud/SHA256SUMS
+          dir=$(mktemp -d)
+          gh release download "$tag" --pattern '*.tar.gz.sha256' --dir "$dir"
+          {
+            sed -n '/^#/p' "$pins"
+            echo "$tag"
+            cat "$dir"/*.sha256 | sort -k2
+          } > SHA256SUMS.new
+          for arch in amd64 arm64; do
+            grep -q " ferrocloud-$arch.tar.gz$" SHA256SUMS.new \
+              || { echo "::error::$tag has no ferrocloud-$arch.tar.gz"; exit 1; }
+          done
+          mv SHA256SUMS.new "$pins"
+          if git diff --quiet "$pins"; then
+            echo "Already pinned."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(cloud): use $tag" "$pins"
+          for attempt in 1 2 3; do
+            git push origin HEAD:main && exit 0
+            sleep $((attempt * 5))
+            git pull --rebase origin main
+          done
+          exit 1

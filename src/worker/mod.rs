@@ -4,6 +4,7 @@
 //! [`Response`]s once per frame.
 
 mod ci;
+pub mod cloud;
 mod compose;
 mod dedup;
 mod files;
@@ -105,6 +106,8 @@ pub enum Request {
     Compose(ComposeOp),
     /// Run a workflow locally, stop one, or save what it made.
     Ci(crate::docker::ci::CiOp),
+    /// Start, stop, empty or ask the cloud emulator.
+    Cloud(crate::docker::cloud::CloudOp),
     /// Start the engine (it isn't running).
     StartEngine(Starter),
     /// Find which app serves the engine at this host (macOS).
@@ -164,6 +167,8 @@ pub enum Response {
     },
     /// How a Local CI run is going.
     Ci(crate::docker::ci::CiEvent),
+    /// What the cloud emulator is doing, or said.
+    Cloud(cloud::CloudEvent),
     /// An artifact was saved (where), or why it wasn't.
     CiSaved(Result<String, String>),
     /// A `docker compose` job ended; `error` says why when it failed.
@@ -495,6 +500,7 @@ async fn run(mut requests: tokio_mpsc::UnboundedReceiver<Request>, out: Sender) 
             Request::Terminal(op) => terminals.handle(&docker, &shared, op),
             Request::Compose(op) => compose_jobs.handle(&docker, &shared, engine.clone(), op),
             Request::Ci(op) => ci::handle(&docker, &shared, op),
+            Request::Cloud(op) => cloud::handle(&docker, &shared, op),
             Request::Image(op) => {
                 tokio::spawn(async move { images::handle(&docker, &shared, op).await });
             }

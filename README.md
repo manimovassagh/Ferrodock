@@ -55,6 +55,11 @@ that instead.
   artifacts, and actions from GitHub (JavaScript and composite), in a view
   like GitHub's. The runner comes with what GitHub's does, PowerShell and
   Docker included.
+- **Cloud, on your own computer**: a local emulator of AWS's APIs for the
+  AWS CLI, the SDKs and Terraform, written in Rust and 3 MB small. It starts
+  in a moment from the Cloud page or with `fdock cloud start`, with the
+  settings for each tool ready to copy. STS and IAM so far; more services
+  with each version.
 - **Volumes and networks**: create them, browse a volume's files, connect
   and disconnect containers.
 - **Disk**: what your containers use of the engine's CPUs and memory right
