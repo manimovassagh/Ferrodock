@@ -339,3 +339,64 @@ async fn streams_the_requests_it_served() {
     let _ = Arc::new(());
     assert!(!seen.contains("_ferrocloud"));
 }
+
+#[tokio::test]
+async fn remembers_what_was_sent_and_answered() {
+    let address = start().await;
+    let auth = signed_for("echo");
+    let said = r#"{"QueueName":"jobs","SecretString":"hunter2"}"#;
+    send(
+        &address,
+        "POST",
+        "/",
+        &[
+            JSON,
+            ("x-amz-target", "Echo_20260101.Say"),
+            ("authorization", auth.as_str()),
+        ],
+        said,
+    )
+    .await;
+    send(
+        &address,
+        "POST",
+        "/",
+        &[JSON, ("x-amz-target", "Echo_20260101.Fail")],
+        "{}",
+    )
+    .await;
+
+    let list = send(&address, "GET", "/_ferrocloud/requests", &[], "").await;
+    let list: serde_json::Value = serde_json::from_str(&list.body).unwrap();
+    let requests = list["requests"].as_array().unwrap();
+    assert_eq!(requests.len(), 2);
+    assert_eq!(requests[0]["operation"], "Say");
+    assert_eq!(requests[0]["resource"], "jobs");
+    assert_eq!(requests[1]["error"], "ValidationException");
+    assert_eq!(requests[1]["message"], "no good");
+    // Only what's newer than the one already seen.
+    let newer = send(&address, "GET", "/_ferrocloud/requests?after=1", &[], "").await;
+    let newer: serde_json::Value = serde_json::from_str(&newer.body).unwrap();
+    assert_eq!(newer["requests"].as_array().unwrap().len(), 1);
+
+    let one = send(&address, "GET", "/_ferrocloud/requests/1", &[], "").await;
+    let one: serde_json::Value = serde_json::from_str(&one.body).unwrap();
+    assert_eq!(one["request"]["id"], 1);
+    let detail = &one["detail"];
+    // Secrets are masked on the way in and on the way out (Say echoes).
+    let masked = r#"{"QueueName":"jobs","SecretString":"***"}"#;
+    assert_eq!(detail["request_body"]["text"], masked);
+    assert_eq!(detail["response_body"]["text"], masked);
+    assert_eq!(detail["request_body"]["size"], said.len());
+    let headers = detail["request_headers"].as_array().unwrap();
+    let authorization = headers.iter().find(|h| h[0] == "authorization").unwrap();
+    assert!(
+        authorization[1]
+            .as_str()
+            .unwrap()
+            .ends_with("Signature=***")
+    );
+
+    let gone = send(&address, "GET", "/_ferrocloud/requests/99", &[], "").await;
+    assert_eq!(gone.status, 404);
+}

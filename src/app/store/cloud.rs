@@ -3,8 +3,13 @@
 //! from the containers.
 
 use crate::docker::ContainerInfo;
-use crate::docker::cloud::{CloudInfo, CloudLabels, CloudOp, CloudSpec};
+use std::collections::VecDeque;
+
+use crate::docker::cloud::{CloudDetail, CloudInfo, CloudLabels, CloudOp, CloudRequest, CloudSpec};
 use crate::worker::cloud::CloudEvent;
+
+/// Requests kept for the log; the oldest go first.
+pub const MAX_REQUESTS: usize = 2_000;
 
 #[derive(Default)]
 pub struct Cloud {
@@ -20,6 +25,16 @@ pub struct Cloud {
     pub reading: bool,
     /// Why it didn't start, until it's tried again.
     pub error: Option<String>,
+    /// The requests it answered, oldest first, as far as they've been
+    /// read: only while the log is open.
+    pub requests: VecDeque<CloudRequest>,
+    /// The newest requests are being read.
+    pub polling: bool,
+    /// Why the requests couldn't be read last time.
+    pub requests_error: Option<String>,
+    /// The request whose headers and bodies were asked for, and those
+    /// once they're here.
+    pub detail: Option<(u64, Option<Result<CloudDetail, String>>)>,
 }
 
 /// The emulator's container and what it was made with, if there is one.
@@ -34,7 +49,7 @@ fn verb(op: CloudOp) -> &'static str {
         CloudOp::Stop => "stop",
         CloudOp::Remove => "remove",
         CloudOp::Reset(_) => "empty",
-        CloudOp::Info(_) => "ask",
+        CloudOp::Info(_) | CloudOp::Requests { .. } | CloudOp::Detail { .. } => "ask",
     }
 }
 
@@ -42,8 +57,17 @@ impl Cloud {
     /// Notes that `op` was asked for. False if it shouldn't be sent: one
     /// thing at a time.
     pub fn begin(&mut self, op: CloudOp) -> bool {
-        if let CloudOp::Info(_) = op {
-            return !std::mem::replace(&mut self.reading, true);
+        match op {
+            CloudOp::Info(_) => return !std::mem::replace(&mut self.reading, true),
+            CloudOp::Requests { .. } => return !std::mem::replace(&mut self.polling, true),
+            CloudOp::Detail { id, .. } => {
+                if self.detail.as_ref().is_some_and(|(asked, _)| *asked == id) {
+                    return false;
+                }
+                self.detail = Some((id, None));
+                return true;
+            }
+            _ => {}
         }
         if self.working.is_some() {
             return false;
@@ -56,6 +80,11 @@ impl Cloud {
         true
     }
 
+    /// The ID of the newest request read; 0 before any.
+    pub fn last_request(&self) -> u64 {
+        self.requests.back().map_or(0, |r| r.id)
+    }
+
     /// Takes in what the worker reports. Returns what to tell the user,
     /// and whether it's an error.
     pub fn apply(&mut self, event: CloudEvent) -> Option<(String, bool)> {
@@ -65,8 +94,39 @@ impl Cloud {
                 self.reading = false;
                 self.info = Some(info);
             }
+            CloudEvent::Requests(read) => {
+                self.polling = false;
+                match read {
+                    Ok((new, last)) => {
+                        self.requests_error = None;
+                        // IDs behind ours: the emulator started again,
+                        // and what we hold is from its last run.
+                        if last < self.last_request() {
+                            self.requests.clear();
+                            self.detail = None;
+                        }
+                        let known = self.last_request();
+                        self.requests
+                            .extend(new.into_iter().filter(|r| r.id > known));
+                        while self.requests.len() > MAX_REQUESTS {
+                            self.requests.pop_front();
+                        }
+                    }
+                    Err(e) => self.requests_error = Some(e),
+                }
+            }
+            CloudEvent::Detail(id, read) => {
+                if let Some((asked, detail)) = &mut self.detail
+                    && *asked == id
+                {
+                    *detail = Some(read);
+                }
+            }
             CloudEvent::Done(op) => {
                 self.working = None;
+                // Emptied, stopped or started afresh: its log went with it.
+                self.requests.clear();
+                self.detail = None;
                 // What it has is asked again: it may be another version,
                 // or gone.
                 self.info = None;
@@ -76,7 +136,9 @@ impl Cloud {
                         CloudOp::Stop => "Stopped the cloud emulator",
                         CloudOp::Remove => "Removed the cloud emulator and its data",
                         CloudOp::Reset(_) => "Emptied the cloud emulator",
-                        CloudOp::Info(_) => return None,
+                        CloudOp::Info(_) | CloudOp::Requests { .. } | CloudOp::Detail { .. } => {
+                            return None;
+                        }
                     }
                     .to_owned(),
                     false,
@@ -144,6 +206,49 @@ mod tests {
         assert_eq!(cloud.error.as_deref(), Some("Port 4566 is taken."));
         cloud.begin(start);
         assert_eq!(cloud.error, None);
+    }
+
+    #[test]
+    fn follows_the_request_log() {
+        let request = |id: u64| CloudRequest {
+            id,
+            operation: format!("Op{id}"),
+            ..Default::default()
+        };
+        let poll = CloudOp::Requests {
+            port: 4566,
+            after: 0,
+        };
+        let mut cloud = Cloud::default();
+        assert!(cloud.begin(poll));
+        assert!(!cloud.begin(poll));
+        cloud.apply(CloudEvent::Requests(Ok((vec![request(1), request(2)], 2))));
+        assert!(!cloud.polling);
+        assert_eq!(cloud.last_request(), 2);
+        // One read twice isn't listed twice.
+        cloud.apply(CloudEvent::Requests(Ok((vec![request(2), request(3)], 3))));
+        assert_eq!(
+            cloud.requests.iter().map(|r| r.id).collect::<Vec<_>>(),
+            [1, 2, 3]
+        );
+
+        // A request's details are asked for once, and kept for that one.
+        let detail = CloudOp::Detail { port: 4566, id: 2 };
+        assert!(cloud.begin(detail));
+        assert!(!cloud.begin(detail));
+        cloud.apply(CloudEvent::Detail(7, Ok(CloudDetail::default())));
+        assert!(matches!(cloud.detail, Some((2, None))));
+        cloud.apply(CloudEvent::Detail(2, Ok(CloudDetail::default())));
+        assert!(matches!(cloud.detail, Some((2, Some(Ok(_))))));
+
+        // The emulator started again: its count begins anew.
+        cloud.apply(CloudEvent::Requests(Ok((vec![request(1)], 1))));
+        assert_eq!(cloud.requests.iter().map(|r| r.id).collect::<Vec<_>>(), [1]);
+        assert!(cloud.detail.is_none());
+
+        cloud.apply(CloudEvent::Requests(Err("no answer".into())));
+        assert_eq!(cloud.requests_error.as_deref(), Some("no answer"));
+        assert_eq!(cloud.requests.len(), 1);
     }
 
     #[test]

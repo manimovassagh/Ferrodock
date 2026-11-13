@@ -4,8 +4,12 @@
 //!
 //! - `connect.rs`: the settings to copy into each tool.
 //! - `services.rs`: the services the emulator has, and their operations.
+//! - `requests.rs`: the log of requests it answered, and one in detail.
+//! - `pretty.rs`: bodies laid out for reading.
 
 mod connect;
+mod pretty;
+mod requests;
 mod services;
 
 use std::collections::HashSet;
@@ -27,8 +31,17 @@ use crate::theme::Palette;
 /// How long to wait before asking an emulator that didn't answer again.
 const ASK_AGAIN: Duration = Duration::from_secs(3);
 
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
+enum Tab {
+    #[default]
+    Overview,
+    Requests,
+}
+
 #[derive(Default)]
 pub struct CloudPage {
+    tab: Tab,
+    log: requests::RequestLog,
     /// The snippet shown in the connect panel.
     snippet: usize,
     /// What was last copied, for its button to say so.
@@ -129,7 +142,7 @@ impl Page for CloudPage {
     }
 
     fn search_hint(&self) -> &'static str {
-        "Filter services and operations"
+        "Filter services and requests"
     }
 
     fn bottom(&self) -> bool {
@@ -148,15 +161,31 @@ impl Page for CloudPage {
         }
     }
 
-    fn has_selection(&self, _store: &Store) -> bool {
-        false
+    fn has_selection(&self, store: &Store) -> bool {
+        self.tab == Tab::Requests
+            && running(store).is_some()
+            && self
+                .log
+                .selected
+                .is_some_and(|id| store.cloud.requests.iter().any(|r| r.id == id))
     }
 
-    fn show_details(&mut self, _ui: &mut egui::Ui, _ctx: &mut PageCtx) {}
+    fn show_details(&mut self, ui: &mut egui::Ui, ctx: &mut PageCtx) {
+        if let Some(labels) = running(ctx.store) {
+            self.log.show_details(ui, ctx, labels.port);
+        }
+    }
 
-    fn clear_selection(&mut self) {}
+    fn clear_selection(&mut self) {
+        self.log.selected = None;
+    }
 
-    fn select(&mut self, _id: &str) {}
+    /// Opens the request log with `requests`.
+    fn select(&mut self, id: &str) {
+        if id == "requests" {
+            self.tab = Tab::Requests;
+        }
+    }
 
     fn commands(&self, store: &Store) -> Vec<Command> {
         let (label, op) = match running(store) {
@@ -244,13 +273,27 @@ impl CloudPage {
             ui.ctx().request_repaint_after(ASK_AGAIN);
         }
 
+        card(ui, p, |ui| {
+            ui.horizontal(|ui| self.status_row(ui, ctx, labels));
+        });
+        ui.add_space(10.0);
+        widgets::segmented(ui, p, |ui| {
+            if widgets::tab(ui, p, "Overview", None, self.tab == Tab::Overview).clicked() {
+                self.tab = Tab::Overview;
+            }
+            let seen = Some(cloud.requests.len()).filter(|n| *n > 0);
+            if widgets::tab(ui, p, "Requests", seen, self.tab == Tab::Requests).clicked() {
+                self.tab = Tab::Requests;
+            }
+        });
+        ui.add_space(10.0);
+        if self.tab == Tab::Requests {
+            self.log.show(ui, ctx, port);
+            return;
+        }
         egui::ScrollArea::vertical()
             .auto_shrink(false)
             .show(ui, |ui| {
-                card(ui, p, |ui| {
-                    ui.horizontal(|ui| self.status_row(ui, ctx, labels));
-                });
-                ui.add_space(4.0);
                 let version = match &cloud.info {
                     Some(Ok(info)) => format!("ferrocloud {} · ", info.version),
                     _ => String::new(),
@@ -288,7 +331,7 @@ impl CloudPage {
         icons::paint(ui.painter(), rect.shrink(6.0), Icon::Cloud, p.accent);
         let url = endpoint(labels.port);
         ui.vertical(|ui| {
-            ui.set_max_width((ui.available_width() - 280.0).max(160.0));
+            ui.set_max_width((ui.available_width() - 400.0).max(120.0));
             ui.label(RichText::new("AWS emulator").strong().color(p.text));
             let about = format!("{url} · account {CLOUD_ACCOUNT} · {CLOUD_REGION}");
             ui.add(egui::Label::new(RichText::new(about).size(12.0).color(p.muted)).truncate());

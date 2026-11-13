@@ -82,6 +82,38 @@ Two things to know:
 - **An operation that isn't there says so.** The emulator answers with an
   error naming the service and operation, in the form your tool expects.
 
+## Seeing what your code sent
+
+The **Requests** tab lists every request the emulator answers, as it
+answers it: the time, the status, the service, the operation, what it was
+about (a role's name, say), and how long it took. A failed request shows
+its AWS error code in place.
+
+![The request log on the Cloud page](/img/cloud-requests.png)
+
+- **Filter** by service, tick **Errors only**, or type in the search box
+  to find an operation, a resource, an error code or the tool that sent
+  it.
+- **Click a request** to see it in full: what was sent and what came
+  back, laid out for reading (JSON and XML indented, a form one field per
+  line), with both sets of headers. For a failure, the error's message is
+  at the top.
+
+![A failed request with what was sent and answered](/img/cloud-request.png)
+
+A few things to know:
+
+- **Secrets are masked.** Secret keys, session tokens, passwords and
+  request signatures read as `***`, in the log and in what you copy from
+  it.
+- **Bodies are kept up to 16 KB.** A longer one shows its start and its
+  full size; one that isn't text shows only its size.
+- **The log is the emulator's memory, not a file.** It holds the last
+  1,000 requests and starts again when the emulator does. **Empty…**
+  clears it too.
+- **Nothing is read while you're not looking.** Ferrodock asks for new
+  requests only while the tab is open.
+
 ## Your data
 
 What you create is kept in the volume `ferrodock-cloud-data`, so it's

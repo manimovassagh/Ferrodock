@@ -51,6 +51,36 @@ pub fn handle(app: &Arc<App>, method: &Method, path: &str, query: Option<&str>) 
                 Err(e) => json_reply(StatusCode::INTERNAL_SERVER_ERROR, &json!({ "error": e })),
             }
         }
+        (&Method::GET, "requests") => {
+            let after = parse_pairs(query.unwrap_or_default())
+                .iter()
+                .find(|(k, _)| k == "after")
+                .and_then(|(_, v)| v.parse().ok())
+                .unwrap_or(0);
+            json_reply(
+                StatusCode::OK,
+                &json!({
+                    "last": app.events.last(),
+                    "requests": app.events.after(after).iter().map(|e| &**e).collect::<Vec<_>>(),
+                }),
+            )
+        }
+        (&Method::GET, request) if request.starts_with("requests/") => {
+            let found = request["requests/".len()..]
+                .parse()
+                .ok()
+                .and_then(|id| app.events.detail(id));
+            match found {
+                Some((event, detail)) => json_reply(
+                    StatusCode::OK,
+                    &json!({ "request": &*event, "detail": &*detail }),
+                ),
+                None => json_reply(
+                    StatusCode::NOT_FOUND,
+                    &json!({ "error": "that request is no longer remembered" }),
+                ),
+            }
+        }
         (&Method::GET, "events") => {
             let after = parse_pairs(query.unwrap_or_default())
                 .iter()

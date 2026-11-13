@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use super::{Response, Shared, refresh};
-use crate::docker::cloud::{self, CloudInfo, CloudOp};
+use crate::docker::cloud::{self, CloudDetail, CloudInfo, CloudOp, CloudRequest};
 use crate::docker::{DockerClient, Resource};
 
 /// What the emulator is doing, or said.
@@ -14,6 +14,11 @@ pub enum CloudEvent {
     Step(String),
     /// What it has, or why it couldn't be asked.
     Info(Result<CloudInfo, String>),
+    /// The requests it answered since last asked and the newest ID it
+    /// has, or why they couldn't be read.
+    Requests(Result<(Vec<CloudRequest>, u64), String>),
+    /// A request's headers and bodies, by its ID.
+    Detail(u64, Result<CloudDetail, String>),
     Done(CloudOp),
     Failed(CloudOp, String),
 }
@@ -34,6 +39,16 @@ pub(super) fn handle(client: &DockerClient, shared: &Arc<Shared>, op: CloudOp) {
         let result = match op {
             CloudOp::Info(port) => {
                 send(CloudEvent::Info(blocking(move || cloud::info(port)).await));
+                return;
+            }
+            CloudOp::Requests { port, after } => {
+                let read = blocking(move || cloud::requests(port, after)).await;
+                send(CloudEvent::Requests(read));
+                return;
+            }
+            CloudOp::Detail { port, id } => {
+                let read = blocking(move || cloud::request_detail(port, id)).await;
+                send(CloudEvent::Detail(id, read));
                 return;
             }
             CloudOp::Start(spec) => {
