@@ -11,6 +11,9 @@ pub struct CloudInfo {
     /// The emulator's own version.
     pub version: String,
     pub services: Vec<CloudService>,
+    /// Where its web console is, e.g. `/_ferrocloud/console/`. Older
+    /// emulators have none.
+    pub console: Option<String>,
 }
 
 /// A service the emulator has, e.g. S3.
@@ -152,6 +155,8 @@ fn parse_info(health: &str, services: &str) -> Result<CloudInfo, String> {
     #[derive(Deserialize)]
     struct Health {
         version: String,
+        #[serde(default)]
+        console: Option<String>,
     }
     #[derive(Deserialize)]
     struct Services {
@@ -164,6 +169,7 @@ fn parse_info(health: &str, services: &str) -> Result<CloudInfo, String> {
     Ok(CloudInfo {
         version: health.version,
         services: services.services,
+        console: health.console,
     })
 }
 
@@ -200,6 +206,13 @@ mod tests {
         assert_eq!(info.version, "1.40.0");
         assert_eq!(info.services[0].title, "STS");
         assert_eq!(info.services[0].operations.len(), 2);
+        assert_eq!(info.console, None);
+        let info = parse_info(
+            r#"{"version":"0.3.0","console":"/_ferrocloud/console/"}"#,
+            r#"{"services":[]}"#,
+        )
+        .unwrap();
+        assert_eq!(info.console.as_deref(), Some("/_ferrocloud/console/"));
         assert!(parse_info("<html>", "{}").is_err());
     }
 

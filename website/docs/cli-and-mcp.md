@@ -98,7 +98,7 @@ containers.
 ### Cloud
 
 `fdock cloud` runs the [cloud emulator](./using/cloud.md), the same one the
-app's Cloud page does:
+app's Cloud emulator page does:
 
 ```bash
 fdock cloud start                # start it, and wait until it answers
