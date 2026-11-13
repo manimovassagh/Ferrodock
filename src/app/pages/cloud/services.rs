@@ -10,6 +10,17 @@ use crate::app::page::PageCtx;
 use crate::docker::cloud::CloudService;
 use crate::docker::plural;
 
+/// Services tools use behind the scenes (credentials, identity): listed
+/// last, after the ones people work with.
+const BASICS: [&str; 2] = ["iam", "sts"];
+
+/// The services, the ones people work with first, then the basics.
+fn in_order(services: &[CloudService]) -> Vec<&CloudService> {
+    let mut ordered: Vec<_> = services.iter().collect();
+    ordered.sort_by_key(|s| BASICS.contains(&s.name.as_str()));
+    ordered
+}
+
 /// The operations of `service` that match the search; all of them when
 /// its name does.
 fn matching<'a>(ctx: &PageCtx, service: &'a CloudService) -> Vec<&'a str> {
@@ -40,7 +51,7 @@ pub fn show(ui: &mut egui::Ui, ctx: &mut PageCtx, unfolded: &mut HashSet<String>
     };
     let searching = !ctx.search_is_empty();
     let mut shown = 0;
-    for service in &info.services {
+    for service in in_order(&info.services) {
         let operations = matching(ctx, service);
         if operations.is_empty() {
             continue;
@@ -122,5 +133,27 @@ pub fn show(ui: &mut egui::Ui, ctx: &mut PageCtx, unfolded: &mut HashSet<String>
             .size(12.0)
             .color(p.muted),
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn service(name: &str) -> CloudService {
+        CloudService {
+            name: name.into(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn lists_the_basics_last() {
+        let services = [service("sts"), service("iam"), service("s3")];
+        let names: Vec<_> = in_order(&services)
+            .iter()
+            .map(|s| s.name.as_str())
+            .collect();
+        assert_eq!(names, ["s3", "sts", "iam"]);
     }
 }

@@ -6,9 +6,10 @@
 //! - `assets.rs`: the page's files, built into the program.
 //! - `inventory.rs`: what every service holds, as JSON for the page.
 //!
-//! The page itself is in `crates/cloud/console/`: `console.js` for what
-//! every service shares, and a file per service with its own browser
-//! (`s3.js`: buckets and objects).
+//! The page itself is in `crates/cloud/console/`, a file per job:
+//! `console.js` (what every page shares), `catalog.js` (how each service
+//! looks), `home.js`, `service.js` and `requests.js` (the pages), and a
+//! file per service with a browser of its own (`s3.js`).
 
 mod assets;
 mod inventory;

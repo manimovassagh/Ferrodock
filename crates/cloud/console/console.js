@@ -1,10 +1,13 @@
-// The ferrocloud console. It reads the emulator's own API under
-// /_ferrocloud/: what each service holds (inventory) and the requests it
-// answered. Pages are picked by the address's #: #/, #/s/<service>,
-// #/s/<service>/<path> for a service's own browser, and #/requests.
-// A service with more to show than its listings (S3's buckets) adds a
-// browser to BROWSERS from its own file, e.g. s3.js. Everything shown is built with textContent, never as HTML,
-// since names come from whoever called the APIs.
+// The ferrocloud console's core: what every page shares. It reads the
+// emulator's own API under /_ferrocloud/: what each service holds
+// (inventory) and the requests it answered.
+//
+// Pages are picked by the address's #: #/ (home.js), #/s/<service>
+// (service.js), #/s/<service>/<path> for a service's own browser (s3.js)
+// and #/requests (requests.js). Each file registers itself in PAGES or
+// BROWSERS; catalog.js says how each service looks. Everything shown is
+// built with textContent, never as HTML, since names come from whoever
+// called the APIs.
 
 "use strict";
 
@@ -13,6 +16,10 @@ const REFRESH_MS = 2000;
 const REQUESTS_MS = 1000;
 /// The most requests the log keeps, like the emulator's own.
 const KEEP = 1000;
+
+/// The pages, by name: `home`, `service`, `requests`. Each is
+/// `(main, ...args) => update`, where `update` is called on new data.
+const PAGES = {};
 
 /// Per service name, a browser: `{ open(item), page(main, path), actions() }`.
 /// `open` replaces showing a listing row's record, `page` draws
@@ -102,35 +109,81 @@ function expanded(value) {
   return value;
 }
 
-/// A body as text, laid out when it's JSON.
+/// XML laid out one element to a line, indented by depth. An element
+/// holding only text (or nothing) stays on one line: `<Key>a.txt</Key>`.
+function prettyXml(text) {
+  const tokens = text.replace(/>\s+</g, "><").match(/<[^>]+>|[^<]+/g) || [];
+  const lines = [];
+  let depth = 0;
+  // Whether the line being built is an opening tag with no child yet.
+  let open = false;
+  for (const token of tokens) {
+    const tag = token.startsWith("<");
+    const closing = token.startsWith("</");
+    const single = token.startsWith("<?") || token.startsWith("<!") || token.endsWith("/>");
+    if (!tag || (closing && open)) {
+      lines[lines.length - 1] += token;
+      if (closing) {
+        depth -= 1;
+        open = false;
+      }
+      continue;
+    }
+    if (closing) depth -= 1;
+    lines.push("  ".repeat(Math.max(0, depth)) + token);
+    open = !closing && !single;
+    if (open) depth += 1;
+  }
+  return lines.join("\n");
+}
+
+/// A body as text, laid out when it's JSON or XML.
 function readable(body) {
   if (!body) return "";
   if (body.streamed) return `(${bytes(body.size)} streamed by, not kept)`;
   if (body.binary) return `(${bytes(body.size)} of binary data)`;
   let text = body.text || "";
-  try {
-    text = JSON.stringify(JSON.parse(text), null, 2);
-  } catch {
-    // Not JSON: as it was.
+  if (/^\s*</.test(text) && !body.truncated) {
+    text = prettyXml(text);
+  } else {
+    try {
+      text = JSON.stringify(JSON.parse(text), null, 2);
+    } catch {
+      // Neither: as it was.
+    }
   }
   return body.truncated ? `${text}\n… (${body.size} bytes in all)` : text;
 }
 
 // --- The frame: top bar, side, drawer ---------------------------------------
 
+/// Copies `text`, and says so on `button` for a moment.
+async function copy(text, button) {
+  try {
+    await navigator.clipboard.writeText(text);
+    const was = button.textContent;
+    button.classList.add("done");
+    button.lastChild.textContent = "Copied";
+    setTimeout(() => {
+      button.classList.remove("done");
+      button.lastChild.textContent = was;
+    }, 1400);
+  } catch {
+    prompt("Copy this:", text);
+  }
+}
+
 function renderWhere() {
   const where = $("where");
   if (state.down) {
-    where.replaceChildren(h("span", { class: "down" }, "The emulator doesn't answer"));
+    where.replaceChildren(h("span", { class: "status down" }, h("i"), "Not answering"));
     return;
   }
   const health = state.health;
   if (!health) return;
   where.replaceChildren(
-    h("span", { class: "up" }, `Running · ferrocloud ${health.version}`),
-    h("span", { class: "mono" }, location.origin),
-    h("span", {}, `account ${health.account || "000000000000"}`),
-    h("span", {}, health.region || "us-east-1"),
+    h("span", { class: "chip" }, health.region || "us-east-1"),
+    h("span", { class: "status up" }, h("i"), "Running"),
   );
 }
 
@@ -140,17 +193,32 @@ function held(service) {
 }
 
 function renderSide(route) {
-  const link = (href, label, count, on) =>
-    h("a", { href, class: on ? "on" : null }, h("span", {}, label), h("span", { class: "count" }, count));
+  const link = (href, glyph, label, count, on, color) =>
+    h(
+      "a",
+      { href, class: on ? "on" : null, style: color ? `--c:${color}` : null },
+      icon(glyph, 17),
+      h("span", { class: "label" }, label),
+      h("span", { class: "count" }, count),
+    );
   const services = state.inventory ? state.inventory.services : [];
   $("side").replaceChildren(
-    link("#/", "Home", "", route.page === "home"),
-    h("h4", {}, "SERVICES"),
-    ...services.map((s) =>
-      link(`#/s/${s.name}`, s.title, s.listings.length ? held(s) : "", route.page === "service" && route.name === s.name),
-    ),
-    h("h4", {}, "ACTIVITY"),
-    link("#/requests", "Requests", state.requests.length || "", route.page === "requests"),
+    link("#/", "home", "Overview", "", route.page === "home"),
+    ...grouped(services).flatMap(({ group, services: list }) => [
+      h("h4", {}, group),
+      ...list.map((s) =>
+        link(
+          `#/s/${s.name}`,
+          look(s.name).icon,
+          s.title,
+          s.listings.length ? held(s) : "",
+          route.page === "service" && route.name === s.name,
+          look(s.name).color,
+        ),
+      ),
+    ]),
+    h("h4", {}, "Activity"),
+    link("#/requests", "activity", "Requests", state.requests.length || "", route.page === "requests"),
   );
 }
 
@@ -205,7 +273,7 @@ function table(columns, rows, empty) {
     );
     if (!wrap.contains(body)) {
       const head = h("thead", {}, h("tr", {}, columns.map((c) => h("th", {}, c))));
-      wrap.replaceChildren(h("div", { class: "scroll" }, h("table", {}, head, body)));
+      wrap.replaceChildren(h("div", { class: "scroll panel" }, h("table", {}, head, body)));
     }
   };
   update();
@@ -216,212 +284,13 @@ function filterBox(onChange) {
   return h("input", {
     class: "filter",
     type: "search",
-    placeholder: "Filter",
+    placeholder: "Filter…",
     value: state.filter,
     oninput: (e) => {
       state.filter = e.target.value;
       onChange();
     },
   });
-}
-
-// --- Pages ------------------------------------------------------------------
-
-function homePage(main) {
-  const cards = h("div", { class: "cards" });
-  const update = () => {
-    const services = state.inventory ? state.inventory.services : [];
-    cards.replaceChildren(
-      ...services.map((s) =>
-        h(
-          "a",
-          { class: "card", href: `#/s/${s.name}` },
-          h("div", {}, h("span", { class: "title" }, s.title), h("span", { class: "short" }, s.name)),
-          h(
-            "div",
-            { class: "facts" },
-            s.listings.length
-              ? s.listings.map((l) => `${l.title} ${l.items.length}`).join(" · ")
-              : `${plural(s.operations, "operation")}, nothing kept`,
-          ),
-        ),
-      ),
-      h(
-        "a",
-        { class: "card", href: "#/requests" },
-        h("div", {}, h("span", { class: "title" }, "Requests")),
-        h("div", { class: "facts" }, `${plural(state.requests.length, "request")} answered`),
-      ),
-    );
-  };
-  main.replaceChildren(
-    h("h1", {}, "AWS emulator"),
-    h(
-      "p",
-      { class: "lead" },
-      "Everything here lives on your computer. What you create with the AWS CLI, an SDK or Terraform shows up here as it happens.",
-    ),
-    cards,
-    h("p", { class: "note" }, "Nothing is checked against policies or billed: every request is allowed."),
-  );
-  update();
-  return update;
-}
-
-function servicePage(main, name) {
-  const service = () => (state.inventory ? state.inventory.services.find((s) => s.name === name) : null);
-  const s = service();
-  if (!s) {
-    main.replaceChildren(h("h1", {}, name), h("p", { class: "lead" }, state.inventory ? "No such service here." : "Loading…"));
-    return () => state.inventory && service() && route();
-  }
-  main.replaceChildren(h("h1", {}, s.title), h("p", { class: "lead mono" }, s.name));
-  if (s.error) {
-    main.append(h("p", { class: "bad" }, s.error));
-    return null;
-  }
-  if (!s.listings.length) {
-    main.append(
-      h(
-        "div",
-        { class: "empty" },
-        `${s.title} keeps nothing to list: each request is answered on its own.`,
-        h("br"),
-        h("code", {}, s.name === "sts" ? "aws sts get-caller-identity" : `aws ${s.name} help`),
-      ),
-    );
-    return null;
-  }
-  const tabs = h("div", { class: "tabs", role: "tablist" });
-  const holder = h("div");
-  let shown = null;
-  const listing = () => service().listings[Math.min(state.tab[name] || 0, service().listings.length - 1)];
-  const rows = () =>
-    listing()
-      .items.filter((item) => matches(item.cells))
-      .map((item) => ({
-        key: item.cells[0],
-        cells: item.cells,
-        mono: [1],
-        open: () =>
-          BROWSERS[name] && BROWSERS[name].open
-            ? BROWSERS[name].open(item)
-            : openDrawer(item.cells[0], h("h3", {}, "RECORD"), h("pre", {}, JSON.stringify(expanded(item.detail), null, 2))),
-      }));
-  const showListing = () => {
-    const l = listing();
-    shown = table(l.columns, rows, () =>
-      h("div", { class: "empty" }, state.filter ? "Nothing matches the filter." : `No ${l.title.toLowerCase()} yet.`),
-    );
-    holder.replaceChildren(shown.el);
-  };
-  const drawTabs = () =>
-    tabs.replaceChildren(
-      ...service().listings.map((l, i) =>
-        h(
-          "button",
-          {
-            role: "tab",
-            class: i === (state.tab[name] || 0) ? "on" : null,
-            onclick: () => {
-              state.tab[name] = i;
-              closeDrawer();
-              drawTabs();
-              showListing();
-            },
-          },
-          l.title,
-          h("span", { class: "n" }, l.items.length),
-        ),
-      ),
-    );
-  drawTabs();
-  showListing();
-  const actions = BROWSERS[name] && BROWSERS[name].actions ? BROWSERS[name].actions() : [];
-  main.append(tabs, h("div", { class: "toolbar" }, filterBox(() => shown.update()), ...actions), holder);
-  return () => {
-    if (!service()) return;
-    drawTabs();
-    shown.update();
-  };
-}
-
-function requestsPage(main) {
-  const rows = () =>
-    state.requests
-      .filter((r) => matches([r.service, r.operation, r.resource, r.status, r.error]))
-      .slice()
-      .reverse()
-      .map((r) => ({
-        key: r.id,
-        cells: [
-          time(r.time),
-          r.service || "—",
-          r.operation || `${r.method} ${r.path}`,
-          r.resource || "",
-          h("span", { class: r.status < 400 ? "ok" : "bad" }, r.error ? `${r.status} ${r.error}` : String(r.status)),
-          `${r.duration_ms} ms`,
-        ],
-        mono: [0, 5],
-        open: () => openRequest(r),
-      }));
-  const shown = table(["Time", "Service", "Operation", "Resource", "Status", "Took"], rows, () =>
-    h(
-      "div",
-      { class: "empty" },
-      state.filter ? "Nothing matches the filter." : "No requests yet. Point a tool at this emulator and they appear here as they're answered.",
-      h("br"),
-      h("code", {}, `AWS_ENDPOINT_URL=${location.origin} aws sts get-caller-identity`),
-    ),
-  );
-  main.replaceChildren(
-    h("h1", {}, "Requests"),
-    h("p", { class: "lead" }, "Every request the emulator answered, newest first. Secrets in them are masked."),
-    h("div", { class: "toolbar" }, filterBox(() => shown.update())),
-    shown.el,
-  );
-  return shown.update;
-}
-
-async function openRequest(r) {
-  const title = r.operation || `${r.method} ${r.path}`;
-  openDrawer(title, h("p", { class: "dim" }, "Loading…"));
-  let found;
-  try {
-    found = await get(`requests/${r.id}`);
-  } catch {
-    openDrawer(title, h("p", { class: "dim" }, "That request is no longer remembered."));
-    return;
-  }
-  const { detail } = found;
-  const pairs = (list) => h("dl", {}, list.flatMap(([k, v]) => [h("dt", {}, k), h("dd", { class: "mono" }, v)]));
-  openDrawer(
-    title,
-    h(
-      "dl",
-      {},
-      [
-        ["Status", r.error ? `${r.status} ${r.error}` : r.status],
-        ["Message", r.message],
-        ["Service", r.service],
-        ["Resource", r.resource],
-        ["Region", r.region],
-        ["Sent by", r.user_agent],
-        ["Request ID", r.request_id],
-        ["Took", `${r.duration_ms} ms`],
-      ]
-        .filter(([, v]) => v !== "" && v != null)
-        .flatMap(([k, v]) => [h("dt", {}, k), h("dd", {}, String(v))]),
-    ),
-    h("h3", {}, "REQUEST"),
-    h("pre", {}, readable(detail.request_body) || "(no body)"),
-    h("h3", {}, "RESPONSE"),
-    h("pre", {}, readable(detail.response_body) || "(no body)"),
-    h("h3", {}, "REQUEST HEADERS"),
-    pairs(detail.request_headers),
-    h("h3", {}, "RESPONSE HEADERS"),
-    pairs(detail.response_headers),
-  );
 }
 
 // --- Routing and refreshing -------------------------------------------------
@@ -438,12 +307,12 @@ function route() {
   const main = $("main");
   state.filter = "";
   closeDrawer();
+  // A page may take dropped files (a bucket); the next one doesn't.
+  main.ondragenter = main.ondragleave = main.ondragover = main.ondrop = null;
   renderSide(where);
   const browser = where.page === "service" && where.path ? BROWSERS[where.name] : null;
   if (browser && browser.page) state.update = browser.page(main, where.path);
-  else if (where.page === "service") state.update = servicePage(main, where.name);
-  else if (where.page === "requests") state.update = requestsPage(main);
-  else state.update = homePage(main);
+  else state.update = PAGES[where.page](main, where.name);
   main.focus();
 }
 

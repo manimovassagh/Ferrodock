@@ -9,7 +9,7 @@
 <body>
   <header class="top">
     <a class="brand" href="#/">
-      <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h10.5a4.5 4.5 0 0 0 .6-8.96A6 6 0 0 0 6.6 9.5 4.25 4.25 0 0 0 7 18Z"/></svg>
+      <span class="mark"><svg class="icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M7 18h10.5a4.5 4.5 0 0 0 .6-8.96A6 6 0 0 0 6.6 9.5 4.25 4.25 0 0 0 7 18Z"/></svg></span>
       <span class="name">ferrocloud</span>
       <span class="tag">AWS emulator</span>
     </a>
@@ -20,7 +20,12 @@
     <main class="main" id="main" tabindex="-1"></main>
     <aside class="drawer" id="drawer" hidden></aside>
   </div>
+  <!-- The core first; then how services look, the pages, and S3's browser. -->
   <script src="console.js"></script>
+  <script src="catalog.js"></script>
+  <script src="service.js"></script>
+  <script src="requests.js"></script>
+  <script src="home.js"></script>
   <script src="s3.js"></script>
 </body>
 </html>
