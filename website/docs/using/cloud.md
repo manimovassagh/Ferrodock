@@ -49,6 +49,10 @@ shows:
 - **Each service**: what it holds, a tab per kind (IAM's roles, users,
   policies and instance profiles), with a filter. Click a row to see the
   whole record, policy documents laid out as JSON.
+- **S3**: your buckets, with how many objects each has and their size.
+  **New bucket** makes one. Click a bucket to browse its folders and
+  objects; click an object to see it, **Download** it or **Delete** it.
+  **Upload** puts files from your computer in the folder you're in.
 - **Requests**: every request the emulator answered, newest first. Click
   one to see what was sent and what came back, secrets masked.
 
@@ -57,6 +61,11 @@ what you create with the AWS CLI, an SDK or Terraform shows up as it
 happens.
 
 ![The web console showing IAM's roles, one of them opened](/img/cloud-console.png)
+
+The console works through S3's own API, so what it does shows in the
+request log like any other tool's.
+
+![A bucket's folder in the web console, one object opened](/img/cloud-console-s3.png)
 
 ## Connecting your tools
 
@@ -84,6 +93,8 @@ Then try it:
 
 ```bash
 aws sts get-caller-identity
+aws s3 mb s3://photos
+aws s3 cp ./cat.jpg s3://photos/
 ```
 
 ![The Terraform settings on the Cloud emulator page](/img/cloud-terraform.png)
@@ -97,6 +108,7 @@ service to see its operations, or type in the search box to find one.
 | --- | --- |
 | STS | Who the caller is, session tokens, assuming roles |
 | IAM | Roles, users, managed policies with versions, inline and attached policies, instance profiles, access keys, tags |
+| S3 | Buckets, objects of any size (streamed to disk), uploads in parts, copying, versions, tags, metadata, presigned URLs; buckets by path (`localhost:4566/photos`) or by host (`photos.localhost:4566`). Bucket settings (CORS, policy, lifecycle, website…) are kept and given back |
 
 More services arrive with each version: the plan is in
 [the project's issues](https://github.com/manimovassagh/Ferrodock/issues/354).

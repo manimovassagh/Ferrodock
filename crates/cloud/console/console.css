@@ -238,6 +238,33 @@ tbody tr.on { background: var(--accent-soft); }
   color: var(--text);
 }
 
+/* Buttons and a bucket's path. */
+.button {
+  display: inline-block;
+  border: 1px solid var(--border);
+  background: var(--raised);
+  color: var(--text);
+  font: inherit;
+  font-weight: 550;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.button:hover { border-color: var(--muted); }
+.button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.button.primary:hover { filter: brightness(1.08); }
+.button.danger { color: var(--danger); }
+.button[hidden] { display: none; }
+.main > .button { margin-top: 12px; }
+
+.actions { display: flex; gap: 8px; margin-top: 18px; }
+
+.crumbs { font-size: 13px; margin-bottom: 10px; }
+.crumbs a:hover { color: var(--accent); }
+
+.folder::before { content: "▸ "; color: var(--accent); }
+
 /* A record, opened on the right. */
 .drawer {
   width: min(460px, 45vw);

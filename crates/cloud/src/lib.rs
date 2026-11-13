@@ -15,7 +15,8 @@
 //! - `store.rs`: where data lives: a folder with a SQLite database.
 //! - `clock.rs`: timestamps in the formats the APIs use.
 //! - `query.rs`: the query protocol's form fields and XML replies.
-//! - `sts/`, `iam/`: the services, one folder each.
+//! - `sts/`, `iam/`, `s3/`: the services, one folder each.
+//! - `objects/`: object storage with no AWS in it, which S3 is built on.
 
 pub mod admin;
 pub mod capture;
@@ -23,9 +24,11 @@ pub mod clock;
 pub mod console;
 pub mod events;
 pub mod iam;
+pub mod objects;
 pub mod protocol;
 pub mod query;
 pub mod route;
+pub mod s3;
 pub mod server;
 pub mod service;
 pub mod store;

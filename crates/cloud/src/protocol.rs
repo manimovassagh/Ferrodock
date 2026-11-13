@@ -31,12 +31,24 @@ impl Protocol {
     }
 }
 
+/// Part of a file to answer with, sent as it's read rather than held in
+/// memory: an object's bytes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileBody {
+    pub path: std::path::PathBuf,
+    /// Where to start, in bytes.
+    pub start: u64,
+    pub length: u64,
+}
+
 /// What a service answers.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Reply {
     pub status: u16,
     pub headers: Vec<(String, String)>,
     pub body: Bytes,
+    /// Sent instead of `body` when set.
+    pub file: Option<FileBody>,
     /// The operation this answers, for the request log, when the request
     /// itself didn't name it (the REST protocols).
     pub operation: Option<&'static str>,
@@ -48,8 +60,26 @@ impl Reply {
             status,
             headers: vec![("content-type".into(), content_type.into())],
             body: body.into(),
+            file: None,
             operation: None,
         }
+    }
+
+    /// An answer with no body, e.g. to a delete.
+    pub fn empty(status: u16) -> Self {
+        Self {
+            status,
+            headers: Vec::new(),
+            body: Bytes::new(),
+            file: None,
+            operation: None,
+        }
+    }
+
+    /// Answers with part of a file.
+    pub fn with_file(mut self, file: FileBody) -> Self {
+        self.file = Some(file);
+        self
     }
 
     pub fn operation(mut self, operation: &'static str) -> Self {

@@ -36,8 +36,10 @@ pub struct Captured {
     pub size: u64,
     /// More was sent than is kept.
     pub truncated: bool,
-    /// It isn't text (an upload, say), so only its size is kept.
+    /// It isn't text (an image, say), so only its size is kept.
     pub binary: bool,
+    /// It went by as a stream (an object's bytes), so none of it is kept.
+    pub streamed: bool,
 }
 
 /// Everything kept of one request besides its line in the log.
@@ -67,13 +69,22 @@ pub fn body(bytes: &[u8]) -> Captured {
             text: mask(text),
             size,
             truncated,
-            binary: false,
+            ..Captured::default()
         },
         _ => Captured {
             size,
             binary: true,
             ..Captured::default()
         },
+    }
+}
+
+/// A body that went by as a stream: only its size is known.
+pub fn streamed(size: u64) -> Captured {
+    Captured {
+        size,
+        streamed: true,
+        ..Captured::default()
     }
 }
 

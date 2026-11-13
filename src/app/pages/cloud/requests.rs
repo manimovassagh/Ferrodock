@@ -361,7 +361,12 @@ fn body(ui: &mut egui::Ui, p: &Palette, title: &str, body: &CloudBody) {
         .inner_margin(egui::Margin::same(10))
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
-            let note = if body.binary {
+            let note = if body.streamed {
+                Some(format!(
+                    "Streamed: {} went by without being kept",
+                    format_size(body.size as i64)
+                ))
+            } else if body.binary {
                 Some(format!(
                     "Not text: {} of data",
                     format_size(body.size as i64)

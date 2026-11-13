@@ -60,7 +60,7 @@ that instead.
   small. One click on the Cloud emulator page or `fdock cloud start` starts
   it, with the settings for each tool ready to copy. Its web console, in
   your browser, shows what each service holds and every request your code
-  sends with what came back. STS and IAM so far; more services with each
+  sends with what came back. STS, IAM and S3 so far; more services with each
   version.
 - **Volumes and networks**: create them, browse a volume's files, connect
   and disconnect containers.

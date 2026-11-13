@@ -21,7 +21,7 @@ use crate::admin;
 use crate::capture::{self, Detail};
 use crate::clock;
 use crate::events::{Event, Events};
-use crate::protocol::{Fault, Protocol, Reply, request_id};
+use crate::protocol::{Fault, FileBody, Protocol, Reply, request_id};
 use crate::route::{parse_pairs, route};
 use crate::service::{Call, Registry};
 use crate::store::Store;
@@ -50,11 +50,20 @@ impl App {
 
 pub type Response = hyper::Response<Body>;
 
-/// A response body: all there, or arriving in pieces (the request feed).
+/// A response body: all there, arriving in pieces with no end known (the
+/// request feed), or read from a file whose length is known.
 pub enum Body {
     Full(Option<Bytes>),
     Stream(mpsc::Receiver<Bytes>),
+    Sized {
+        pieces: mpsc::Receiver<Bytes>,
+        /// Bytes still to come.
+        left: u64,
+    },
 }
+
+/// How much of a file is read and sent at a time.
+const FILE_CHUNK: u64 = 256 * 1024;
 
 impl Body {
     pub fn full(bytes: Bytes) -> Self {
@@ -63,6 +72,41 @@ impl Body {
 
     pub fn stream(pieces: mpsc::Receiver<Bytes>) -> Self {
         Body::Stream(pieces)
+    }
+
+    /// Part of a file, read as it's sent. A file that turns out shorter
+    /// ends the connection, as its length was promised.
+    pub fn file(file: FileBody) -> Self {
+        let (tx, pieces) = mpsc::channel(4);
+        let left = file.length;
+        tokio::spawn(async move {
+            use tokio::io::{AsyncReadExt, AsyncSeekExt};
+            let Ok(mut source) = tokio::fs::File::open(&file.path).await else {
+                return;
+            };
+            if source
+                .seek(std::io::SeekFrom::Start(file.start))
+                .await
+                .is_err()
+            {
+                return;
+            }
+            let mut left = file.length;
+            while left > 0 {
+                let mut piece = vec![0u8; left.min(FILE_CHUNK) as usize];
+                match source.read(&mut piece).await {
+                    Ok(0) | Err(_) => return,
+                    Ok(n) => {
+                        piece.truncate(n);
+                        left -= n as u64;
+                        if tx.send(Bytes::from(piece)).await.is_err() {
+                            return;
+                        }
+                    }
+                }
+            }
+        });
+        Body::Sized { pieces, left }
     }
 }
 
@@ -77,12 +121,18 @@ impl hyper::body::Body for Body {
         match self.get_mut() {
             Body::Full(bytes) => Poll::Ready(bytes.take().map(|b| Ok(Frame::data(b)))),
             Body::Stream(pieces) => pieces.poll_recv(cx).map(|p| p.map(|b| Ok(Frame::data(b)))),
+            Body::Sized { pieces, left } => pieces.poll_recv(cx).map(|piece| {
+                piece.map(|bytes| {
+                    *left = left.saturating_sub(bytes.len() as u64);
+                    Ok(Frame::data(bytes))
+                })
+            }),
         }
     }
 
     // A body that's all there is sent with its length, not in chunks.
     fn is_end_stream(&self) -> bool {
-        matches!(self, Body::Full(None))
+        matches!(self, Body::Full(None) | Body::Sized { left: 0, .. })
     }
 
     fn size_hint(&self) -> hyper::body::SizeHint {
@@ -91,6 +141,7 @@ impl hyper::body::Body for Body {
                 hyper::body::SizeHint::with_exact(bytes.as_ref().map_or(0, |b| b.len() as u64))
             }
             Body::Stream(_) => hyper::body::SizeHint::default(),
+            Body::Sized { left, .. } => hyper::body::SizeHint::with_exact(*left),
         }
     }
 }
@@ -134,34 +185,52 @@ async fn handle(app: &Arc<App>, request: Request<Incoming>) -> Response {
 
     let query = parse_pairs(head.uri.query().unwrap_or_default());
     let id = request_id();
-    let body = match Limited::new(body, MAX_BODY).collect().await {
-        Ok(body) => body.to_bytes(),
-        Err(_) => {
-            let fault = Fault::new(
-                413,
-                "RequestEntityTooLarge",
-                "the request body is too large",
-            );
-            return respond(fault.render(Protocol::RestXml, &id), &id);
-        }
+    // An upload goes to its service as it arrives, so which service is
+    // worked out before the body is read.
+    let early = route(&head.headers, &query, b"");
+    let streaming = app
+        .registry
+        .find(&early)
+        .filter(|service| service.streams(&head.method, &head.headers))
+        .cloned();
+    let (body, upload) = match streaming {
+        Some(_) => (Bytes::new(), Some(body)),
+        None => match Limited::new(body, MAX_BODY).collect().await {
+            Ok(body) => (body.to_bytes(), None),
+            Err(_) => {
+                let fault = Fault::new(
+                    413,
+                    "RequestEntityTooLarge",
+                    "the request body is too large",
+                );
+                return respond(fault.render(Protocol::RestXml, &id), &id);
+            }
+        },
     };
-    let route = route(&head.headers, &query, &body);
-    let user_agent = head
-        .headers
-        .get("user-agent")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or_default()
-        .to_owned();
+    let route = match upload {
+        Some(_) => early,
+        None => route(&head.headers, &query, &body),
+    };
+    let header = |name: &str| head.headers.get(name).and_then(|v| v.to_str().ok());
+    let user_agent = header("user-agent").unwrap_or_default().to_owned();
 
     // For the request log, before the service takes them.
     let mut detail = Detail {
         request_headers: capture::headers(&head.headers),
-        request_body: capture::body(&body),
+        request_body: match upload {
+            Some(_) => capture::streamed(
+                header("x-amz-decoded-content-length")
+                    .or(header("content-length"))
+                    .and_then(|length| length.parse().ok())
+                    .unwrap_or(0),
+            ),
+            None => capture::body(&body),
+        },
         ..Detail::default()
     };
     let resource = capture::resource(route.protocol, &query, &body);
 
-    let service = app.registry.find(&route).cloned();
+    let service = streaming.or_else(|| app.registry.find(&route).cloned());
     let outcome = match &service {
         Some(service) => {
             let call = Call {
@@ -173,7 +242,10 @@ async fn handle(app: &Arc<App>, request: Request<Incoming>) -> Response {
                 route: route.clone(),
                 request_id: id.clone(),
             };
-            service.handle(call, &app.store).await
+            match upload {
+                Some(upload) => service.handle_stream(call, upload, &app.store).await,
+                None => service.handle(call, &app.store).await,
+            }
         }
         None => Err(unsupported(&route)),
     };
@@ -182,7 +254,10 @@ async fn handle(app: &Arc<App>, request: Request<Incoming>) -> Response {
         Err(fault) => (fault.render(route.protocol, &id), fault.code, fault.message),
     };
     detail.response_headers.clone_from(&reply.headers);
-    detail.response_body = capture::body(&reply.body);
+    detail.response_body = match &reply.file {
+        Some(file) => capture::streamed(file.length),
+        None => capture::body(&reply.body),
+    };
     let event = Event {
         id: 0,
         time,
@@ -238,7 +313,11 @@ fn respond(reply: Reply, request_id: &str) -> Response {
     for (name, value) in &reply.headers {
         response = response.header(name, value);
     }
-    response.body(Body::full(reply.body)).unwrap_or_else(|_| {
+    let body = match reply.file {
+        Some(file) => Body::file(file),
+        None => Body::full(reply.body),
+    };
+    response.body(body).unwrap_or_else(|_| {
         // A header a service set wasn't valid HTTP.
         let mut broken = hyper::Response::new(Body::full(Bytes::new()));
         *broken.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;

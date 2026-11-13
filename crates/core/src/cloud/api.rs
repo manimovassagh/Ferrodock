@@ -79,6 +79,8 @@ pub struct CloudBody {
     pub truncated: bool,
     /// Not text, so only its size is known.
     pub binary: bool,
+    /// It went by as a stream (an object's bytes), so none of it is kept.
+    pub streamed: bool,
 }
 
 /// The headers and bodies of one request and its reply.
