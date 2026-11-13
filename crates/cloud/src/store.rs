@@ -30,10 +30,14 @@ impl Store {
             }
             None => {
                 let db = Connection::open_in_memory().map_err(|e| e.to_string())?;
+                // One folder per store, even for two opened in the same
+                // millisecond (as tests do): each removes its own on drop.
+                static OPENED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
                 let files = std::env::temp_dir().join(format!(
-                    "ferrocloud-{}-{:x}",
+                    "ferrocloud-{}-{:x}-{}",
                     std::process::id(),
-                    crate::clock::now_millis()
+                    crate::clock::now_millis(),
+                    OPENED.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
                 ));
                 (db, files, true)
             }

@@ -53,8 +53,29 @@ pub trait Service: Send + Sync {
         Ok(())
     }
 
+    /// Whether it takes requests that name no service at all (not
+    /// signed, no target, no action), as S3 does for public reads.
+    fn takes_unsigned(&self) -> bool {
+        false
+    }
+
+    /// Whether this request's body should reach the service as it
+    /// arrives, not read whole first: an upload that may be large.
+    fn streams(&self, _method: &Method, _headers: &HeaderMap) -> bool {
+        false
+    }
+
     fn handle<'a>(&'a self, call: Call, store: &'a Store) -> Handled<'a>;
+
+    /// Handles a request for which [`Service::streams`] said yes; `call`
+    /// has no body, `upload` is it.
+    fn handle_stream<'a>(&'a self, _call: Call, _upload: Upload, _store: &'a Store) -> Handled<'a> {
+        Box::pin(async { Err(Fault::internal("this service takes no streamed bodies")) })
+    }
 }
+
+/// A request body, read piece by piece.
+pub type Upload = hyper::body::Incoming;
 
 /// The services this emulator has.
 #[derive(Clone, Default)]
@@ -65,7 +86,10 @@ pub struct Registry {
 impl Registry {
     /// Every service ferrocloud comes with.
     pub fn standard() -> Self {
-        Self::default().with(crate::sts::Sts).with(crate::iam::Iam)
+        Self::default()
+            .with(crate::sts::Sts)
+            .with(crate::iam::Iam)
+            .with(crate::s3::S3)
     }
 
     pub fn with(mut self, service: impl Service + 'static) -> Self {
@@ -78,19 +102,28 @@ impl Registry {
     }
 
     /// The service a request is for: by what it was signed for, else by
-    /// its target.
+    /// its target, else the one that takes unsigned requests.
     pub fn find(&self, route: &Route) -> Option<&Arc<dyn Service>> {
         let by_signing = route.signing_name.as_deref().and_then(|name| {
             self.services
                 .iter()
                 .find(|s| s.signing_names().contains(&name))
         });
-        by_signing.or_else(|| {
+        let by_target = || {
             let prefix = route.target_prefix.as_deref()?;
             self.services
                 .iter()
                 .find(|s| s.target_prefixes().contains(&prefix))
-        })
+        };
+        // Naming nothing at all, it's for whoever takes such requests.
+        let unsigned = || {
+            (route.signing_name.is_none()
+                && route.target_prefix.is_none()
+                && route.operation.is_none())
+            .then(|| self.services.iter().find(|s| s.takes_unsigned()))
+            .flatten()
+        };
+        by_signing.or_else(by_target).or_else(unsigned)
     }
 
     pub fn init(&self, store: &Store) -> Result<(), String> {
