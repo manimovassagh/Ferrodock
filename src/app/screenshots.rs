@@ -1352,3 +1352,95 @@ fn screenshots_of_local_ci() {
     click(&mut h, "← Runs");
     save(&mut h, "local-ci-runs");
 }
+
+/// The Cloud page: before the emulator runs, then running with a service
+/// unfolded, the Terraform settings, and the request log. Needs the emulator's image.
+#[test]
+#[ignore]
+fn screenshots_of_cloud() {
+    let mut h = harness();
+    settle(&mut h, Duration::from_secs(2));
+    set_theme(&mut h, Theme::Light);
+    let page = h
+        .state()
+        .pages
+        .iter()
+        .position(|p| p.title() == "Cloud")
+        .unwrap();
+    open(&mut h, page, None);
+    if h.query_by_label("Start").is_none() {
+        // Left running by an earlier try.
+        click(&mut h, "Stop the emulator");
+        settle(&mut h, Duration::from_secs(3));
+    }
+    save(&mut h, "cloud-stopped");
+    click(&mut h, "Start");
+    settle(&mut h, Duration::from_secs(4));
+    press(&mut h, "STS");
+    save(&mut h, "cloud");
+    click(&mut h, "Terraform");
+    save(&mut h, "cloud-terraform");
+
+    // A few requests as the AWS CLI would send them, one of them failing.
+    let call = |service: &str, form: &str| {
+        let auth = format!(
+            "AWS4-HMAC-SHA256 Credential=test/20261112/us-east-1/{service}/aws4_request, \
+             SignedHeaders=host, Signature=0"
+        );
+        let agent: ureq::Agent = ureq::Agent::config_builder()
+            .proxy(None)
+            .http_status_as_error(false)
+            .build()
+            .into();
+        let _ = agent
+            .post("http://localhost:4566/")
+            .header("authorization", &auth)
+            .header("content-type", "application/x-www-form-urlencoded")
+            .header("user-agent", "aws-cli/2.31.0 md/awscrt#0.27.6")
+            .send(form);
+    };
+    let trust = "%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%5D%7D";
+    call("sts", "Action=GetCallerIdentity&Version=2011-06-15");
+    call(
+        "iam",
+        &format!(
+            "Action=CreateRole&Version=2010-05-08&RoleName=shop-api&AssumeRolePolicyDocument={trust}"
+        ),
+    );
+    call(
+        "iam",
+        "Action=TagRole&Version=2010-05-08&RoleName=shop-api&Tags.member.1.Key=env&Tags.member.1.Value=dev",
+    );
+    call(
+        "iam",
+        &format!(
+            "Action=CreatePolicy&Version=2010-05-08&PolicyName=read-orders&PolicyDocument={trust}"
+        ),
+    );
+    call(
+        "iam",
+        "Action=AttachRolePolicy&Version=2010-05-08&RoleName=shop-api&PolicyArn=arn:aws:iam::000000000000:policy/read-orders",
+    );
+    call(
+        "iam",
+        "Action=GetRole&Version=2010-05-08&RoleName=shop-worker",
+    );
+    call(
+        "sts",
+        "Action=AssumeRole&Version=2011-06-15&RoleArn=arn:aws:iam::000000000000:role/shop-api&RoleSessionName=dev",
+    );
+    call(
+        "iam",
+        "Action=ListAttachedRolePolicies&Version=2010-05-08&RoleName=shop-api",
+    );
+    click(&mut h, "Requests");
+    settle(&mut h, Duration::from_secs(3));
+    save(&mut h, "cloud-requests");
+    press(&mut h, "GetRole");
+    settle(&mut h, Duration::from_secs(2));
+    save(&mut h, "cloud-request");
+    // Leave it empty for the next run.
+    let _ = crate::docker::cloud::reset(4566);
+    click(&mut h, "Stop the emulator");
+    settle(&mut h, Duration::from_secs(3));
+}

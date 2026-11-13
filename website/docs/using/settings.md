@@ -31,6 +31,15 @@ When a container crashes or runs out of memory while Ferrodock is in the
 background (or hidden in the menu bar), you get a system notification. On
 by default.
 
+### Cloud
+
+- **Port of the cloud emulator**: where the [cloud emulator](./cloud.md)
+  is reached on your computer; 4566 unless you change it.
+- **Keep what's created in the emulator between starts**: on by default.
+  Turned off, the emulator starts empty each time.
+
+Both apply the next time the emulator starts.
+
 ### Startup
 
 - **Start the Docker engine when Ferrodock opens, if it isn't running** (on

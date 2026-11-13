@@ -35,6 +35,8 @@ while idle. It's free and open source under the MIT License.
 - **Local CI**: run a project's GitHub Actions workflows here, step by step
   with live logs, before you push, in the app or with `fdock ci run`, actions
   from GitHub included.
+- **Cloud**: a local emulator of AWS's APIs, started only when you want
+  it, for the AWS CLI, the SDKs and Terraform.
 - **Volumes and networks**: create, browse, connect and clean up.
 - **Disk**: see where the space goes and free it safely.
 

@@ -317,6 +317,20 @@ impl DockerClient {
                 Err(e) => Some((Err(e), file)),
             }
         });
+        self.load_image_stream(chunks).await
+    }
+
+    /// Loads the images in a `.tar` (or `.tar.gz`) held in memory.
+    pub async fn load_image_bytes(&self, archive: Vec<u8>) -> Result<Vec<String>, String> {
+        let chunk = Ok::<_, std::io::Error>(bytes::Bytes::from(archive));
+        self.load_image_stream(futures_util::stream::once(async { chunk }))
+            .await
+    }
+
+    async fn load_image_stream(
+        &self,
+        chunks: impl futures_util::Stream<Item = Result<bytes::Bytes, std::io::Error>> + Send + 'static,
+    ) -> Result<Vec<String>, String> {
         let mut stream =
             self.docker
                 .import_image_stream(ImportImageOptions::default(), chunks, None);

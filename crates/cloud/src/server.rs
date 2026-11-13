@@ -18,6 +18,7 @@ use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 
 use crate::admin;
+use crate::capture::{self, Detail};
 use crate::clock;
 use crate::events::{Event, Events};
 use crate::protocol::{Fault, Protocol, Reply, request_id};
@@ -152,6 +153,14 @@ async fn handle(app: &Arc<App>, request: Request<Incoming>) -> Response {
         .unwrap_or_default()
         .to_owned();
 
+    // For the request log, before the service takes them.
+    let mut detail = Detail {
+        request_headers: capture::headers(&head.headers),
+        request_body: capture::body(&body),
+        ..Detail::default()
+    };
+    let resource = capture::resource(route.protocol, &query, &body);
+
     let service = app.registry.find(&route).cloned();
     let outcome = match &service {
         Some(service) => {
@@ -168,11 +177,13 @@ async fn handle(app: &Arc<App>, request: Request<Incoming>) -> Response {
         }
         None => Err(unsupported(&route)),
     };
-    let (reply, error) = match outcome {
-        Ok(reply) => (reply, String::new()),
-        Err(fault) => (fault.render(route.protocol, &id), fault.code),
+    let (reply, error, message) = match outcome {
+        Ok(reply) => (reply, String::new(), String::new()),
+        Err(fault) => (fault.render(route.protocol, &id), fault.code, fault.message),
     };
-    app.events.record(Event {
+    detail.response_headers.clone_from(&reply.headers);
+    detail.response_body = capture::body(&reply.body);
+    let event = Event {
         id: 0,
         time,
         // A service that isn't here yet is still named, as it was asked for.
@@ -184,15 +195,18 @@ async fn handle(app: &Arc<App>, request: Request<Incoming>) -> Response {
             .operation
             .or(reply.operation.map(str::to_owned))
             .unwrap_or_default(),
+        resource,
         method: head.method.to_string(),
         path,
         status: reply.status,
         error,
+        message,
         duration_ms: started.elapsed().as_millis() as u64,
         region: route.region,
         user_agent,
         request_id: id.clone(),
-    });
+    };
+    app.events.record(event, detail);
     respond(reply, &id)
 }
 

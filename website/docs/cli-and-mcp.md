@@ -60,6 +60,7 @@ fdock df                         # disk usage
 fdock clean images build-cache   # free space; see below
 fdock compose up ./shop          # also down, restart, logs [-f]
 fdock ci run ci.yml              # a GitHub Actions workflow, run here
+fdock cloud start                # the local cloud emulator; see below
 fdock engine                     # the engines, and which one is used
 fdock engine start               # start it, and wait until it answers
 fdock reset --yes                # remove everything; see below
@@ -93,6 +94,24 @@ what the run uploaded. It fails (exit code 1) when the run fails, so it
 works in scripts and Git hooks, and `--json` prints a summary of every job
 and step, with the error lines. Ctrl-C stops the run and removes its
 containers.
+
+### Cloud
+
+`fdock cloud` runs the [cloud emulator](./using/cloud.md), the same one the
+app's Cloud page does:
+
+```bash
+fdock cloud start                # start it, and wait until it answers
+eval "$(fdock cloud env)"        # point the AWS CLI and SDKs at it
+aws sts get-caller-identity
+fdock cloud status               # where it is, and what it supports
+fdock cloud reset --yes          # delete everything created in it
+fdock cloud stop
+```
+
+`start` takes `--port` (4566 by default) and `--no-data`, to start empty
+each time. `env` prints `export` lines for a shell; with `--powershell`,
+lines for `Invoke-Expression`.
 
 ### Cleaning up
 

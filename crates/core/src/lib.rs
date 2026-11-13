@@ -14,6 +14,7 @@ mod browse;
 mod build;
 pub mod builtin;
 pub mod ci;
+pub mod cloud;
 mod compose;
 pub mod compose_cli;
 pub mod compose_install;

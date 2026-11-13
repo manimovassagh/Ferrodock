@@ -474,6 +474,11 @@ impl FerrodockApp {
                 }
             }
             Intent::ClearSearch => self.search.clear(),
+            Intent::Cloud(op) => {
+                if self.store.cloud.begin(op) {
+                    self.worker.send(Request::Cloud(op));
+                }
+            }
             Intent::Ci(op) => {
                 use crate::docker::ci::CiOp;
                 let op = match op {
@@ -560,6 +565,7 @@ impl eframe::App for FerrodockApp {
             .recent_compose
             .clone_from(&self.settings.recent_compose);
         self.store.recent_ci.clone_from(&self.settings.recent_ci);
+        self.store.cloud.spec = self.settings.cloud();
         let p = theme::palette(ui);
         if !self.overlay_open() {
             for shortcut in keys::read(ui.ctx()) {

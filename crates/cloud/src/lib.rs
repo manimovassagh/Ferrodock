@@ -10,17 +10,24 @@
 //! - `service.rs`: what a service is, and the list of those there are.
 //! - `admin.rs`: Ferrodock's own API under `/_ferrocloud/`.
 //! - `events.rs`: the record of requests, kept and streamed live.
+//! - `capture.rs`: what the record keeps of each request, secrets masked.
 //! - `store.rs`: where data lives: a folder with a SQLite database.
 //! - `clock.rs`: timestamps in the formats the APIs use.
+//! - `query.rs`: the query protocol's form fields and XML replies.
+//! - `sts/`, `iam/`: the services, one folder each.
 
 pub mod admin;
+pub mod capture;
 pub mod clock;
 pub mod events;
+pub mod iam;
 pub mod protocol;
+pub mod query;
 pub mod route;
 pub mod server;
 pub mod service;
 pub mod store;
+pub mod sts;
 
 /// The account every resource belongs to.
 pub const ACCOUNT: &str = "000000000000";

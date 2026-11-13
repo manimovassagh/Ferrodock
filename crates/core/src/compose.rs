@@ -95,6 +95,7 @@ mod tests {
             }),
             machine: None,
             kube: None,
+            cloud: None,
         }
     }
 

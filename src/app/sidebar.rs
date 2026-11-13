@@ -53,6 +53,7 @@ pub fn show(
     // how much room is left: in a short window they scroll rather than
     // run under it.
     let space = ui.available_rect_before_wrap();
+    let compact = space.height() < SHORT;
     let mut bottom_ui = ui.new_child(
         egui::UiBuilder::new()
             .max_rect(space)
@@ -81,7 +82,21 @@ pub fn show(
         .show(ui, |ui| {
             ui.label(RichText::new("DOCKER").size(11.0).color(p.muted));
             ui.add_space(2.0);
-            for (i, page) in pages.iter().enumerate().filter(|(_, page)| !page.bottom()) {
+            // In a short window the pages between DOCKER and START scroll
+            // with the Docker ones, so those keep their room.
+            let listed = |page: &dyn Page| !page.bottom() || (compact && page.heading() != START);
+            let mut heading = "DOCKER";
+            for (i, page) in pages
+                .iter()
+                .enumerate()
+                .filter(|(_, page)| listed(page.as_ref()))
+            {
+                if page.bottom() && page.heading() != heading {
+                    heading = page.heading();
+                    ui.add_space(6.0);
+                    ui.label(RichText::new(heading).size(11.0).color(p.muted));
+                    ui.add_space(2.0);
+                }
                 let mut item = widgets::nav_item(
                     ui,
                     p,
@@ -107,6 +122,9 @@ struct Footer<'a> {
     update: &'a Status,
     unread_errors: &'a str,
 }
+
+/// The heading of the pages that stay at the bottom in any window.
+const START: &str = "START";
 
 /// Below this height (in points, under the logo) the sidebar is short.
 const SHORT: f32 = 560.0;
@@ -201,11 +219,12 @@ fn bottom(
     let bottom: Vec<(usize, &Box<dyn Page>)> = pages
         .iter()
         .enumerate()
-        .filter(|(_, page)| page.bottom())
+        .filter(|(_, page)| page.bottom() && (!compact || page.heading() == START))
         .collect();
-    if !bottom.is_empty() {
+    // Each run of pages under one heading is a group: CLOUD, then START.
+    for group in bottom.chunk_by(|a, b| a.1.heading() == b.1.heading()).rev() {
         ui.add_space(if compact { 6.0 } else { 14.0 });
-        for (i, page) in bottom.iter().rev() {
+        for (i, page) in group.iter().rev() {
             let mut item = widgets::nav_item(
                 ui,
                 p,
@@ -222,7 +241,11 @@ fn bottom(
             }
         }
         ui.add_space(2.0);
-        ui.label(RichText::new("START").size(11.0).color(p.muted));
+        ui.label(
+            RichText::new(group[0].1.heading())
+                .size(11.0)
+                .color(p.muted),
+        );
     }
 }
 
