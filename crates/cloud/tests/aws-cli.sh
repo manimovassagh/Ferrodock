@@ -224,6 +224,58 @@ aws s3api delete-objects --bucket cli-bucket --delete "file://$work/all.json" > 
 gives 'remove_bucket: cli-bucket' aws s3 rb s3://cli-bucket
 gives '"Buckets": \[\]' aws s3api list-buckets
 
+# SQS: a queue, messages with attributes (the CLI checks their MD5s),
+# long polling, batches, a dead-letter queue and a FIFO queue. Version 1
+# of the CLI ignores AWS_ENDPOINT_URL for SQS, so it's given here.
+sqs() { aws --endpoint-url "$AWS_ENDPOINT_URL" sqs "$@"; }
+gives '000000000000/cli-jobs' sqs create-queue --queue-name cli-jobs \
+    --attributes VisibilityTimeout=1 --tags team=shop
+jobs=$(sqs get-queue-url --queue-name cli-jobs --query QueueUrl --output text)
+gives '"MD5OfMessageAttributes"' sqs send-message --queue-url "$jobs" --message-body '{"order": 7}' \
+    --message-attributes 'kind={DataType=String,StringValue=order}'
+gives '"Body": "{\\"order\\": 7}"' sqs receive-message --queue-url "$jobs" \
+    --message-attribute-names All --attribute-names All --wait-time-seconds 1
+gives '"ApproximateNumberOfMessagesNotVisible": "1"' sqs get-queue-attributes --queue-url "$jobs" --attribute-names All
+sleep 1.2
+receipt=$(sqs receive-message --queue-url "$jobs" --query 'Messages[0].ReceiptHandle' --output text)
+sqs delete-message --queue-url "$jobs" --receipt-handle "$receipt"
+gives '"ApproximateNumberOfMessages": "0"' sqs get-queue-attributes --queue-url "$jobs" --attribute-names All
+gives '"team": "shop"' sqs list-queue-tags --queue-url "$jobs"
+gives '"Id": "b"' sqs send-message-batch --queue-url "$jobs" \
+    --entries Id=a,MessageBody=one Id=b,MessageBody=two
+sqs purge-queue --queue-url "$jobs"
+# A receive that waits gets a message sent while it waits.
+(sleep 1; sqs send-message --queue-url "$jobs" --message-body late > /dev/null) &
+gives '"Body": "late"' sqs receive-message --queue-url "$jobs" --wait-time-seconds 5
+wait
+
+# Dead letters after two receives.
+dlq_arn=$(sqs get-queue-attributes --queue-url "$(sqs create-queue --queue-name cli-dlq \
+    --query QueueUrl --output text)" --attribute-names QueueArn --query Attributes.QueueArn --output text)
+work_q=$(sqs create-queue --queue-name cli-work --query QueueUrl --output text \
+    --attributes "{\"VisibilityTimeout\":\"0\",\"RedrivePolicy\":\"{\\\"deadLetterTargetArn\\\":\\\"$dlq_arn\\\",\\\"maxReceiveCount\\\":\\\"2\\\"}\"}")
+sqs send-message --queue-url "$work_q" --message-body poison > /dev/null
+sqs receive-message --queue-url "$work_q" > /dev/null
+sqs receive-message --queue-url "$work_q" > /dev/null
+sqs receive-message --queue-url "$work_q" > /dev/null
+gives '"Body": "poison"' sqs receive-message --queue-url "$(sqs get-queue-url --queue-name cli-dlq --query QueueUrl --output text)"
+gives 'cli-work' sqs list-dead-letter-source-queues --queue-url "$(sqs get-queue-url --queue-name cli-dlq --query QueueUrl --output text)"
+
+# FIFO: order within a group, and duplicates dropped.
+fifo=$(sqs create-queue --queue-name cli-orders.fifo --query QueueUrl --output text \
+    --attributes FifoQueue=true,ContentBasedDeduplication=true)
+gives '"SequenceNumber"' sqs send-message --queue-url "$fifo" --message-body first --message-group-id a
+sqs send-message --queue-url "$fifo" --message-body first --message-group-id a > /dev/null
+sqs send-message --queue-url "$fifo" --message-body second --message-group-id a > /dev/null
+gives '"Body": "first"' sqs receive-message --queue-url "$fifo" --max-number-of-messages 10
+fails_with 'MissingParameter' sqs send-message --queue-url "$fifo" --message-body x
+
+fails_with 'NonExistentQueue' sqs get-queue-url --queue-name nope
+gives 'cli-orders.fifo' sqs list-queues --queue-name-prefix cli-
+for q in "$jobs" "$work_q" "$fifo"; do sqs delete-queue --queue-url "$q"; done
+sqs delete-queue --queue-url "$(sqs get-queue-url --queue-name cli-dlq --query QueueUrl --output text)"
+gives '"QueueUrls": \[\]\|^$' sqs list-queues --output json
+
 # Services that aren't here yet: each protocol's "not supported" error
 # reaches the CLI in a form it understands, naming the service.
 fails_with "UnknownOperationException.*the service 'dynamodb'" aws dynamodb list-tables

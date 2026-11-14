@@ -188,11 +188,19 @@ pub fn resource(protocol: Protocol, query: &[(String, String)], body: &[u8]) -> 
                 .iter()
                 .any(|end| key.ends_with(end))
     };
+    // A URL (an SQS queue's) reads best as its last part, the name.
+    let shorten = |key: &str, value: &str| {
+        if key.ends_with("Url") {
+            value.rsplit('/').next().unwrap_or(value).to_owned()
+        } else {
+            value.to_owned()
+        }
+    };
     let from_pairs = |pairs: &[(String, String)]| {
         pairs
             .iter()
             .find(|(key, value)| names(key) && !value.is_empty())
-            .map(|(_, value)| value.clone())
+            .map(|(key, value)| shorten(key, value))
     };
     let found = match protocol {
         Protocol::Query => from_pairs(query)
@@ -204,7 +212,7 @@ pub fn resource(protocol: Protocol, query: &[(String, String)], body: &[u8]) -> 
                     value
                         .as_str()
                         .filter(|v| names(key) && !v.is_empty())
-                        .map(str::to_owned)
+                        .map(|v| shorten(key, v))
                 })
             }),
         // These name their resource in the path, which the log shows.
