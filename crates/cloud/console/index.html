@@ -7,25 +7,32 @@
   <link rel="stylesheet" href="console.css">
 </head>
 <body>
-  <header class="top">
-    <a class="brand" href="#/">
-      <span class="mark"><svg class="icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M7 18h10.5a4.5 4.5 0 0 0 .6-8.96A6 6 0 0 0 6.6 9.5 4.25 4.25 0 0 0 7 18Z"/></svg></span>
-      <span class="name">ferrocloud</span>
-      <span class="tag">AWS emulator</span>
+  <nav class="top" aria-label="Console">
+    <a class="logo" href="#/">
+      <span class="mark"><svg class="icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M7 18h10.5a4.5 4.5 0 0 0 .6-8.96A6 6 0 0 0 6.6 9.5 4.25 4.25 0 0 0 7 18Z"/></svg></span>
+      ferrocloud <small>AWS emulator</small>
     </a>
-    <div class="where" id="where"></div>
-  </header>
+    <button class="menu" id="services" type="button" aria-haspopup="true">
+      <svg class="icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg>
+      Services
+    </button>
+    <div class="search">
+      <svg class="icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zm5-2 4 4"/></svg>
+      <input id="search" type="search" placeholder="Search services, buckets, queues, roles…" autocomplete="off">
+      <kbd>⌘ K</kbd>
+      <div class="results" id="results" hidden></div>
+    </div>
+    <div class="top-status" id="status"></div>
+  </nav>
+  <div id="menu" class="menu-holder" hidden></div>
+  <nav class="pins" id="pins" aria-label="Pinned services"></nav>
   <div class="frame">
-    <nav class="side" id="side" aria-label="Services"></nav>
+    <nav class="side" id="side" aria-label="This service"></nav>
     <main class="main" id="main" tabindex="-1"></main>
     <aside class="drawer" id="drawer" hidden></aside>
   </div>
-  <!-- The core first; then how services look, the pages, and S3's browser. -->
+  <div class="notices" id="notices" aria-live="polite"></div>
+  <!-- Built from the .ts files next to it: npm run build. -->
   <script src="console.js"></script>
-  <script src="catalog.js"></script>
-  <script src="service.js"></script>
-  <script src="requests.js"></script>
-  <script src="home.js"></script>
-  <script src="s3.js"></script>
 </body>
 </html>

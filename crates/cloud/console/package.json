@@ -1,0 +1,13 @@
+{
+  "name": "ferrocloud-console",
+  "private": true,
+  "description": "The ferrocloud web console. The TypeScript here is bundled into console.js, which is committed so building the emulator needs no Node.",
+  "scripts": {
+    "build": "esbuild main.ts --bundle --format=iife --target=es2022 --charset=utf8 --legal-comments=none --banner:js=\"// Built from crates/cloud/console/*.ts by 'npm run build': don't edit by hand.\" --outfile=console.js",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2"
+  }
+}

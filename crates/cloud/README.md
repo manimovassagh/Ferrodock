@@ -25,6 +25,7 @@ Under `/_ferrocloud/`, for Ferrodock and for scripts:
 | `GET health` | Whether it's up, its version and its services |
 | `GET services` | Each service and the operations it supports |
 | `GET inventory` | What each service holds (IAM's roles, users…), for the console |
+| `GET browse/<service>/<path>` | More than the inventory, without changing anything: `browse/sqs/<queue>/messages` |
 | `GET console/` | The web console |
 | `GET requests?after=N` | The requests answered after number N |
 | `GET requests/N` | One request's headers and bodies, secrets masked |
@@ -36,8 +37,26 @@ Under `/_ferrocloud/`, for Ferrodock and for scripts:
 | Service | What works |
 | --- | --- |
 | S3 | Buckets, objects of any size (streamed to disk), uploads in parts, copying, versions, tags, metadata, presigned URLs; buckets by path (`localhost:4566/photos`) or by host (`photos.localhost:4566`). Bucket settings (CORS, policy, lifecycle, website…) are kept and given back |
+| SQS | Standard and FIFO queues (message groups, deduplication by ID or by content), long polling, batches of up to ten, visibility timeouts and delays, dead-letter queues, message attributes with the MD5s the SDKs check, tags; in both the JSON and the query protocol |
 | IAM | Roles, users, managed policies with versions, inline and attached policies, instance profiles, access keys, tags |
 | STS | `GetCallerIdentity`, `GetSessionToken`, `AssumeRole`, `AssumeRoleWithWebIdentity` |
 
 IAM keeps what you create and gives it back; it doesn't enforce it. Every
 request is allowed, whatever the policies say.
+
+## The web console
+
+The console is TypeScript in [`console/`](console), a file per job
+(`main.ts` lists them), bundled by esbuild into `console/console.js`.
+The bundle is committed, so building the emulator needs no Node; after
+changing a `.ts` file:
+
+```bash
+cd crates/cloud/console
+npm ci
+npm run check   # types
+npm run build   # console.js
+```
+
+CI checks the types and that the committed `console.js` is the one the
+sources make.

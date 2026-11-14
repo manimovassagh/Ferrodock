@@ -42,35 +42,51 @@ Containers page like any other, with its logs.
 
 **Open console** opens the emulator's web console in your browser, at
 `http://localhost:4566/_ferrocloud/console/`. The emulator serves it itself,
-so nothing else runs, and it works in any browser on this computer. It
-shows:
+so nothing else runs, and it works in any browser on this computer. It's
+laid out like a cloud provider's console:
 
-- **Overview**: where the emulator is, with the endpoint to copy; how
-  many buckets, objects and requests there are, and the errors; each
-  service by group (Storage first, the Basics that tools use behind the
-  scenes last); and the latest requests as they come in.
-- **Each service**: what it holds, a tab per kind (IAM's roles, users,
-  policies and instance profiles), with a filter. Click a row to see the
-  whole record, policy documents laid out as JSON.
-- **S3**: your buckets, with how many objects each has and their size.
-  **New bucket** makes one. Click a bucket to browse its folders and
-  objects; click an object to see it, **Download** it or **Delete** it.
-  **Upload**, or dropping files on the page, puts them in the folder
-  you're in.
+- **The top bar**: **Services**, a menu of every service by category (the
+  ones still to come are shown greyed); a search for services and for
+  anything by name (a bucket, a queue, a role), also with ⌘K or Ctrl+K;
+  and the region and account.
+- **Pinned services** under it: S3, SQS and IAM, and the request log.
+- **Console Home**:
+  - **Emulator health**: the share of requests that worked, the endpoint
+    to copy, how long it's been up, its version, and each service.
+  - **Your resources**: how many buckets, objects, queues, messages
+    waiting, roles and users there are, each a link.
+  - **API traffic**: requests and errors over the last 30 minutes.
+  - **Build something**: the command to make a bucket, a queue or a role,
+    and to connect your tools, copied in a click.
+  - **Recent activity**: the latest requests, live, with the tool that
+    sent each.
+  - **All services**, by category.
+  - **Reset data** empties the emulator; **Create** makes a bucket or a
+    queue.
+- **A service's page** has its own navigation on the left and what it
+  holds in a table with a filter. Click a row to see the whole record,
+  policy documents laid out as JSON.
+- **S3**: **Create bucket**; a bucket's folders and objects, with
+  **Upload** (or files dropped on the page), and each object's details,
+  **Download** and **Delete**.
+- **SQS**: **Create queue** (a name ending in `.fifo` makes a FIFO queue);
+  a queue's messages available, in flight and delayed, its settings and
+  dead-letter queue, a form to send a message, and the messages in it,
+  looked at without receiving them, so nothing is hidden or counted.
+  **Purge** and **Delete** are there too.
 - **Requests**: every request the emulator answered, newest first. Click
   one to see what was sent and what came back, laid out as JSON or XML,
   with secrets masked.
 
-It reads the same data as the AWS APIs and refreshes every few seconds, so
-what you create with the AWS CLI, an SDK or Terraform shows up as it
-happens.
+It reads the same data as the AWS APIs and refreshes every few seconds,
+so what you create with the AWS CLI, an SDK or Terraform shows up as it
+happens. What the console does goes through the same APIs, so it shows
+in the request log like any other tool's. It follows your system's light
+or dark setting.
 
-It follows your system's light or dark setting.
+![The web console's Console Home: emulator health, your resources, API traffic, ways to start and recent activity](/img/cloud-console.png)
 
-![The web console's overview: the endpoint, the numbers, the services by group and the live activity](/img/cloud-console.png)
-
-The console works through S3's own API, so what it does shows in the
-request log like any other tool's.
+![A queue in the web console: its counts and settings, the send form, and its messages](/img/cloud-console-sqs.png)
 
 ![A bucket's folder in the web console, one object opened](/img/cloud-console-s3.png)
 
@@ -102,7 +118,12 @@ Then try it:
 aws sts get-caller-identity
 aws s3 mb s3://photos
 aws s3 cp ./cat.jpg s3://photos/
+aws sqs create-queue --queue-name jobs
 ```
+
+Version 1 of the AWS CLI doesn't use `AWS_ENDPOINT_URL` for SQS: give it
+`--endpoint-url http://localhost:4566` there (version 2 and the SDKs
+need nothing more).
 
 ![The Terraform settings on the Cloud emulator page](/img/cloud-terraform.png)
 
@@ -114,6 +135,7 @@ service to see its operations, or type in the search box to find one.
 | Service | What works |
 | --- | --- |
 | S3 | Buckets, objects of any size (streamed to disk), uploads in parts, copying, versions, tags, metadata, presigned URLs; buckets by path (`localhost:4566/photos`) or by host (`photos.localhost:4566`). Bucket settings (CORS, policy, lifecycle, website…) are kept and given back |
+| SQS | Standard and FIFO queues (message groups, deduplication by ID or by content), long polling, batches of up to ten, visibility timeouts and delays, dead-letter queues, message attributes with the MD5s the SDKs check, tags; in both the JSON and the query protocol |
 | IAM | Roles, users, managed policies with versions, inline and attached policies, instance profiles, access keys, tags |
 | STS | Who the caller is, session tokens, assuming roles. Tools call it behind the scenes |
 

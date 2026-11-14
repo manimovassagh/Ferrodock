@@ -6,18 +6,9 @@ use hyper::StatusCode;
 
 use crate::server::{Body, Response};
 
-/// A script of the page, built in.
-macro_rules! script {
-    ($name:literal) => {
-        (
-            $name,
-            "text/javascript; charset=utf-8",
-            include_str!(concat!("../../console/", $name)),
-        )
-    };
-}
-
 /// Each file: its name under the console's path, its type and content.
+/// `console.js` is built from the TypeScript next to it (`npm run build`)
+/// and committed, so building the emulator needs no Node.
 const FILES: &[(&str, &str, &str)] = &[
     (
         "",
@@ -29,12 +20,11 @@ const FILES: &[(&str, &str, &str)] = &[
         "text/css; charset=utf-8",
         include_str!("../../console/console.css"),
     ),
-    script!("console.js"),
-    script!("catalog.js"),
-    script!("service.js"),
-    script!("requests.js"),
-    script!("home.js"),
-    script!("s3.js"),
+    (
+        "console.js",
+        "text/javascript; charset=utf-8",
+        include_str!("../../console/console.js"),
+    ),
 ];
 
 /// The file at `name`, the part of the path after the console's.
