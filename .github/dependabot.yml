@@ -1,6 +1,6 @@
 version: 2
 
-# Every dependency update, from all four places below, comes in one pull
+# Every dependency update, from all five places below, comes in one pull
 # request a week, so CI runs (and the macOS runners are busy) once rather
 # than once per ecosystem. When a major version needs code changes, push
 # them to that pull request's branch and merge it as usual.
@@ -25,6 +25,12 @@ updates:
     multi-ecosystem-group: dependencies
   - package-ecosystem: github-actions
     directory: /
+    patterns: ["*"]
+    multi-ecosystem-group: dependencies
+  # The emulator's web console: TypeScript and esbuild. A bump means
+  # running `npm run build` there, which CI checks.
+  - package-ecosystem: npm
+    directory: /crates/cloud/console
     patterns: ["*"]
     multi-ecosystem-group: dependencies
   - package-ecosystem: npm

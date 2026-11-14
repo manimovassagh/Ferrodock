@@ -293,7 +293,7 @@ const SHOWCASE = [
   },
   {
     title: "AWS on your own computer",
-    text: "The cloud emulator: a local emulator of AWS's APIs, written in Rust and 3 MB small. Start it with one click, copy the settings for the AWS CLI, an SDK or Terraform, and build against it with no account. Its web console, in your browser, shows what each service holds and every request your code sends with what came back. STS, IAM and S3 so far, with a bucket browser in the console; more services with each version.",
+    text: "The cloud emulator: a local emulator of AWS's APIs, written in Rust and 3 MB small. Start it with one click, copy the settings for the AWS CLI, an SDK or Terraform, and build against it with no account. Its web console, in your browser, shows what each service holds and every request your code sends with what came back. S3, SQS, IAM and STS so far, with buckets and queues to browse in the console; more services with each version.",
     src: "/img/cloud-console.png",
     alt: "The AWS emulator's web console: the endpoint, buckets, objects and requests at a glance, the services by group and the live activity",
   },

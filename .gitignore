@@ -2,5 +2,6 @@
 /agent/target
 /dist
 /website/node_modules
+/crates/cloud/console/node_modules
 /website/build
 /website/.docusaurus

@@ -79,6 +79,13 @@ pub trait Service: Send + Sync {
     fn inventory(&self, _store: &Store) -> Result<Vec<Listing>, String> {
         Ok(Vec::new())
     }
+
+    /// More than the inventory holds, for the console: `path` names what,
+    /// e.g. SQS's `<queue>/messages`. It only reads, and changes nothing
+    /// (a message looked at this way isn't received).
+    fn browse(&self, _store: &Store, path: &str) -> Result<serde_json::Value, String> {
+        Err(format!("{} has nothing to browse at {path}", self.name()))
+    }
 }
 
 /// One kind of thing a service holds, as the console lists it.
@@ -116,6 +123,7 @@ impl Registry {
             .with(crate::sts::Sts)
             .with(crate::iam::Iam)
             .with(crate::s3::S3)
+            .with(crate::sqs::Sqs::default())
     }
 
     pub fn with(mut self, service: impl Service + 'static) -> Self {

@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use tokio::io::AsyncWriteExt;
 
-use super::md5::{Md5, hex};
+use crate::md5::{Md5, hex};
 use crate::store::Store;
 
 /// The folder under the store's files that objects are in.

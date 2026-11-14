@@ -4,10 +4,10 @@
 //!
 //! - `records.rs`: buckets, objects, versions and uploads, in SQLite.
 //! - `files.rs`: objects' bytes, as files, written and read in pieces.
-//! - `md5.rs`: the hash ETags are made of.
+//!
+//! ETags are MD5s, from `crate::md5`.
 
 pub mod files;
-pub mod md5;
 pub mod records;
 
 pub use files::{Writer, Written};

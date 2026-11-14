@@ -3,6 +3,7 @@ name: Cloud
 # Builds ferrocloud, Ferrodock's cloud emulator (crates/cloud), as the
 # static program its image is made of, for both architectures, and checks
 # the image the way it's used: as a container, with the real AWS CLI.
+# It also checks the web console's TypeScript and its committed bundle.
 # On main the images are then published, once per crates/cloud/VERSION,
 # and pinned for the app to download.
 
@@ -25,6 +26,32 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  # The web console is TypeScript, bundled into console.js, which is
+  # committed so building the emulator needs no Node. This checks the
+  # types, and that the committed bundle is the one its sources make.
+  console:
+    name: Console
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: crates/cloud/console
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: crates/cloud/console/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+      - name: The committed console.js matches its sources
+        run: |
+          if ! git diff --exit-code -- console.js; then
+            echo "::error file=crates/cloud/console/console.js::console.js is out of date: run 'npm run build' in crates/cloud/console and commit it."
+            exit 1
+          fi
+
   image:
     name: Image (${{ matrix.arch }})
     strategy:

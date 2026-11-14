@@ -35,6 +35,8 @@ pub struct App {
     pub registry: Registry,
     pub store: Store,
     pub events: Events,
+    /// When this emulator started, in milliseconds since 1970.
+    pub started: u64,
 }
 
 impl App {
@@ -44,6 +46,7 @@ impl App {
             registry,
             store,
             events: Events::default(),
+            started: clock::now_millis(),
         }))
     }
 }

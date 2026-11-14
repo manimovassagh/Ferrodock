@@ -104,6 +104,10 @@ pub struct Fault {
     pub status: u16,
     pub code: String,
     pub message: String,
+    /// The code in the query protocol, when it differs (SQS's
+    /// `AWS.SimpleQueueService.NonExistentQueue` for `QueueDoesNotExist`).
+    /// JSON replies carry it in `x-amzn-query-error`, where the SDKs look.
+    pub query_code: Option<String>,
 }
 
 impl Fault {
@@ -112,7 +116,14 @@ impl Fault {
             status,
             code: code.to_owned(),
             message: message.into(),
+            query_code: None,
         }
+    }
+
+    /// The same error under another code in the query protocol.
+    pub fn query_code(mut self, code: &str) -> Self {
+        self.query_code = Some(code.to_owned());
+        self
     }
 
     /// The caller asked for something that isn't there or isn't valid.
@@ -141,7 +152,7 @@ impl Fault {
                 } else {
                     "Sender"
                 },
-                xml_escape(&self.code),
+                xml_escape(self.query_code.as_deref().unwrap_or(&self.code)),
                 xml_escape(&self.message),
             ),
             Protocol::RestXml => format!(
@@ -151,8 +162,19 @@ impl Fault {
                 xml_escape(&self.message),
             ),
         };
-        Reply::new(self.status, protocol.content_type(), body)
-            .header("x-amzn-errortype", &self.code)
+        let reply = Reply::new(self.status, protocol.content_type(), body)
+            .header("x-amzn-errortype", &self.code);
+        match (&self.query_code, protocol) {
+            (Some(code), Protocol::Json10 | Protocol::Json11) => {
+                let side = if self.status >= 500 {
+                    "Receiver"
+                } else {
+                    "Sender"
+                };
+                reply.header("x-amzn-query-error", &format!("{code};{side}"))
+            }
+            _ => reply,
+        }
     }
 }
 
@@ -220,6 +242,17 @@ mod tests {
         let rest = Fault::new(404, "NoSuchBucket", "gone").render(Protocol::RestXml, "id-2");
         assert_eq!(rest.status, 404);
         assert!(text(&rest).contains("<Error><Code>NoSuchBucket</Code><Message>gone</Message>"));
+
+        let sqs = Fault::bad_request("QueueDoesNotExist", "gone")
+            .query_code("AWS.SimpleQueueService.NonExistentQueue");
+        let json = sqs.render(Protocol::Json10, "id-3");
+        assert!(text(&json).contains(r#""__type":"QueueDoesNotExist""#));
+        assert!(json.headers.contains(&(
+            "x-amzn-query-error".into(),
+            "AWS.SimpleQueueService.NonExistentQueue;Sender".into()
+        )));
+        let query = sqs.render(Protocol::Query, "id-3");
+        assert!(text(&query).contains("<Code>AWS.SimpleQueueService.NonExistentQueue</Code>"));
 
         let internal = Fault::internal("oops").render(Protocol::Query, "id-3");
         assert!(text(&internal).contains("<Type>Receiver</Type>"));

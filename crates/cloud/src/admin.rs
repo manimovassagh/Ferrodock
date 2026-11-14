@@ -33,6 +33,7 @@ pub fn handle(app: &Arc<App>, method: &Method, path: &str, query: Option<&str>) 
                 "account": crate::ACCOUNT,
                 "region": crate::DEFAULT_REGION,
                 "console": console::PATH,
+                "started": app.started,
             }),
         ),
         (&Method::GET, "services") => json_reply(
@@ -46,6 +47,20 @@ pub fn handle(app: &Arc<App>, method: &Method, path: &str, query: Option<&str>) 
             }),
         ),
         (&Method::GET, "inventory") => json_reply(StatusCode::OK, &console::inventory(app)),
+        (&Method::GET, browse) if browse.starts_with("browse/") => {
+            let rest = &browse["browse/".len()..];
+            let (name, path) = rest.split_once('/').unwrap_or((rest, ""));
+            match app.registry.services().iter().find(|s| s.name() == name) {
+                Some(service) => match service.browse(&app.store, path) {
+                    Ok(value) => json_reply(StatusCode::OK, &value),
+                    Err(error) => json_reply(StatusCode::NOT_FOUND, &json!({ "error": error })),
+                },
+                None => json_reply(
+                    StatusCode::NOT_FOUND,
+                    &json!({ "error": format!("no service {name}") }),
+                ),
+            }
+        }
         (&Method::GET, "console") => redirect(console::PATH),
         (&Method::GET, file) if file.starts_with("console/") => {
             console::serve(&file["console/".len()..])

@@ -8,8 +8,8 @@ use rusqlite::{OptionalExtension, Row, params};
 use serde::{Deserialize, Serialize};
 
 use super::files::{self, Written};
-use super::md5::{Md5, hex};
 use crate::clock;
+use crate::md5::{Md5, hex};
 use crate::store::Store;
 
 /// The version of an object in a bucket that doesn't keep versions.

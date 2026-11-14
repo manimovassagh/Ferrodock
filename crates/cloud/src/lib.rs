@@ -14,9 +14,11 @@
 //! - `capture.rs`: what the record keeps of each request, secrets masked.
 //! - `store.rs`: where data lives: a folder with a SQLite database.
 //! - `clock.rs`: timestamps in the formats the APIs use.
+//! - `md5.rs`: the hash S3's ETags and SQS's checksums are made of.
 //! - `query.rs`: the query protocol's form fields and XML replies.
-//! - `sts/`, `iam/`, `s3/`: the services, one folder each.
+//! - `sts/`, `iam/`, `s3/`, `sqs/`: the services, one folder each.
 //! - `objects/`: object storage with no AWS in it, which S3 is built on.
+//! - `queues/`: message queues with no AWS in it, which SQS is built on.
 
 pub mod admin;
 pub mod capture;
@@ -24,13 +26,16 @@ pub mod clock;
 pub mod console;
 pub mod events;
 pub mod iam;
+pub mod md5;
 pub mod objects;
 pub mod protocol;
 pub mod query;
+pub mod queues;
 pub mod route;
 pub mod s3;
 pub mod server;
 pub mod service;
+pub mod sqs;
 pub mod store;
 pub mod sts;
 
