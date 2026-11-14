@@ -7,6 +7,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.46.0](https://github.com/manimovassagh/Ferrodock/compare/v1.45.0...v1.46.0) - 2026-11-14
+
+### Added
+
+- *(cloud)* SQS, and a console in TypeScript laid out like a cloud console ([#400](https://github.com/manimovassagh/Ferrodock/pull/400))
+
 ## [1.45.0](https://github.com/manimovassagh/Ferrodock/compare/v1.44.0...v1.45.0) - 2026-11-13
 
 ### Added
