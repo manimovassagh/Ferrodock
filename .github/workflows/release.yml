@@ -78,6 +78,8 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      # The release PR's "Release order" status (release-order.yml).
+      statuses: write
     concurrency:
       group: release-plz-pr
       cancel-in-progress: false
@@ -108,3 +110,9 @@ jobs:
           # A personal access token in RELEASE_PLZ_TOKEN lets CI run on the
           # release PR; PRs opened with the default token don't trigger CI.
           GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN || secrets.GITHUB_TOKEN }}
+      # On the release PR as it now is: red while an emulator pin is open.
+      - name: Mark the release PR's order
+        if: steps.main.outputs.moved != 'true'
+        run: .github/scripts/release-order.sh
+        env:
+          GH_TOKEN: ${{ github.token }}

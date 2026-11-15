@@ -1,0 +1,35 @@
+name: Release order
+
+# A release PR shouldn't be merged while a PR pinning a new cloud emulator
+# image is open: the release would ship the previous emulator. This keeps
+# a "Release order" status on each release PR, red until the pin is in.
+# It runs whenever a PR opens, changes or closes; the Cloud and Release
+# workflows also run the same script right after they open or update
+# their PRs, since PRs made with the default token start no workflows.
+#
+# pull_request_target runs this repository's own copy of the script, never
+# a PR's, so it's safe for PRs from forks and bots too.
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, closed]
+
+permissions:
+  pull-requests: read
+  statuses: write
+
+concurrency:
+  group: release-order
+  cancel-in-progress: false
+
+jobs:
+  status:
+    name: Mark the release PR
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - run: .github/scripts/release-order.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
