@@ -1,0 +1,15 @@
+ferrocloud console
+
+The console's look (colours, spacing, type, and the patterns of its
+dialogs, forms, tables and pages) follows Cloudscape Design System,
+AWS's open-source design system:
+
+  Cloudscape Design System
+  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+  Licensed under the Apache License, Version 2.0
+  https://github.com/cloudscape-design/components
+  https://www.apache.org/licenses/LICENSE-2.0
+
+No Cloudscape code is included: the console is written in its own
+TypeScript and CSS, after Cloudscape's published patterns and tokens.
+The console uses ferrocloud's own name, logo and icons, not AWS's.

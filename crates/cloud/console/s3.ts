@@ -6,7 +6,9 @@
 
 import { icon, serviceTile } from "./catalog";
 import { $, bytes, h, plural } from "./dom";
+import { confirmDanger, dialog } from "./dialog";
 import { button, closeDrawer, container, crumbs, empty, filterBox, heading, iconButton, notice, openDrawer, table } from "./frame";
+import { field, textInput } from "./form";
 import { matches, service } from "./state";
 import type { Browser, Update } from "./types";
 
@@ -80,22 +82,23 @@ async function openObject(bucket: string, object: S3Object, reload: () => void):
     ];
     return h("dl", null, rows.filter(([, v]) => v).map(([k, v, mono]) => [h("dt", null, k), h("dd", { class: mono ? "mono" : null }, v)]));
   };
-  const remove = async () => {
-    if (!confirm(`Delete ${object.key}? This can't be undone.`)) return;
-    try {
-      await s3("DELETE", url);
-      closeDrawer();
-      notice(`Deleted ${object.key}`);
-      reload();
-    } catch (e) {
-      notice((e as Error).message, "bad");
-    }
-  };
+  const remove = () =>
+    confirmDanger({
+      title: `Delete ${name}?`,
+      warning: `The object ${object.key} (${bytes(object.size)}) is deleted. This can't be undone.`,
+      action: "Delete object",
+      run: async () => {
+        await s3("DELETE", url);
+        closeDrawer();
+        notice(`Deleted ${object.key}`);
+        reload();
+      },
+    });
   const actions = h(
     "div",
     { class: "actions" },
     h("a", { class: "button primary", href: url, download: name }, icon("download", 16), "Download"),
-    button([icon("trash", 16), "Delete"], () => void remove(), "danger"),
+    button([icon("trash", 16), "Delete"], remove, "danger"),
   );
   openDrawer(name, facts(""), actions);
   try {
@@ -254,21 +257,44 @@ function bucketPage(main: HTMLElement, path: string): Update {
   };
 }
 
-async function newBucket(): Promise<void> {
-  const name = prompt("Name of the new bucket (lowercase letters, digits, dots and dashes):")?.trim();
-  if (!name) return;
-  try {
-    await s3("PUT", `/${encodeURIComponent(name)}`);
-    notice(`Created bucket ${name}`);
-    location.hash = `#/s/s3/${encodeURIComponent(name)}/`;
-  } catch (e) {
-    notice((e as Error).message, "bad");
-  }
+/** What's wrong with a bucket name, by S3's rules, or null. */
+export function bucketNameProblem(name: string): string | null {
+  if (name.length < 3 || name.length > 63) return "Bucket names are 3 to 63 characters long.";
+  if (!/^[a-z0-9.-]+$/.test(name)) return "Bucket names can use only lowercase letters, numbers, dots (.) and hyphens (-).";
+  if (!/^[a-z0-9].*[a-z0-9]$/.test(name)) return "Bucket names start and end with a letter or a number.";
+  if (name.includes("..")) return "Bucket names can't have two dots in a row.";
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(name)) return "Bucket names can't look like an IP address.";
+  return null;
+}
+
+/** Asks for a new bucket's name, checked as it's typed, and makes it. */
+function newBucket(): void {
+  const name = textInput({ placeholder: "my-bucket", mono: true });
+  const nameField = field("Bucket name", name, {
+    constraint: "3 to 63 characters: lowercase letters, numbers, dots (.) and hyphens (-), starting and ending with a letter or number.",
+  });
+  const open = dialog({
+    title: "Create bucket",
+    body: [nameField.el],
+    action: "Create bucket",
+    confirm: async () => {
+      const bucket = name.value.trim();
+      await s3("PUT", `/${encodeURIComponent(bucket)}`);
+      notice(`Created bucket ${bucket}`);
+      location.hash = `#/s/s3/${encodeURIComponent(bucket)}/`;
+    },
+  });
+  open.enable(false);
+  name.addEventListener("input", () => {
+    const problem = name.value ? bucketNameProblem(name.value.trim()) : null;
+    nameField.error(problem);
+    open.enable(Boolean(name.value) && !problem);
+  });
 }
 
 export const s3Browser: Browser = {
   noun: "bucket",
   open: (item) => (location.hash = `#/s/s3/${encodeURIComponent(item.cells[0])}/`),
   page: bucketPage,
-  create: () => void newBucket(),
+  create: newBucket,
 };

@@ -6,7 +6,9 @@
 
 import { icon, serviceTile } from "./catalog";
 import { copy, h, time } from "./dom";
+import { confirmDanger, dialog } from "./dialog";
 import { button, container, crumbs, empty, heading, iconButton, notice, openDrawer, table } from "./frame";
+import { field, radioTiles, textInput } from "./form";
 import { get, service, state } from "./state";
 import type { Browser, Item, Update } from "./types";
 
@@ -176,34 +178,38 @@ function queuePage(main: HTMLElement, path: string): Update {
       notice((e as Error).message, "bad");
     }
   };
-  const purge = async () => {
-    if (!confirm(`Delete every message in ${name}?`)) return;
-    try {
-      await sqs("PurgeQueue", { QueueUrl: url });
-      notice(`Purged ${name}`);
-      void load();
-    } catch (e) {
-      notice((e as Error).message, "bad");
-    }
-  };
-  const remove = async () => {
-    if (!confirm(`Delete the queue ${name} and its messages? This can't be undone.`)) return;
-    try {
-      await sqs("DeleteQueue", { QueueUrl: url });
-      notice(`Deleted ${name}`);
-      location.hash = "#/s/sqs";
-    } catch (e) {
-      notice((e as Error).message, "bad");
-    }
-  };
+  const purge = () =>
+    confirmDanger({
+      title: `Purge ${name}?`,
+      warning: "Every message in the queue is deleted, those in flight and delayed too. This can't be undone.",
+      typeName: "purge",
+      action: "Purge",
+      run: async () => {
+        await sqs("PurgeQueue", { QueueUrl: url });
+        notice(`Purged ${name}`);
+        void load();
+      },
+    });
+  const remove = () =>
+    confirmDanger({
+      title: `Delete queue ${name}?`,
+      warning: "The queue and every message in it are deleted. This can't be undone.",
+      typeName: name,
+      action: "Delete queue",
+      run: async () => {
+        await sqs("DeleteQueue", { QueueUrl: url });
+        notice(`Deleted ${name}`);
+        location.hash = "#/s/sqs";
+      },
+    });
 
   main.replaceChildren(
     crumbs(["SQS", "#/s/sqs"], ["Queues", "#/s/sqs"], [name, null]),
     heading(
       h("span", { class: "with-tile" }, serviceTile("sqs", 40), name),
       fifo ? "FIFO queue" : "Standard queue",
-      iconButton("trash", "Purge", () => void purge()),
-      iconButton("trash", "Delete", () => void remove(), "danger"),
+      iconButton("trash", "Purge", purge),
+      iconButton("trash", "Delete", remove, "danger"),
     ),
     h(
       "div",
@@ -248,22 +254,60 @@ function queuePage(main: HTMLElement, path: string): Update {
   };
 }
 
-async function newQueue(): Promise<void> {
-  const name = prompt("Name of the new queue (end it in .fifo for a FIFO queue):")?.trim();
-  if (!name) return;
-  const attributes: Record<string, string> = name.endsWith(".fifo") ? { FifoQueue: "true", ContentBasedDeduplication: "true" } : {};
-  try {
-    await sqs("CreateQueue", { QueueName: name, Attributes: attributes });
-    notice(`Created queue ${name}`);
-    location.hash = `#/s/sqs/${encodeURIComponent(name)}`;
-  } catch (e) {
-    notice((e as Error).message, "bad");
-  }
+/** What's wrong with a queue name, or null; FIFO queues' end in `.fifo`. */
+export function queueNameProblem(name: string, fifo: boolean): string | null {
+  const base = fifo ? name.replace(/\.fifo$/, "") : name;
+  if (!base || name.length > 80) return "A queue name has 1 to 80 characters.";
+  if (!/^[A-Za-z0-9_-]+$/.test(base)) return "A queue name can use only letters, numbers, hyphens (-) and underscores (_).";
+  return null;
+}
+
+/** Asks for a new queue's type and name, checked as they're given, and makes it. */
+function newQueue(): void {
+  const type = radioTiles(
+    "queue-type",
+    [
+      { value: "standard", title: "Standard", about: "At-least-once delivery; order isn't kept." },
+      { value: "fifo", title: "FIFO", about: "First in, first out, each message once." },
+    ],
+    "standard",
+  );
+  const name = textInput({ placeholder: "my-queue", mono: true });
+  const suffix = h("span", { class: "suffix mono", hidden: true }, ".fifo");
+  const nameField = field("Name", h("div", { class: "with-suffix" }, name, suffix), {
+    constraint: "Up to 80 characters: letters, numbers, hyphens (-) and underscores (_). Case matters.",
+  });
+  const fifo = () => type.value() === "fifo";
+  const full = () => {
+    const given = name.value.trim();
+    return fifo() && !given.endsWith(".fifo") ? `${given}.fifo` : given;
+  };
+  const open = dialog({
+    title: "Create queue",
+    body: [h("div", { class: "field" }, h("label", null, "Type"), h("div", { class: "field-hint" }, "You can't change it once the queue is made."), type.el), nameField.el],
+    action: "Create queue",
+    confirm: async () => {
+      const queue = full();
+      const attributes: Record<string, string> = fifo() ? { FifoQueue: "true", ContentBasedDeduplication: "true" } : {};
+      await sqs("CreateQueue", { QueueName: queue, Attributes: attributes });
+      notice(`Created queue ${queue}`);
+      location.hash = `#/s/sqs/${encodeURIComponent(queue)}`;
+    },
+  });
+  const check = () => {
+    suffix.hidden = !fifo() || name.value.trim().endsWith(".fifo");
+    const problem = name.value ? queueNameProblem(full(), fifo()) : null;
+    nameField.error(problem);
+    open.enable(Boolean(name.value.trim()) && !problem);
+  };
+  open.enable(false);
+  name.addEventListener("input", check);
+  type.onChange(check);
 }
 
 export const sqsBrowser: Browser = {
   noun: "queue",
   open: (item) => (location.hash = `#/s/sqs/${encodeURIComponent(item.cells[0])}`),
   page: queuePage,
-  create: () => void newQueue(),
+  create: newQueue,
 };
