@@ -1,12 +1,12 @@
 {
-  "version": "1.46.0",
+  "version": "1.46.1",
   "description": "The native container manager, written in Rust",
   "homepage": "https://manimovassagh.github.io/Ferrodock/",
   "license": "MIT",
   "architecture": {
     "64bit": {
-      "url": "https://github.com/manimovassagh/Ferrodock/releases/download/v1.46.0/Ferrodock-1.46.0-windows-x64.zip",
-      "hash": "3423ef5423392dec52a7993e11e7c98640fed48b9a8679df6e412f67f84403ac"
+      "url": "https://github.com/manimovassagh/Ferrodock/releases/download/v1.46.1/Ferrodock-1.46.1-windows-x64.zip",
+      "hash": "16e6a2d7cf650e7ec9d9e4bf444ebe1c9c167203149bce45658f5a326322d0a9"
     }
   },
   "bin": [
