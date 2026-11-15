@@ -3,6 +3,7 @@
 
 import { catalogue, category, icon, look, ordered, serviceTile, tileOf } from "./catalog";
 import { type Child, copy, duration, h, sender, time } from "./dom";
+import { confirmDanger } from "./dialog";
 import { BROWSERS, button, container, heading, iconButton, notice } from "./frame";
 import { statusPill, operation } from "./requests";
 import { API, services, state } from "./state";
@@ -325,10 +326,18 @@ function createMenu(): Child {
   return h("span", { class: "dropdown-holder" }, toggle, menu);
 }
 
-async function reset(): Promise<void> {
-  if (!confirm("Empty the emulator? Every bucket, queue, role and request it holds is deleted.")) return;
-  const response = await fetch(`${API}reset`, { method: "POST" });
-  notice(response.ok ? "The emulator is empty." : "The emulator couldn't be emptied.", response.ok ? "ok" : "bad");
+function reset(): void {
+  confirmDanger({
+    title: "Empty the emulator?",
+    warning: "Every bucket, object, queue, message, role and request it holds is deleted. This can't be undone.",
+    typeName: "empty",
+    action: "Empty the emulator",
+    run: async () => {
+      const response = await fetch(`${API}reset`, { method: "POST" });
+      if (!response.ok) throw new Error("The emulator couldn't be emptied.");
+      notice("The emulator is empty.");
+    },
+  });
 }
 
 export const home: Page = (main) => {
@@ -339,7 +348,7 @@ export const home: Page = (main) => {
       heading(
         "Console Home",
         "Your local AWS, on this computer. Nothing here leaves it, and nothing is billed.",
-        iconButton("refresh", "Reset data", () => void reset()),
+        iconButton("refresh", "Reset data", reset),
         createMenu(),
       ),
       h(

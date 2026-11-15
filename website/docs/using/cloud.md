@@ -69,11 +69,17 @@ laid out like a cloud provider's console:
 - **S3**: **Create bucket**; a bucket's folders and objects, with
   **Upload** (or files dropped on the page), and each object's details,
   **Download** and **Delete**.
-- **SQS**: **Create queue** (a name ending in `.fifo` makes a FIFO queue);
+- **SQS**: **Create queue**, Standard or FIFO (a FIFO queue's name gets
+  its `.fifo` ending for you);
   a queue's messages available, in flight and delayed, its settings and
   dead-letter queue, a form to send a message, and the messages in it,
   looked at without receiving them, so nothing is hidden or counted.
   **Purge** and **Delete** are there too.
+- **Creating and deleting** happen in dialogs in the page. A name is
+  checked as you type it, with what's wrong said under it, and **Create**
+  waits until it's right. What can't be undone asks you to type a word
+  first: the queue's name to delete it, `purge` to purge it, `empty` to
+  empty the emulator.
 - **Requests**: every request the emulator answered, newest first. Click
   one to see what was sent and what came back, laid out as JSON or XML,
   with secrets masked.
@@ -89,6 +95,8 @@ or dark setting.
 ![A queue in the web console: its counts and settings, the send form, and its messages](/img/cloud-console-sqs.png)
 
 ![A bucket's folder in the web console, one object opened](/img/cloud-console-s3.png)
+
+![Create queue: Standard or FIFO, and the name checked as it's typed](/img/cloud-console-create.png)
 
 ## Connecting your tools
 

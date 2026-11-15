@@ -3,7 +3,8 @@
 //
 // Files: types.ts (the API's shapes), dom.ts (building elements),
 // state.ts (what's known, and fetching), catalog.ts (how services look),
-// frame.ts (the frame and shared pieces), home.ts, service.ts and
+// frame.ts (the frame and shared pieces), dialog.ts and form.ts (dialogs
+// and form fields, instead of the browser's own), home.ts, service.ts and
 // requests.ts (the pages), s3.ts and sqs.ts (services' own browsers).
 
 import { $ } from "./dom";

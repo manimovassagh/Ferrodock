@@ -57,11 +57,15 @@
   async function copy(text, button2) {
     try {
       await navigator.clipboard.writeText(text);
-      button2.classList.add("done");
-      setTimeout(() => button2.classList.remove("done"), 1400);
     } catch {
-      prompt("Copy this:", text);
+      const area = h("textarea", { style: "position:fixed;opacity:0" }, text);
+      document.body.append(area);
+      area.select();
+      document.execCommand("copy");
+      area.remove();
     }
+    button2.classList.add("done");
+    setTimeout(() => button2.classList.remove("done"), 1400);
   }
   function expanded(value) {
     if (typeof value === "string" && /^\s*[{[]/.test(value)) {
@@ -511,6 +515,135 @@
     return items.filter((item) => matches(item.cells));
   }
 
+  // form.ts
+  function field(label, control, options = {}) {
+    const error = h("div", { class: "field-error", hidden: true });
+    const el = h(
+      "div",
+      { class: "field" },
+      h("label", null, label, options.optional ? h("span", { class: "optional" }, " - optional") : null),
+      options.hint ? h("div", { class: "field-hint" }, options.hint) : null,
+      control,
+      error,
+      options.constraint ? h("div", { class: "field-constraint" }, options.constraint) : null
+    );
+    return {
+      el,
+      error(message) {
+        error.hidden = !message;
+        error.textContent = message ? `⚠ ${message}` : "";
+        control.classList.toggle("invalid", Boolean(message));
+      }
+    };
+  }
+  function textInput(options = {}) {
+    return h("input", {
+      class: `input${options.mono ? " mono" : ""}`,
+      type: "text",
+      value: options.value ?? "",
+      placeholder: options.placeholder ?? "",
+      autocomplete: "off",
+      spellcheck: "false"
+    });
+  }
+  function radioTiles(name, choices, chosen) {
+    let current2 = chosen;
+    const listeners = [];
+    const tiles = choices.map((choice) => {
+      const input = h("input", { type: "radio", name, value: choice.value, checked: choice.value === chosen });
+      const tile = h("label", { class: `tile-choice${choice.value === chosen ? " on" : ""}` }, input, h("span", null, h("b", null, choice.title), h("small", null, choice.about)));
+      input.addEventListener("change", () => {
+        current2 = choice.value;
+        tiles.forEach((t) => t.classList.toggle("on", t === tile));
+        listeners.forEach((listen) => listen(current2));
+      });
+      return tile;
+    });
+    return {
+      el: h("div", { class: "tiles" }, tiles),
+      value: () => current2,
+      onChange: (listener) => listeners.push(listener)
+    };
+  }
+
+  // dialog.ts
+  function dialog(options) {
+    const problem = h("div", { class: "alert bad", hidden: true });
+    const main = h("button", { class: `button ${options.danger ? "danger" : "primary"}` }, options.action);
+    const backdrop = h(
+      "div",
+      { class: "backdrop", role: "presentation" },
+      h(
+        "div",
+        { class: "dialog", role: "dialog", "aria-modal": "true", "aria-label": options.title },
+        h("header", null, h("h2", null, options.title), h("button", { class: "close", title: "Close", onclick: () => close() }, "×")),
+        h("div", { class: "dialog-body" }, problem, options.body),
+        h("footer", null, h("button", { class: "button link", onclick: () => close() }, "Cancel"), main)
+      )
+    );
+    const before = document.activeElement;
+    const close = () => {
+      backdrop.remove();
+      removeEventListener("keydown", keys, true);
+      before?.focus();
+    };
+    const focusable = () => [...backdrop.querySelectorAll("input, button:not([disabled]), select, textarea")];
+    const keys = (e) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        close();
+      }
+      if (e.key === "Enter" && !(e.target instanceof HTMLTextAreaElement) && !main.disabled) {
+        e.preventDefault();
+        main.click();
+      }
+      if (e.key === "Tab") {
+        const all = focusable();
+        const at = all.indexOf(document.activeElement);
+        const next = e.shiftKey ? at <= 0 ? all.length - 1 : at - 1 : (at + 1) % all.length;
+        e.preventDefault();
+        all[next]?.focus();
+      }
+    };
+    main.addEventListener("click", async () => {
+      main.disabled = true;
+      problem.hidden = true;
+      try {
+        await options.confirm();
+        close();
+      } catch (e) {
+        problem.textContent = e.message;
+        problem.hidden = false;
+        main.disabled = false;
+      }
+    });
+    backdrop.addEventListener("mousedown", (e) => {
+      if (e.target === backdrop) close();
+    });
+    addEventListener("keydown", keys, true);
+    document.body.append(backdrop);
+    (focusable().find((el) => el.tagName === "INPUT") ?? main).focus();
+    return {
+      enable(on) {
+        main.disabled = !on;
+      }
+    };
+  }
+  function confirmDanger(options) {
+    const body = [h("div", { class: "alert warn" }, h("span", null, options.warning))];
+    let typed = null;
+    if (options.typeName) {
+      typed = textInput({ placeholder: options.typeName, mono: true });
+      body.push(field(`To confirm, type "${options.typeName}" in the field.`, typed).el);
+    }
+    const open = dialog({ title: options.title, body, action: options.action, danger: true, confirm: options.run });
+    if (typed) {
+      const input = typed;
+      open.enable(false);
+      input.addEventListener("input", () => open.enable(input.value === options.typeName));
+    }
+  }
+
   // requests.ts
   function statusPill(r) {
     return h("span", { class: `status ${r.status < 400 ? "ok" : "bad"}` }, r.error ? `${r.status} ${r.error}` : String(r.status));
@@ -870,10 +1003,18 @@
     addEventListener("click", () => menu.hidden = true, { once: true });
     return h("span", { class: "dropdown-holder" }, toggle, menu);
   }
-  async function reset() {
-    if (!confirm("Empty the emulator? Every bucket, queue, role and request it holds is deleted.")) return;
-    const response = await fetch(`${API}reset`, { method: "POST" });
-    notice(response.ok ? "The emulator is empty." : "The emulator couldn't be emptied.", response.ok ? "ok" : "bad");
+  function reset() {
+    confirmDanger({
+      title: "Empty the emulator?",
+      warning: "Every bucket, object, queue, message, role and request it holds is deleted. This can't be undone.",
+      typeName: "empty",
+      action: "Empty the emulator",
+      run: async () => {
+        const response = await fetch(`${API}reset`, { method: "POST" });
+        if (!response.ok) throw new Error("The emulator couldn't be emptied.");
+        notice("The emulator is empty.");
+      }
+    });
   }
   var home = (main) => {
     let seen = state.last;
@@ -883,7 +1024,7 @@
         heading(
           "Console Home",
           "Your local AWS, on this computer. Nothing here leaves it, and nothing is billed.",
-          iconButton("refresh", "Reset data", () => void reset()),
+          iconButton("refresh", "Reset data", reset),
           createMenu()
         ),
         h(
@@ -956,22 +1097,22 @@
       ];
       return h("dl", null, rows.filter(([, v]) => v).map(([k, v, mono]) => [h("dt", null, k), h("dd", { class: mono ? "mono" : null }, v)]));
     };
-    const remove = async () => {
-      if (!confirm(`Delete ${object.key}? This can't be undone.`)) return;
-      try {
+    const remove = () => confirmDanger({
+      title: `Delete ${name}?`,
+      warning: `The object ${object.key} (${bytes(object.size)}) is deleted. This can't be undone.`,
+      action: "Delete object",
+      run: async () => {
         await s3("DELETE", url);
         closeDrawer();
         notice(`Deleted ${object.key}`);
         reload();
-      } catch (e) {
-        notice(e.message, "bad");
       }
-    };
+    });
     const actions = h(
       "div",
       { class: "actions" },
       h("a", { class: "button primary", href: url, download: name }, icon("download", 16), "Download"),
-      button([icon("trash", 16), "Delete"], () => void remove(), "danger")
+      button([icon("trash", 16), "Delete"], remove, "danger")
     );
     openDrawer(name, facts(""), actions);
     try {
@@ -1107,22 +1248,42 @@
       }
     };
   }
-  async function newBucket() {
-    const name = prompt("Name of the new bucket (lowercase letters, digits, dots and dashes):")?.trim();
-    if (!name) return;
-    try {
-      await s3("PUT", `/${encodeURIComponent(name)}`);
-      notice(`Created bucket ${name}`);
-      location.hash = `#/s/s3/${encodeURIComponent(name)}/`;
-    } catch (e) {
-      notice(e.message, "bad");
-    }
+  function bucketNameProblem(name) {
+    if (name.length < 3 || name.length > 63) return "Bucket names are 3 to 63 characters long.";
+    if (!/^[a-z0-9.-]+$/.test(name)) return "Bucket names can use only lowercase letters, numbers, dots (.) and hyphens (-).";
+    if (!/^[a-z0-9].*[a-z0-9]$/.test(name)) return "Bucket names start and end with a letter or a number.";
+    if (name.includes("..")) return "Bucket names can't have two dots in a row.";
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(name)) return "Bucket names can't look like an IP address.";
+    return null;
+  }
+  function newBucket() {
+    const name = textInput({ placeholder: "my-bucket", mono: true });
+    const nameField = field("Bucket name", name, {
+      constraint: "3 to 63 characters: lowercase letters, numbers, dots (.) and hyphens (-), starting and ending with a letter or number."
+    });
+    const open = dialog({
+      title: "Create bucket",
+      body: [nameField.el],
+      action: "Create bucket",
+      confirm: async () => {
+        const bucket = name.value.trim();
+        await s3("PUT", `/${encodeURIComponent(bucket)}`);
+        notice(`Created bucket ${bucket}`);
+        location.hash = `#/s/s3/${encodeURIComponent(bucket)}/`;
+      }
+    });
+    open.enable(false);
+    name.addEventListener("input", () => {
+      const problem = name.value ? bucketNameProblem(name.value.trim()) : null;
+      nameField.error(problem);
+      open.enable(Boolean(name.value) && !problem);
+    });
   }
   var s3Browser = {
     noun: "bucket",
     open: (item) => location.hash = `#/s/s3/${encodeURIComponent(item.cells[0])}/`,
     page: bucketPage,
-    create: () => void newBucket()
+    create: newBucket
   };
 
   // service.ts
@@ -1325,33 +1486,35 @@
         notice(e.message, "bad");
       }
     };
-    const purge = async () => {
-      if (!confirm(`Delete every message in ${name}?`)) return;
-      try {
+    const purge = () => confirmDanger({
+      title: `Purge ${name}?`,
+      warning: "Every message in the queue is deleted, those in flight and delayed too. This can't be undone.",
+      typeName: "purge",
+      action: "Purge",
+      run: async () => {
         await sqs("PurgeQueue", { QueueUrl: url });
         notice(`Purged ${name}`);
         void load();
-      } catch (e) {
-        notice(e.message, "bad");
       }
-    };
-    const remove = async () => {
-      if (!confirm(`Delete the queue ${name} and its messages? This can't be undone.`)) return;
-      try {
+    });
+    const remove = () => confirmDanger({
+      title: `Delete queue ${name}?`,
+      warning: "The queue and every message in it are deleted. This can't be undone.",
+      typeName: name,
+      action: "Delete queue",
+      run: async () => {
         await sqs("DeleteQueue", { QueueUrl: url });
         notice(`Deleted ${name}`);
         location.hash = "#/s/sqs";
-      } catch (e) {
-        notice(e.message, "bad");
       }
-    };
+    });
     main.replaceChildren(
       crumbs(["SQS", "#/s/sqs"], ["Queues", "#/s/sqs"], [name, null]),
       heading(
         h("span", { class: "with-tile" }, serviceTile("sqs", 40), name),
         fifo ? "FIFO queue" : "Standard queue",
-        iconButton("trash", "Purge", () => void purge()),
-        iconButton("trash", "Delete", () => void remove(), "danger")
+        iconButton("trash", "Purge", purge),
+        iconButton("trash", "Delete", remove, "danger")
       ),
       h(
         "div",
@@ -1393,23 +1556,58 @@
       }
     };
   }
-  async function newQueue() {
-    const name = prompt("Name of the new queue (end it in .fifo for a FIFO queue):")?.trim();
-    if (!name) return;
-    const attributes = name.endsWith(".fifo") ? { FifoQueue: "true", ContentBasedDeduplication: "true" } : {};
-    try {
-      await sqs("CreateQueue", { QueueName: name, Attributes: attributes });
-      notice(`Created queue ${name}`);
-      location.hash = `#/s/sqs/${encodeURIComponent(name)}`;
-    } catch (e) {
-      notice(e.message, "bad");
-    }
+  function queueNameProblem(name, fifo) {
+    const base = fifo ? name.replace(/\.fifo$/, "") : name;
+    if (!base || name.length > 80) return "A queue name has 1 to 80 characters.";
+    if (!/^[A-Za-z0-9_-]+$/.test(base)) return "A queue name can use only letters, numbers, hyphens (-) and underscores (_).";
+    return null;
+  }
+  function newQueue() {
+    const type = radioTiles(
+      "queue-type",
+      [
+        { value: "standard", title: "Standard", about: "At-least-once delivery; order isn't kept." },
+        { value: "fifo", title: "FIFO", about: "First in, first out, each message once." }
+      ],
+      "standard"
+    );
+    const name = textInput({ placeholder: "my-queue", mono: true });
+    const suffix = h("span", { class: "suffix mono", hidden: true }, ".fifo");
+    const nameField = field("Name", h("div", { class: "with-suffix" }, name, suffix), {
+      constraint: "Up to 80 characters: letters, numbers, hyphens (-) and underscores (_). Case matters."
+    });
+    const fifo = () => type.value() === "fifo";
+    const full = () => {
+      const given = name.value.trim();
+      return fifo() && !given.endsWith(".fifo") ? `${given}.fifo` : given;
+    };
+    const open = dialog({
+      title: "Create queue",
+      body: [h("div", { class: "field" }, h("label", null, "Type"), h("div", { class: "field-hint" }, "You can't change it once the queue is made."), type.el), nameField.el],
+      action: "Create queue",
+      confirm: async () => {
+        const queue = full();
+        const attributes = fifo() ? { FifoQueue: "true", ContentBasedDeduplication: "true" } : {};
+        await sqs("CreateQueue", { QueueName: queue, Attributes: attributes });
+        notice(`Created queue ${queue}`);
+        location.hash = `#/s/sqs/${encodeURIComponent(queue)}`;
+      }
+    });
+    const check = () => {
+      suffix.hidden = !fifo() || name.value.trim().endsWith(".fifo");
+      const problem = name.value ? queueNameProblem(full(), fifo()) : null;
+      nameField.error(problem);
+      open.enable(Boolean(name.value.trim()) && !problem);
+    };
+    open.enable(false);
+    name.addEventListener("input", check);
+    type.onChange(check);
   }
   var sqsBrowser = {
     noun: "queue",
     open: (item) => location.hash = `#/s/sqs/${encodeURIComponent(item.cells[0])}`,
     page: queuePage,
-    create: () => void newQueue()
+    create: newQueue
   };
 
   // main.ts
