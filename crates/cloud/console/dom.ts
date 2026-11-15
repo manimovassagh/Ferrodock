@@ -81,11 +81,16 @@ export function duration(ms: number): string {
 export async function copy(text: string, button: HTMLElement): Promise<void> {
   try {
     await navigator.clipboard.writeText(text);
-    button.classList.add("done");
-    setTimeout(() => button.classList.remove("done"), 1400);
   } catch {
-    prompt("Copy this:", text);
+    // Without the clipboard API (a page not on localhost, say): the old way.
+    const area = h("textarea", { style: "position:fixed;opacity:0" }, text);
+    document.body.append(area);
+    area.select();
+    document.execCommand("copy");
+    area.remove();
   }
+  button.classList.add("done");
+  setTimeout(() => button.classList.remove("done"), 1400);
 }
 
 /** A record with the JSON kept in its text fields opened up. */
