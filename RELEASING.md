@@ -25,6 +25,23 @@ platform has built. If a build fails, hangs (each has a time limit) or is
 cancelled, the workflow opens an issue, "Release vX.Y.Z didn't finish",
 saying how to finish it (see below).
 
+### The cloud emulator goes first
+
+The app downloads the cloud emulator image pinned in
+`crates/core/src/cloud/SHA256SUMS`. When a new emulator version is
+published, the [Cloud workflow](.github/workflows/cloud.yml) opens a PR
+that pins it, titled `chore(cloud): use cloud-vX.Y.Z`. A release merged
+before that PR ships the previous emulator.
+
+So while a pin PR is open, the release PR carries a red **Release order**
+status: "Merge #N first". Merge the pin PR; the status turns green, and
+the release PR can go. It's kept up to date by
+[release-order.yml](.github/workflows/release-order.yml) and by the Cloud
+and Release workflows, which run the same
+[script](.github/scripts/release-order.sh) right after they open or update
+their PRs. To make it binding, add **Release order** to the required
+checks of `main`'s branch protection.
+
 When two release PRs are merged close together, their releases can finish
 in either order. Only the highest version is marked **latest** and goes
 into the Homebrew cask, so neither goes backwards.
